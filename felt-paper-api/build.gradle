@@ -1,0 +1,65 @@
+plugins {
+    id 'java-library'
+}
+
+version = paper_api_version
+
+java { withSourcesJar() }
+sourceSets.main.java {
+    srcDir rootProject.layout.buildDirectory.dir('paper-patched/paper-api/paper-api/src/main/java')
+    srcDir rootProject.layout.buildDirectory.dir('paper-patched/paper-api/paper-api/src/generated/java')
+}
+
+dependencies {
+    api "com.google.guava:guava:${paper_guava_version}"
+    api "com.google.code.gson:gson:${paper_gson_version}"
+    api "org.yaml:snakeyaml:${paper_snakeyaml_version}"
+    api("org.joml:joml:${joml_version}") { transitive = false }
+    api "it.unimi.dsi:fastutil:${fastutil_version}"
+    api "org.apache.logging.log4j:log4j-api:${paper_log4j_version}"
+    api "org.slf4j:slf4j-api:${slf4j_version}"
+    api "com.mojang:brigadier:${brigadier_version}"
+    api("net.md-5:bungeecord-chat:${paper_bungeecord_version}") { exclude group: 'com.google.guava', module: 'guava' }
+    api platform("net.kyori:adventure-bom:${adventure_version}")
+    api "net.kyori:adventure-api"
+    api "net.kyori:adventure-text-minimessage"
+    api "net.kyori:adventure-text-serializer-gson"
+    api "net.kyori:adventure-text-serializer-legacy"
+    api "net.kyori:adventure-text-serializer-plain"
+    api "net.kyori:adventure-text-logger-slf4j"
+    api "org.apache.maven:maven-resolver-provider:${maven_provider_version}"
+    implementation "org.apache.maven.resolver:maven-resolver-connector-basic:${maven_resolver_version}"
+    implementation "org.apache.maven.resolver:maven-resolver-transport-http:${maven_resolver_version}"
+    compileOnly "org.jetbrains:annotations:${paper_annotations_version}"
+    compileOnlyApi "org.checkerframework:checker-qual:${checker_qual_version}"
+    api "org.jspecify:jspecify:${jspecify_version}"
+}
+
+def metadataDir = layout.buildDirectory.dir('generated-api-resources')
+def generateApiVersioning = tasks.register('generateApiVersioning') {
+    inputs.property('version', project.version.toString())
+    inputs.property('currentApiVersion', minecraft_version)
+    outputs.dir(metadataDir)
+    doLast {
+        def output = metadataDir.get().file('apiVersioning.json').asFile
+        output.parentFile.mkdirs()
+        output.text = groovy.json.JsonOutput.toJson([
+            version: project.version.toString(),
+            currentApiVersion: minecraft_version
+        ])
+    }
+}
+sourceSets.main.resources.srcDir(generateApiVersioning)
+tasks.named('compileJava') {
+    dependsOn rootProject.tasks.named('applyPaperPatches')
+    options.encoding = 'UTF-8'
+}
+tasks.named('sourcesJar') { dependsOn rootProject.tasks.named('applyPaperPatches') }
+tasks.named('jar') {
+    dependsOn rootProject.tasks.named('applyPaperPatches')
+    manifest.attributes 'Automatic-Module-Name': 'org.bukkit'
+    from(rootProject.layout.buildDirectory.dir('paper-patched/paper-api')) {
+        include 'LICENSE.md', 'licenses/**'
+        into 'META-INF/paper'
+    }
+}

@@ -1,0 +1,194 @@
+import gr1mly4memes.felt.gradle.tasks.UploadFilesTask
+
+plugins {
+    id 'net.fabricmc.fabric-loom' apply false
+    id 'com.gradleup.shadow' version "${gradleup_shadow_version}" apply false
+}
+
+allprojects {
+    apply plugin: 'java'
+
+    group 'gr1mly4memes.felt'
+    version '1.1.0-SNAPSHOT'
+
+    def getGitHash = { ->
+        def stdout = new ByteArrayOutputStream()
+        return providers.exec {
+            commandLine 'git', 'rev-parse', '--short', 'HEAD'
+        }.standardOutput.asText.get().trim()
+    }
+
+    ext {
+        versionName = 'dipper'
+        gitHash = getGitHash()
+        arclightProject = project(':felt-fabric')
+        platformProjects = [ext.arclightProject]
+        subProjects = ext.platformProjects
+    }
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(25)
+        }
+    }
+
+    repositories {
+        maven { url = 'https://repo.spongepowered.org/maven' }
+        maven { url = 'https://oss.sonatype.org/content/repositories/snapshots/' }
+        maven { url = 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/' }
+        maven { url = 'https://maven.izzel.io/releases' }
+        maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+        maven { url = 'https://libraries.minecraft.net/' }
+        maven { url = 'https://jitpack.io' }
+        mavenCentral()
+        mavenLocal()
+    }
+
+    dependencies {
+        compileOnly "org.projectlombok:lombok:${lombok_version}"
+        annotationProcessor "org.projectlombok:lombok:${lombok_version}"
+        compileOnly "org.jetbrains:annotations:${jetbrains_annotations_version}"
+    }
+
+    tasks.register('cleanBuild') {
+        doFirst {
+            project.file("build/libs").deleteDir()
+        }
+    }
+}
+
+def paperActions = [verifyPaperUpstream: 'verify', preparePaperPatchWorkspace: 'prepare',
+                    rebuildPaperPatches: 'rebuild', applyPaperPatches: 'apply', checkPaperPatches: 'check']
+paperActions.each { taskName, action ->
+    tasks.register(taskName, gr1mly4memes.felt.gradle.tasks.PaperSourcesTask) {
+        group = 'paper sources'
+        description = "${action.capitalize()} pinned Paper sources and per-file patches."
+        sourceRoot = rootDir
+        operation = action
+        selectedGroup = providers.gradleProperty('paperGroup').getOrElse('')
+        inputs.file('build-support/paper-sources.json')
+        if (action == 'apply') {
+            dependsOn 'verifyPaperUpstream'
+            inputs.dir(selectedGroup ? "patches/${selectedGroup}" : 'patches')
+            outputs.dir(selectedGroup ? "build/paper-patched/${selectedGroup}" : 'build/paper-patched')
+            mustRunAfter 'clean', 'rebuildPaperPatches'
+        }
+        if (action == 'rebuild') mustRunAfter 'preparePaperPatchWorkspace'
+        if (action == 'check') mustRunAfter 'preparePaperPatchWorkspace', 'rebuildPaperPatches', 'applyPaperPatches'
+    }
+}
+
+rootProject.ext.subProjects.each { Project p ->
+    configure(p) {
+        apply plugin: 'net.fabricmc.fabric-loom'
+
+        loom {
+            addMinecraftJarProcessor(
+                gr1mly4memes.felt.gradle.processor.FieldInjectionProcessor,
+                'arclight:field-injection-v1',
+                rootProject.file('felt-fabric/src/main/resources/architectury.common.json'),
+                p
+            )
+            addMinecraftJarProcessor(
+                gr1mly4memes.felt.gradle.processor.StaticMethodInjectionProcessor,
+                'arclight:static-method-injection-v1',
+                rootProject.file('felt-fabric/src/main/resources/architectury.common.json')
+            )
+            interfaceInjection {
+                enableDependencyInterfaceInjection = false
+            }
+        }
+
+        configurations {
+            common {
+                canBeResolved = true
+                canBeConsumed = false
+            }
+
+            compileClasspath.extendsFrom common
+            runtimeClasspath.extendsFrom common
+            developmentFabric.extendsFrom common
+
+            shadowBundle {
+                canBeResolved = true
+                canBeConsumed = false
+            }
+        }
+
+        dependencies {
+            minecraft "com.mojang:minecraft:${minecraft_version}"
+
+        }
+
+        java {
+            withSourcesJar()
+        }
+    }
+}
+
+def verifyFieldInjections = project(':felt-fabric').tasks.register('verifyFieldInjections', gr1mly4memes.felt.gradle.tasks.VerifyFieldInjections) {
+    def arclight = rootProject.ext.arclightProject
+    specification.set(arclight.layout.projectDirectory.file('src/main/resources/architectury.common.json'))
+    classes.from(arclight.sourceSets.main.output.classesDirs)
+    mixinConfigs.from(arclight.fileTree('src/main/resources') { include 'mixins.felt.*.json' })
+    dependsOn arclight.tasks.named('compileJava')
+}
+def verifyStaticMethodInjections = project(':felt-fabric').tasks.register('verifyStaticMethodInjections', gr1mly4memes.felt.gradle.tasks.VerifyStaticMethodInjections) {
+    def arclight = rootProject.ext.arclightProject
+    specification.set(arclight.layout.projectDirectory.file('src/main/resources/architectury.common.json'))
+    classes.from(arclight.sourceSets.main.output.classesDirs)
+    mixinConfigs.from(arclight.fileTree('src/main/resources') { include 'mixins.felt.*.json' })
+    dependsOn arclight.tasks.named('compileJava')
+}
+project(':felt-fabric').tasks.named('check') { dependsOn verifyStaticMethodInjections, verifyFieldInjections }
+project(':felt-fabric').tasks.named('jar') { dependsOn verifyFieldInjections, verifyStaticMethodInjections }
+
+rootProject.ext.platformProjects.each { Project p ->
+    configure(p) {
+        apply plugin: 'net.fabricmc.fabric-loom'
+        apply plugin: 'com.gradleup.shadow'
+        tasks.named('shadowJar') { dependsOn verifyFieldInjections, verifyStaticMethodInjections }
+
+        jar {
+            manifest.attributes 'MixinConnector': 'gr1mly4memes.felt.common.mod.FeltConnector'
+            manifest.attributes 'Implementation-Title': 'Felt'
+            manifest.attributes 'Implementation-Version': "${p.name}-${minecraft_version}-${project.version}+$gitHash"
+            manifest.attributes 'Implementation-Vendor': 'Felt Team'
+            manifest.attributes 'Implementation-Timestamp': new Date().format("yyyy-MM-dd HH:mm:ss")
+            manifest.attributes 'Brand-Id': 'arclight:arclight'
+            manifest.attributes 'Brand-Name': 'Felt'
+            manifest.attributes 'Git-Commit': gitHash
+            manifest.attributes 'Build-Time': java.time.Instant.now().toString()
+        }
+
+        components.java {
+            withVariantsFromConfiguration(project.configurations.shadowRuntimeElements) {
+                skip()
+            }
+        }
+    }
+}
+
+jar.enabled = false
+
+tasks.register('collect', Copy) {
+    destinationDir = file('build/libs')
+    from project(':bootstrap').tasks.fabricJar.outputs
+}
+
+def gitBranch() {
+    def stdout = new ByteArrayOutputStream()
+    return providers.exec {
+        commandLine 'git', 'rev-parse', '--abbrev-ref', 'HEAD'
+    }.standardOutput.asText.get().trim()
+}
+
+tasks.register('uploadFiles', UploadFilesTask) {
+    mcVersion.set minecraft_version
+    version.set "${project.version}-${project.ext.gitHash}"
+    snapshot.set project.version.toString().endsWith('-SNAPSHOT')
+    gitHash.set project.ext.gitHash
+    branch.set gitBranch()
+    inputs.files tasks.collect.outputs.files
+    dependsOn(tasks.collect)
+}

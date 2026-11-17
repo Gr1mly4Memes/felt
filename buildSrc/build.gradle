@@ -1,0 +1,37 @@
+plugins {
+    id 'groovy'
+    id 'maven-publish'
+}
+
+repositories {
+    mavenCentral()
+    maven { url "https://maven.architectury.dev/" }
+    maven { url "https://maven.fabricmc.net/" }
+}
+
+def gradleProps = new Properties()
+file('../gradle.properties').withInputStream { gradleProps.load(it) }
+
+dependencies {
+    compileOnly "org.projectlombok:lombok:${gradleProps.getProperty('lombok_version')}"
+    annotationProcessor "org.projectlombok:lombok:${gradleProps.getProperty('lombok_version')}"
+
+    implementation gradleApi()
+    implementation localGroovy()
+
+    implementation "org.eclipse.jgit:org.eclipse.jgit:${gradleProps.getProperty('jgit_version')}"
+    implementation "com.cloudbees:diff4j:${gradleProps.getProperty('diff4j_version')}"
+    implementation "com.google.code.gson:gson:${gradleProps.getProperty('gson_version')}"
+    implementation "org.ow2.asm:asm-commons:${gradleProps.getProperty('asm_version')}"
+    implementation "org.ow2.asm:asm-tree:${gradleProps.getProperty('asm_version')}"
+    implementation "org.ow2.asm:asm-util:${gradleProps.getProperty('asm_version')}"
+    implementation "commons-io:commons-io:${gradleProps.getProperty('commons_io_version')}"
+
+    implementation "net.fabricmc:fabric-loom:${gradleProps.getProperty('fabric_loom_version')}"
+    implementation "org.cadixdev:lorenz:${gradleProps.getProperty('lorenz_version')}"
+    implementation "org.cadixdev:lorenz-io-proguard:${gradleProps.getProperty('lorenz_io_proguard_version')}"
+    implementation "net.fabricmc:lorenz-tiny:${gradleProps.getProperty('fabric_lorenz_tiny_version')}"
+    implementation "org.cadixdev:at:${gradleProps.getProperty('cadixdev_at_version')}"
+
+    implementation("net.md-5:SpecialSource:${gradleProps.getProperty('special_source_version')}") { transitive false }
+}

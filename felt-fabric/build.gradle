@@ -1,0 +1,118 @@
+plugins {
+    id 'com.gradleup.shadow'
+}
+
+loom {
+    accessWidenerPath = file('src/main/resources/felt.accesswidener')
+}
+
+sourceSets.main {
+    java.srcDir rootProject.layout.buildDirectory.dir('paper-patched/paper-server/paper-server/src/main/java')
+    java.srcDir rootProject.layout.buildDirectory.dir('paper-patched/paper-server/paper-server/src/generated/java')
+    resources {
+        srcDir rootProject.layout.buildDirectory.dir('paper-patched/paper-server/paper-server/src/main/resources')
+        // The pinned upstream retains these obsolete descriptors without their service types/providers.
+        // Keep the actual plugin, lifecycle, registry and Adventure providers from the patched server tree.
+        exclude 'META-INF/services/io.papermc.paper.command.brigadier.CommandBuilderProvider'
+        exclude 'META-INF/services/io.papermc.paper.world.flag.FeatureFlags$FeatureFlagProvider'
+    }
+}
+tasks.named('compileJava') { dependsOn rootProject.tasks.named('applyPaperPatches') }
+tasks.named('processResources') { dependsOn rootProject.tasks.named('applyPaperPatches') }
+
+configurations {
+    mixinProcessorSupport
+    compileClasspath {
+        // Keep the shared Mixin version aligned with the MixinExtras metadata used here.
+        resolutionStrategy.force 'net.fabricmc:sponge-mixin:0.17.3+mixin.0.8.7'
+        resolutionStrategy.force 'com.google.code.gson:gson:2.13.2'
+    }
+}
+
+dependencies {
+    implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+
+    implementation project(':felt-paper-api')
+    shadowBundle(project(':felt-paper-api')) { transitive = false }
+    implementation "org.jline:jline:${jline_version}"
+    shadowBundle("org.jline:jline:${jline_version}") { transitive = false }
+
+    implementation "me.lucko:fabric-permissions-api:${fabric_permissions_api_version}"
+    include "me.lucko:fabric-permissions-api:${fabric_permissions_api_version}"
+
+    // XXX: for compiling (arclight-api): FabricArclightServer#registerForgeEvent
+    compileOnly("net.minecraftforge:eventbus:4.0.0") { transitive = false }
+
+    implementation(project(':config')) { transitive = false }
+
+    common(project(':bootstrap')) { transitive = false }
+    shadowBundle(project(':bootstrap')) { transitive = false }
+
+    implementation "org.spongepowered:configurate-yaml:${configurate_paper_version}"
+    implementation("com.googlecode.json-simple:json-simple:${json_simple_version}") { transitive = false }
+    implementation platform("net.kyori:adventure-bom:${adventure_version}")
+    implementation "net.kyori:adventure-text-serializer-ansi"
+
+    implementation "com.github.gr1mly4memes:felttools:${felttools_version}"
+    annotationProcessor "com.github.gr1mly4memes:felttools:${felttools_version}"
+    mixinProcessorSupport "net.fabricmc:sponge-mixin:0.17.3+mixin.0.8.7"
+    mixinProcessorSupport "com.google.code.gson:gson:${gson_version}"
+    mixinProcessorSupport "com.google.guava:guava:${paper_guava_version}"
+    mixinProcessorSupport "org.ow2.asm:asm-util:${asm_version}"
+    mixinProcessorSupport "org.ow2.asm:asm-tree:${asm_version}"
+
+    implementation "net.minecrell:terminalconsoleappender:${terminal_console_appender_version}"
+    implementation "org.apache.commons:commons-lang3:${commons_lang3_version}"
+    implementation "net.md-5:SpecialSource:${special_source_version}"
+    implementation "org.apache.logging.log4j:log4j-jul:${log4j_version}"
+    implementation "com.mysql:mysql-connector-j:${mysql_connector_j_version}"
+    implementation "org.yaml:snakeyaml:${snakeyaml_version}"
+}
+
+compileJava {
+    // No obfuscation/refmap AP in official-only builds; retain code generators.
+    options.compilerArgs += ['-processor', 'lombok.launch.AnnotationProcessorHider$AnnotationProcessor,lombok.launch.AnnotationProcessorHider$ClaimingProcessor,gr1mly4memes.felttools.mixin.ap.EjectProvider']
+    options.compilerArgs << '-XDignore.symbol.file' << '-XDenableSunApiLintControl'
+    options.annotationProcessorPath = configurations.annotationProcessor + configurations.mixinProcessorSupport
+    options.encoding = 'UTF-8'
+}
+
+processResources {
+    def ver = "${project.version}+$gitHash"
+    inputs.property 'version', ver
+
+    filesMatching('fabric.mod.json') {
+        expand 'version': ver
+    }
+    from(rootProject.layout.buildDirectory.dir('paper-patched/paper-server')) {
+        include 'LICENSE.md', 'licenses/**'
+        into 'META-INF/paper-server'
+    }
+    from(rootProject.layout.buildDirectory.dir('paper-patched/paper-server/paper-server/src/main/resources/data/minecraft/datapacks/paper')) {
+        include 'data/paper/chat_type/raw.json'
+    }
+}
+
+shadowJar {
+    exclude 'architectury.common.json'
+
+    configurations = [project.configurations.shadowBundle]
+    archiveClassifier = 'dev-shadow'
+}
+
+// The bootstrap embeds the shadow JAR, not Loom's standard jar output.
+loom.nestJars(tasks.named('shadowJar'), configurations.named('include'))
+
+tasks.register('srgJar', Jar) {
+    from(tasks.shadowJar.outputs.files.collect { it.isDirectory() ? it : zipTree(it) }) {
+        include 'io/izzel/**'
+        exclude 'gr1mly4memes/felt/common/mixin/**'
+    }
+    archiveClassifier.set('srg')
+    dependsOn shadowJar
+}
+
+sourcesJar {
+    dependsOn rootProject.tasks.named('applyPaperPatches')
+}

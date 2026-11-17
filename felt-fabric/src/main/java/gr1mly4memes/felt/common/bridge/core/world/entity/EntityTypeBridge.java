@@ -1,0 +1,12 @@
+package gr1mly4memes.felt.common.bridge.core.world.entity;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
+import org.bukkit.event.entity.CreatureSpawnEvent;
+
+public interface EntityTypeBridge<T extends Entity> {
+
+    T bridge$spawnCreature(ServerLevel worldIn, BlockPos pos, EntitySpawnReason mobSpawnType, CreatureSpawnEvent.SpawnReason spawnReason);
+}

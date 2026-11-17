@@ -1,0 +1,48 @@
+package gr1mly4memes.felt.common.mixin.core.world.inventory;
+
+import gr1mly4memes.felt.common.bridge.core.world.entity.player.PlayerBridge;
+import gr1mly4memes.felt.common.bridge.core.world.inventory.TransientCraftingContainerBridge;
+import gr1mly4memes.felt.common.mod.util.FeltCaptures;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.Container;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.InventoryMenu;
+import org.bukkit.craftbukkit.inventory.CraftInventoryCrafting;
+import org.bukkit.craftbukkit.inventory.CraftInventoryView;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+@Mixin(InventoryMenu.class)
+public abstract class InventoryMenuMixin extends AbstractCraftingMenuMixin {
+
+    private CraftInventoryView<InventoryMenu, ?> view; // Paper added
+    private Inventory playerInventory;
+
+    @Inject(method = "<init>", at = @At("RETURN"))
+    public void arclight$init(Inventory playerInventory, boolean localWorld, Player playerIn, CallbackInfo ci) {
+        this.playerInventory = playerInventory;
+        ((TransientCraftingContainerBridge) this.craftSlots).bridge$setOwner(playerInventory.player);
+        ((TransientCraftingContainerBridge) this.craftSlots).bridge$setResultInventory(this.resultSlots);
+        this.setTitle(Component.translatable("container.crafting"));
+    }
+
+    @Inject(method = "slotsChanged", at = @At("HEAD"))
+    public void arclight$captureContainer(Container inventoryIn, CallbackInfo ci) {
+        FeltCaptures.captureWorkbenchContainer((AbstractContainerMenu) (Object) this);
+    }
+
+    @Override
+    public CraftInventoryView<InventoryMenu, ?> getBukkitView() {
+        if (this.view != null) {
+            return this.view;
+        }
+
+        CraftInventoryCrafting inventory = new CraftInventoryCrafting(this.craftSlots, this.resultSlots);
+        this.view = new CraftInventoryView<>(((PlayerBridge) this.playerInventory.player).bridge$getBukkitEntity(), inventory, (InventoryMenu) (Object) this);
+        return this.view;
+    }
+}

@@ -1,0 +1,165 @@
+package gr1mly4memes.felt.common.mod.server;
+
+import com.google.common.graph.Graph;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import gr1mly4memes.felt.common.bridge.bukkit.CraftServerBridge;
+import gr1mly4memes.felt.common.bridge.core.server.MinecraftServerBridge;
+import gr1mly4memes.felt.common.mixin.bukkit.plugin.SimplePluginManagerAccessor;
+import gr1mly4memes.felt.common.mod.FeltCommon;
+import gr1mly4memes.felt.common.mod.util.log.FeltLogger;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.dedicated.DedicatedServer;
+import net.minecraft.server.players.PlayerList;
+import net.minecraft.world.level.dimension.LevelStem;
+import org.apache.logging.log4j.Logger;
+import org.bukkit.Bukkit;
+import org.bukkit.World;
+import org.bukkit.craftbukkit.CraftServer;
+import com.destroystokyo.paper.console.TerminalConsoleCommandSender;
+import org.bukkit.plugin.PluginDescriptionFile;
+import org.bukkit.plugin.SimplePluginManager;
+import org.jetbrains.annotations.NotNull;
+import org.spigotmc.SpigotConfig;
+
+import java.io.File;
+import java.util.Collections;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.locks.LockSupport;
+import java.util.function.Supplier;
+
+public class FeltServer {
+
+    public static final Logger LOGGER = FeltLogger.getLogger("Felt");
+
+    private interface ExecutorWithThread extends Executor, Supplier<Thread> {
+    }
+
+    private static final ExecutorWithThread mainThreadExecutor = new ExecutorWithThread() {
+        @Override
+        public void execute(@NotNull Runnable command) {
+            executeOnMainThread(command);
+        }
+
+        @Override
+        public Thread get() {
+            return getMinecraftServer().getRunningThread();
+        }
+    };
+    private static final ExecutorService chatExecutor = Executors.newCachedThreadPool(
+        new ThreadFactoryBuilder().setDaemon(true).setNameFormat("Async Chat Thread - #%d")
+            .setThreadFactory(chatFactory()).build());
+
+    private static ThreadFactory chatFactory() {
+        var group = Thread.currentThread().getThreadGroup();
+        var classLoader = Thread.currentThread().getContextClassLoader();
+        return r -> {
+            var thread = new Thread(group, r);
+            thread.setContextClassLoader(classLoader);
+            return thread;
+        };
+    }
+
+    private static CraftServer server;
+    private static io.papermc.paper.configuration.PaperConfigurations paperConfigurations;
+
+    public static io.papermc.paper.configuration.PaperConfigurations getPaperConfigurations() {
+        return Objects.requireNonNull(paperConfigurations);
+    }
+
+    public static Set<String> iterateDepends(PluginDescriptionFile desc) {
+        SimplePluginManager manager = (SimplePluginManager) Bukkit.getPluginManager();
+        Graph<String> dependencyGraph = ((SimplePluginManagerAccessor)(Object) manager).arclight$dependencyGraph();
+        if (dependencyGraph.nodes().contains(desc.getName())) {
+            return FeltCommon.api().guavaReachableNodes(dependencyGraph, desc.getName());
+        } else {
+            return Collections.emptySet();
+        }
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    public static CraftServer createOrLoad(DedicatedServer console, PlayerList playerList) {
+        if (server == null) {
+            try {
+                server = new CraftServer(console, playerList);
+                ((MinecraftServerBridge) console).bridge$setServer(server);
+
+                Class.forName("org.sqlite.JDBC");
+                Class.forName("com.mysql.cj.jdbc.Driver");
+            } catch (Throwable t) {
+                throw new RuntimeException("Error initializing Felt", t);
+            }
+            try {
+                LOGGER.info("Registering for Bukkit ...");
+                BukkitRegistry.registerAll(console);
+                try {
+                    paperConfigurations = io.papermc.paper.configuration.PaperConfigurations.setup(
+                        java.nio.file.Path.of("paper.yml"),
+                        java.nio.file.Path.of(io.papermc.paper.configuration.PaperConfigurations.CONFIG_DIR),
+                        server.getWorldContainer().toPath(), new File("./spigot.yml"));
+                    org.spigotmc.SpigotConfig.init(new File("./spigot.yml"));
+                    paperConfigurations.initializeGlobalConfiguration(console.registryAccess());
+                    ((MinecraftServerBridge) console).bridge$setConsole(new TerminalConsoleCommandSender());
+                    paperConfigurations.initializeWorldDefaultsConfiguration(console.registryAccess());
+                } catch (Exception exception) {
+                    throw new IllegalStateException("Cannot initialize Paper configuration", exception);
+                }
+                org.spigotmc.SpigotConfig.registerCommands();
+            } catch (Throwable t) {
+                LOGGER.error("Error occurred registering modded entries to Bukkit", t);
+                throw t;
+            }
+        } else {
+            ((CraftServerBridge) (Object) server).bridge$setPlayerList(playerList);
+        }
+        return server;
+    }
+
+    public static boolean isInitialized() { return server != null; }
+
+    public static CraftServer get() {
+        return Objects.requireNonNull(server);
+    }
+
+    public static boolean isPrimaryThread() {
+        if (server == null) {
+            return Thread.currentThread().equals(getMinecraftServer().getRunningThread());
+        } else {
+            return server.isPrimaryThread();
+        }
+    }
+
+    private static MinecraftServer vanillaServer;
+
+    public static void setMinecraftServer(MinecraftServer server) {
+        vanillaServer = server;
+    }
+
+    public static MinecraftServer getMinecraftServer() {
+        return Objects.requireNonNull(vanillaServer, "vanillaServer");
+    }
+
+    public static void executeOnMainThread(Runnable runnable) {
+        ((MinecraftServerBridge) getMinecraftServer()).bridge$queuedProcess(runnable);
+        if (LockSupport.getBlocker(getMinecraftServer().getRunningThread()) == "waiting for tasks") {
+            LockSupport.unpark(getMinecraftServer().getRunningThread());
+        }
+    }
+
+    public static Executor getMainThreadExecutor() {
+        return mainThreadExecutor;
+    }
+
+    public static ExecutorService getChatExecutor() {
+        return chatExecutor;
+    }
+
+    public static World.Environment getEnvironment(ResourceKey<LevelStem> key) {
+        return BukkitRegistry.DIM_MAP.getOrDefault(key, World.Environment.CUSTOM);
+    }
+}

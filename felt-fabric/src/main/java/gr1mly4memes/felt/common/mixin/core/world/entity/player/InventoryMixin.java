@@ -1,0 +1,129 @@
+package gr1mly4memes.felt.common.mixin.core.world.entity.player;
+
+import gr1mly4memes.felt.common.bridge.core.world.entity.player.PlayerBridge;
+import gr1mly4memes.felt.common.bridge.core.world.entity.player.InventoryBridge;
+import gr1mly4memes.felt.common.bridge.core.world.IInventoryBridge;
+import net.minecraft.core.NonNullList;
+import net.minecraft.world.Container;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import org.bukkit.Location;
+import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+import org.bukkit.entity.HumanEntity;
+import org.bukkit.inventory.InventoryHolder;
+import org.spongepowered.asm.mixin.Final;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Mixin(Inventory.class)
+public abstract class InventoryMixin implements Container, IInventoryBridge, InventoryBridge {
+
+    // @formatter:off
+    @Shadow @Final public NonNullList<ItemStack> items;
+    @Shadow @Final public Player player;
+    @Shadow protected abstract boolean hasRemainingSpaceForItem(ItemStack stack1, ItemStack stack2);
+    // @formatter:on
+
+    public List<HumanEntity> transaction = new ArrayList<>();
+    private int maxStack = -1;
+
+    public int canHold(ItemStack stack) {
+        int remains = stack.getCount();
+        for (int i = 0; i < this.items.size(); ++i) {
+            ItemStack slot = this.getItem(i);
+            if (slot.isEmpty()) return stack.getCount();
+
+            if (this.hasRemainingSpaceForItem(slot, stack)) {
+                remains -= (slot.getMaxStackSize() < this.getMaxStackSize() ? slot.getMaxStackSize() : this.getMaxStackSize()) - slot.getCount();
+            }
+            if (remains <= 0) return stack.getCount();
+        }
+        ItemStack offhandItemStack = this.player.getItemBySlot(EquipmentSlot.OFFHAND);
+        if (this.hasRemainingSpaceForItem(offhandItemStack, stack)) {
+            remains -= (offhandItemStack.getMaxStackSize() < this.getMaxStackSize() ? offhandItemStack.getMaxStackSize() : this.getMaxStackSize()) - offhandItemStack.getCount();
+        }
+        if (remains <= 0) return stack.getCount();
+
+        return stack.getCount() - remains;
+    }
+
+    @Override
+    public int bridge$canHold(ItemStack stack) {
+        return canHold(stack);
+    }
+
+    public List<ItemStack> getArmorContents() {
+        return List.of(
+            this.player.getItemBySlot(EquipmentSlot.FEET),
+            this.player.getItemBySlot(EquipmentSlot.LEGS),
+            this.player.getItemBySlot(EquipmentSlot.CHEST),
+            this.player.getItemBySlot(EquipmentSlot.HEAD)
+        );
+    }
+
+    public List<ItemStack> getExtraContents() {
+        return List.of(this.player.getItemBySlot(EquipmentSlot.OFFHAND));
+    }
+
+    @Override
+    public List<ItemStack> getContents() {
+        List<ItemStack> combined = new ArrayList<>(this.getContainerSize());
+        for (int slot = 0; slot < this.getContainerSize(); slot++) {
+            combined.add(this.getItem(slot));
+        }
+        return combined;
+    }
+
+    @Override
+    public void onOpen(CraftHumanEntity who) {
+        transaction.add(who);
+    }
+
+    @Override
+    public void onClose(CraftHumanEntity who) {
+        transaction.remove(who);
+    }
+
+    @Override
+    public List<HumanEntity> getViewers() {
+        return transaction;
+    }
+
+    @Override
+    public InventoryHolder getOwner() {
+        return ((PlayerBridge) this.player).bridge$getBukkitEntity();
+    }
+
+    @Override
+    public void setOwner(InventoryHolder owner) { }
+
+    @Override
+    public int getMaxStackSize() {
+        if (maxStack != -1) {
+            return maxStack;
+        }
+        return Container.super.getMaxStackSize();
+    }
+
+    @Override
+    public void setMaxStackSize(int size) {
+        maxStack = size;
+    }
+
+    @Override
+    public Location getLocation() {
+        return ((PlayerBridge) this.player).bridge$getBukkitEntity().getLocation();
+    }
+
+    @Override
+    public RecipeHolder<?> getCurrentRecipe() { return null; }
+
+    @Override
+    public void setCurrentRecipe(RecipeHolder<?> recipe) { }
+}

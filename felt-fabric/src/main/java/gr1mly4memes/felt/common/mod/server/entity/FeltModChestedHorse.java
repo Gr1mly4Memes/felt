@@ -1,0 +1,25 @@
+package gr1mly4memes.felt.common.mod.server.entity;
+
+import net.minecraft.world.entity.animal.equine.AbstractChestedHorse;
+import org.bukkit.craftbukkit.CraftServer;
+import org.bukkit.craftbukkit.entity.CraftChestedHorse;
+import org.bukkit.entity.EntityCategory;
+import org.bukkit.entity.Horse;
+import org.jetbrains.annotations.NotNull;
+
+public class FeltModChestedHorse extends CraftChestedHorse {
+
+    public FeltModChestedHorse(CraftServer server, AbstractChestedHorse entity) {
+        super(server, entity);
+    }
+
+    @Override
+    public Horse.@NotNull Variant getVariant() {
+        return Horse.Variant.HORSE;
+    }
+
+    @Override
+    public @NotNull EntityCategory getCategory() {
+        return EntityCategory.NONE;
+    }
+}

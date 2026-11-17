@@ -1,0 +1,261 @@
+{
+  "id": "felt",
+  "version": "${version}",
+  "schemaVersion": 1,
+  "name": "Felt",
+  "authors": [
+    "Gr1mly4Memes"
+  ],
+  "description": "Felt bukkit layer for Fabric",
+  "license": "GNU GENERAL PUBLIC LICENSE Version 3",
+  "environment": "server",
+  "accessWidener": "felt.accesswidener",
+  "mixins": [
+    "mixins.felt.fabric.json",
+    "mixins.felt.core.json",
+    "mixins.felt.bukkit.json",
+    "mixins.felt.compat.json",
+    "mixins.felt.vanilla.json",
+    "mixins.felt.impl.optimization.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16",
+    "fabric-permissions-api-v0": ">=0.7.0"
+  },
+  "entrypoints": {
+    "main": [
+      "gr1mly4memes.felt.fabric.FeltModEntrypoint"
+    ],
+    "felt_boot": [
+      "gr1mly4memes.felt.fabric.boot.FabricBootstrap"
+    ]
+  },
+  "custom": {
+    "loom:injected_interfaces": {
+      "net/minecraft/world/item/component/TypedEntityData": [
+        "gr1mly4memes/felt/common/bridge/core/world/item/component/TypedEntityDataBridge"
+      ],
+      "net/minecraft/server/bossevents/CustomBossEvent": [
+        "gr1mly4memes/felt/common/bridge/core/server/bossevents/CustomBossEventBridge"
+      ],
+      "net/minecraft/world/level/block/state/BlockState": [
+        "gr1mly4memes/felt/common/bridge/core/world/level/block/state/BlockStateBridge"
+      ],
+      "net/minecraft/world/damagesource/CombatTracker": [
+        "gr1mly4memes/felt/common/bridge/core/world/damagesource/CombatTrackerBridge"
+      ],
+      "net/minecraft/world/level/storage/PlayerDataStorage": [
+        "gr1mly4memes/felt/common/bridge/core/world/level/storage/PlayerDataStorageBridge"
+      ],
+      "net/minecraft/world/Container": [
+        "gr1mly4memes/felt/common/bridge/core/world/IInventoryBridge"
+      ],
+      "net/minecraft/server/MinecraftServer": [
+        "gr1mly4memes/felt/common/bridge/core/server/MinecraftServerBridge"
+      ],
+      "net/minecraft/world/inventory/AbstractContainerMenu": [
+        "gr1mly4memes/felt/common/bridge/core/world/inventory/AbstractContainerMenuBridge"
+      ],
+      "net/minecraft/core/MappedRegistry": [
+        "gr1mly4memes/felt/common/bridge/core/core/MappedRegistryBridge"
+      ],
+      "net/minecraft/world/entity/ai/goal/Goal": [
+        "gr1mly4memes/felt/common/bridge/core/world/entity/ai/GoalBridge"
+      ],
+      "net/minecraft/world/entity/npc/villager/Villager": [
+        "gr1mly4memes/felt/common/bridge/core/world/entity/npc/VillagerBridge"
+      ],
+      "net/minecraft/server/packs/repository/PackRepository": [
+        "gr1mly4memes/felt/common/bridge/core/server/packs/repository/PackRepositoryBridge"
+      ],
+      "net/minecraft/server/ReloadableServerResources": [
+        "gr1mly4memes/felt/common/bridge/core/server/ReloadableServerResourcesBridge"
+      ],
+      "net/minecraft/server/ServerTickRateManager": [
+        "gr1mly4memes/felt/common/bridge/core/server/ServerTickRateManagerBridge"
+      ],
+      "net/minecraft/world/entity/vehicle/minecart/MinecartTNT": [
+        "gr1mly4memes/felt/common/bridge/core/world/entity/vehicle/MinecartTNTBridge"
+      ],
+      "net/minecraft/world/level/chunk/LevelChunkSection": [
+        "gr1mly4memes/felt/common/bridge/core/world/level/chunk/LevelChunkSectionBridge"
+      ],
+      "net/minecraft/world/level/levelgen/structure/templatesystem/StructureTemplate": [
+        "gr1mly4memes/felt/common/bridge/core/world/level/levelgen/structure/templatesystem/StructureTemplateBridge"
+      ],
+      "net/minecraft/world/level/levelgen/structure/StructureStart": [
+        "gr1mly4memes/felt/common/bridge/core/world/level/levelgen/structure/StructureStartBridge"
+      ],
+      "net/minecraft/world/damagesource/DamageSource": [
+        "gr1mly4memes/felt/common/bridge/core/world/damagesource/DamageSourceBridge"
+      ],
+      "net/minecraft/server/network/ServerGamePacketListenerImpl": [
+        "gr1mly4memes/felt/common/bridge/core/server/network/ServerGamePacketListenerImplBridge"
+      ],
+      "net/minecraft/world/entity/ai/attributes/AttributeMap": [
+        "gr1mly4memes/felt/common/bridge/core/world/entity/ai/attributes/AttributeMapBridge"
+      ],
+      "net/minecraft/server/ServerScoreboard": [
+        "gr1mly4memes/felt/common/bridge/core/server/ServerScoreboardBridge"
+      ],
+      "net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity": [
+        "gr1mly4memes/felt/common/bridge/core/world/level/block/entity/AbstractFurnaceBlockEntityBridge"
+      ],
+      "net/minecraft/core/component/DataComponentPatch\u0024Builder": [
+        "gr1mly4memes/felt/common/bridge/core/core/component/DataComponentPatchBuilderBridge"
+      ],
+      "net/minecraft/world/item/crafting/SmithingTransformRecipe": [
+        "gr1mly4memes/felt/common/bridge/core/world/item/crafting/SmithingTransformRecipeBridge"
+      ],
+      "net/minecraft/world/item/trading/Merchant": [
+        "gr1mly4memes/felt/common/bridge/core/world/item/trading/MerchantBridge"
+      ],
+      "net/minecraft/world/item/trading/MerchantOffer": [
+        "gr1mly4memes/felt/common/bridge/core/world/item/trading/MerchantOfferBridge"
+      ],
+      "net/minecraft/world/level/block/entity/BeaconBlockEntity": [
+        "gr1mly4memes/felt/common/bridge/core/world/level/block/entity/BeaconBlockEntityBridge"
+      ],
+      "net/minecraft/world/level/block/entity/JukeboxBlockEntity": [
+        "gr1mly4memes/felt/common/bridge/core/world/level/block/entity/JukeboxBlockEntityBridge"
+      ],
+      "net/minecraft/world/level/block/entity/ConduitBlockEntity": [
+        "gr1mly4memes/felt/common/bridge/core/world/level/block/entity/ConduitBlockEntityBridge"
+      ],
+      "net/minecraft/world/level/block/entity/BeehiveBlockEntity": [
+        "gr1mly4memes/felt/common/bridge/core/world/level/block/entity/BeehiveBlockEntityBridge"
+      ],
+      "net/minecraft/world/level/block/entity/ContainerOpenersCounter": [
+        "gr1mly4memes/felt/common/bridge/core/world/level/block/entity/ContainerOpenersCounterBridge"
+      ],
+      "net/minecraft/world/item/ItemStack": [
+        "gr1mly4memes/felt/common/bridge/core/world/item/ItemStackBridge"
+      ],
+      "net/minecraft/world/entity/projectile/FishingHook": [
+        "gr1mly4memes/felt/common/bridge/core/world/entity/projectile/FishingHookBridge"
+      ],
+      "net/minecraft/world/level/dimension/end/EnderDragonFight": [
+        "gr1mly4memes/felt/common/bridge/core/world/level/dimension/end/EnderDragonFightBridge"
+      ],
+      "net/minecraft/world/level/storage/loot/LootTable": [
+        "gr1mly4memes/felt/common/bridge/core/world/level/storage/loot/LootTableBridge"
+      ],
+      "net/minecraft/world/level/block/entity/BlockEntity": [
+        "gr1mly4memes/felt/common/bridge/core/world/level/block/entity/BlockEntityBridge"
+      ],
+      "net/minecraft/commands/arguments/EntityArgument": [
+        "gr1mly4memes/felt/common/bridge/core/commands/arguments/EntityArgumentBridge"
+      ],
+      "net/minecraft/network/Connection": [
+        "gr1mly4memes/felt/common/bridge/core/network/ConnectionBridge"
+      ],
+      "net/minecraft/server/network/ServerCommonPacketListenerImpl": [
+        "gr1mly4memes/felt/common/bridge/core/server/network/ServerCommonPacketListenerImplBridge"
+      ],
+      "net/minecraft/world/level/portal/TeleportTransition": [
+        "gr1mly4memes/felt/common/bridge/core/world/level/portal/DimensionTransitionBridge"
+      ],
+      "net/minecraft/world/entity/monster/zombie/ZombieVillager": [
+        "gr1mly4memes/felt/common/bridge/core/world/entity/monster/ZombieVillagerBridge"
+      ],
+      "net/minecraft/world/entity/Mob": [
+        "gr1mly4memes/felt/common/bridge/core/world/entity/MobBridge"
+      ],
+      "net/minecraft/world/entity/monster/EnderMan": [
+        "gr1mly4memes/felt/common/bridge/core/world/entity/monster/EnderManBridge"
+      ],
+      "net/minecraft/world/entity/monster/piglin/Piglin": [
+        "gr1mly4memes/felt/common/bridge/core/world/entity/monster/piglin/PiglinBridge"
+      ],
+      "net/minecraft/world/entity/animal/allay/Allay": [
+        "gr1mly4memes/felt/common/bridge/core/world/entity/animal/AllayBridge"
+      ],
+      "net/minecraft/world/entity/monster/Creeper": [
+        "gr1mly4memes/felt/common/bridge/core/world/entity/monster/CreeperBridge"
+      ],
+      "net/minecraft/world/entity/decoration/ItemFrame": [
+        "gr1mly4memes/felt/common/bridge/core/world/entity/decoration/ItemFrameBridge"
+      ],
+      "net/minecraft/world/entity/boss/wither/WitherBoss": [
+        "gr1mly4memes/felt/common/bridge/core/world/entity/boss/WitherBossBridge"
+      ],
+      "net/minecraft/world/entity/projectile/ShulkerBullet": [
+        "gr1mly4memes/felt/common/bridge/core/world/entity/projectile/ShulkerBulletBridge"
+      ],
+      "net/minecraft/world/entity/projectile/arrow/ThrownTrident": [
+        "gr1mly4memes/felt/common/bridge/core/world/entity/projectile/ThrownTridentBridge"
+      ],
+      "net/minecraft/world/entity/ItemBasedSteering": [
+        "gr1mly4memes/felt/common/bridge/core/world/entity/ItemBasedSteeringBridge"
+      ],
+      "net/minecraft/world/entity/vehicle/minecart/AbstractMinecart": [
+        "gr1mly4memes/felt/common/bridge/core/world/entity/vehicle/AbstractMinecartBridge"
+      ],
+      "net/minecraft/world/inventory/CraftingContainer": [
+        "gr1mly4memes/felt/common/bridge/core/world/IInventoryBridge"
+      ],
+      "net/minecraft/world/item/crafting/RecipeHolder": [
+        "gr1mly4memes/felt/common/bridge/core/world/item/crafting/RecipeHolderBridge"
+      ],
+      "net/minecraft/commands/CommandSourceStack": [
+        "gr1mly4memes/felt/common/bridge/core/commands/CommandSourceStackBridge",
+        "io/papermc/paper/command/brigadier/PaperCommandSourceStack"
+      ],
+      "net/minecraft/server/dedicated/DedicatedServer": [
+        "gr1mly4memes/felt/common/bridge/core/server/dedicated/DedicatedServerBridge"
+      ],
+      "net/minecraft/world/level/LevelAccessor": [
+        "gr1mly4memes/felt/common/bridge/core/world/level/LevelAccessorBridge"
+      ],
+      "net/minecraft/world/level/chunk/ChunkAccess": [
+        "gr1mly4memes/felt/common/bridge/core/world/chunk/ChunkAccessBridge"
+      ],
+      "net/minecraft/server/level/ServerLevel": [
+        "gr1mly4memes/felt/common/bridge/core/server/level/ServerLevelBridge"
+      ],
+      "net/minecraft/server/level/TicketType": [
+        "gr1mly4memes/felt/common/bridge/core/server/level/TicketTypeBridge"
+      ],
+      "net/minecraft/server/level/ServerChunkCache": [
+        "gr1mly4memes/felt/common/bridge/core/world/server/ServerChunkProviderBridge"
+      ],
+      "net/minecraft/world/item/crafting/Ingredient": [
+        "gr1mly4memes/felt/common/bridge/core/world/item/crafting/IngredientBridge"
+      ],
+      "net/minecraft/world/item/crafting/RecipeManager": [
+        "gr1mly4memes/felt/common/bridge/core/world/item/crafting/RecipeManagerBridge"
+      ],
+      "net/minecraft/world/level/entity/PersistentEntitySectionManager": [
+        "gr1mly4memes/felt/common/bridge/core/world/level/entity/PersistentEntitySectionManagerBridge"
+      ],
+      "net/minecraft/server/level/DistanceManager": [
+        "gr1mly4memes/felt/common/bridge/core/server/level/DistanceManagerBridge"
+      ],
+      "net/minecraft/server/level/Ticket": [
+        "gr1mly4memes/felt/common/bridge/core/server/level/TicketBridge"
+      ],
+      "net/minecraft/server/level/ChunkMap": [
+        "gr1mly4memes/felt/common/bridge/core/server/level/ChunkMapBridge"
+      ],
+      "net/minecraft/server/level/ChunkHolder": [
+        "gr1mly4memes/felt/common/bridge/core/world/server/ChunkHolderBridge"
+      ],
+      "net/minecraft/world/entity/Entity": [
+        "gr1mly4memes/felt/common/bridge/core/entity/EntityBridge"
+      ],
+      "net/minecraft/world/entity/LivingEntity": [
+        "gr1mly4memes/felt/common/bridge/core/world/entity/LivingEntityBridge"
+      ],
+      "net/minecraft/world/entity/player/Player": [
+        "gr1mly4memes/felt/common/bridge/core/world/entity/player/PlayerBridge"
+      ],
+      "net/minecraft/server/level/ServerPlayer": [
+        "gr1mly4memes/felt/common/bridge/core/server/level/ServerPlayerBridge"
+      ],
+      "net/minecraft/world/level/Level": [
+        "gr1mly4memes/felt/common/bridge/core/world/level/WorldBridge",
+        "gr1mly4memes/felt/common/bridge/core/world/level/TreeCaptureBridge"
+      ]
+    }
+  }
+}

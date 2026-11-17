@@ -1,0 +1,88 @@
+package gr1mly4memes.felt.common.mixin.core.world.inventory;
+
+import gr1mly4memes.felt.common.bridge.core.world.entity.player.PlayerBridge;
+import gr1mly4memes.felt.common.bridge.core.world.inventory.TransientCraftingContainerBridge;
+import gr1mly4memes.felt.common.bridge.core.world.IInventoryBridge;
+import gr1mly4memes.felt.common.bridge.core.world.inventory.AbstractContainerMenuBridge;
+import gr1mly4memes.felt.common.bridge.core.world.inventory.PosContainerBridge;
+import gr1mly4memes.felt.common.mod.util.FeltCaptures;
+import gr1mly4memes.felttools.mixin.Decorate;
+import gr1mly4memes.felttools.mixin.DecorationOps;
+import gr1mly4memes.felttools.mixin.Local;
+import net.minecraft.world.Container;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerLevelAccess;
+import net.minecraft.world.inventory.CraftingContainer;
+import net.minecraft.world.inventory.CraftingMenu;
+import net.minecraft.world.inventory.ResultContainer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.server.level.ServerLevel;
+import org.bukkit.craftbukkit.event.CraftEventFactory;
+import org.bukkit.craftbukkit.inventory.CraftInventoryCrafting;
+import org.bukkit.craftbukkit.inventory.CraftInventoryView;
+import org.jetbrains.annotations.Nullable;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.gen.Accessor;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.Optional;
+
+@Mixin(CraftingMenu.class)
+public abstract class CraftingMenuMixin extends AbstractCraftingMenuMixin implements PosContainerBridge {
+
+    // @formatter:off
+    @Accessor("access") public abstract ContainerLevelAccess bridge$getWorldPos();
+    // @formatter:on
+
+    private CraftInventoryView<CraftingMenu, ?> view; // Paper added
+    private Inventory playerInventory;
+
+    @Inject(method = "stillValid", cancellable = true, at = @At("HEAD"))
+    public void arclight$unreachable(Player playerIn, CallbackInfoReturnable<Boolean> cir) {
+        if (!bridge$isCheckReachable()) cir.setReturnValue(true);
+    }
+
+    @Inject(method = "slotsChanged", at = @At("HEAD"))
+    public void arclight$capture(Container inventoryIn, CallbackInfo ci) {
+        FeltCaptures.captureWorkbenchContainer((CraftingMenu) (Object) this);
+    }
+
+    @Decorate(method = "slotChangedCraftingGrid", at = @At(value = "INVOKE", remap = false, target = "Ljava/util/Optional;isPresent()Z"))
+    private static boolean arclight$captureRecipe(Optional<RecipeHolder<CraftingRecipe>> optional, AbstractContainerMenu menu, ServerLevel level, Player player, CraftingContainer craftingContainer) throws Throwable {
+        ((IInventoryBridge) craftingContainer).setCurrentRecipe(optional.orElse(null));
+        return (boolean) DecorationOps.callsite().invoke(optional);
+    }
+
+    @Decorate(method = "slotChangedCraftingGrid", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/inventory/ResultContainer;setItem(ILnet/minecraft/world/item/ItemStack;)V"))
+    private static void arclight$preCraft(ResultContainer instance, int i, ItemStack itemStack, AbstractContainerMenu abstractContainerMenu, ServerLevel level, Player player, CraftingContainer craftingContainer, ResultContainer resultContainer, @Nullable RecipeHolder<CraftingRecipe> recipeHolder,
+                                          @Local(ordinal = -1) ItemStack stack, @Local(ordinal = -1) Optional<RecipeHolder<CraftingRecipe>> matchedRecipe) throws Throwable {
+        // Keep the method-local match, not the hint or mutable inventory state, across plugin re-entry.
+        stack = CraftEventFactory.callPreCraftEvent(craftingContainer, instance, itemStack, ((AbstractContainerMenuBridge) abstractContainerMenu).bridge$getBukkitView(), matchedRecipe);
+        DecorationOps.callsite().invoke(instance, i, stack);
+    }
+
+    @Inject(method = "<init>(ILnet/minecraft/world/entity/player/Inventory;Lnet/minecraft/world/inventory/ContainerLevelAccess;)V", at = @At("RETURN"))
+    public void arclight$init(int i, Inventory playerInventory, ContainerLevelAccess callable, CallbackInfo ci) {
+        ((TransientCraftingContainerBridge) this.craftSlots).bridge$setOwner(playerInventory.player);
+        ((TransientCraftingContainerBridge) this.craftSlots).bridge$setResultInventory(this.resultSlots);
+        this.playerInventory = playerInventory;
+    }
+
+    @Override
+    public CraftInventoryView<CraftingMenu, ?> getBukkitView() {
+        if (this.view != null) {
+            return this.view;
+        }
+
+        CraftInventoryCrafting inventory = new CraftInventoryCrafting(this.craftSlots, this.resultSlots);
+        this.view = new CraftInventoryView<>(((PlayerBridge) this.playerInventory.player).bridge$getBukkitEntity(), inventory, (CraftingMenu) (Object) this);
+        return this.view;
+    }
+}

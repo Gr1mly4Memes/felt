@@ -1,0 +1,181 @@
+import gr1mly4memes.felt.gradle.tasks.GenerateInstallerInfo
+import gr1mly4memes.felt.gradle.tasks.RenameAsyncCatcherTask
+
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'maven-publish'
+
+sourceSets {
+    applaunch {}
+
+    fabric {}
+}
+
+configurations {
+    installer {
+        attributes.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_RUNTIME))
+    }
+    installerFabric {
+        extendsFrom installer
+        attributes.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_RUNTIME))
+    }
+    embedCommon
+    embedFabric
+    embed
+    embed.extendsFrom(embedCommon, embedFabric)
+    gson
+    implementation.extendsFrom(embed, gson)
+}
+
+def installerLibs = [
+        "org.yaml:snakeyaml:${paper_snakeyaml_version}", "com.mysql:mysql-connector-j:${mysql_connector_j_version}",
+        "org.xerial:sqlite-jdbc:${sqlite_jdbc_version}", "com.googlecode.json-simple:json-simple:${json_simple_version}",
+        "org.apache.logging.log4j:log4j-jul:${log4j_version}", "net.md-5:SpecialSource:${special_source_version}",
+        "org.apache.commons:commons-lang3:${commons_lang3_version}"
+]
+
+def installerLibsFabric = []
+
+dependencies {
+    implementation 'com.google.guava:guava:32.1.2-jre'
+    implementation "org.ow2.asm:asm-commons:${asm_version}"
+    implementation "org.ow2.asm:asm-tree:${asm_version}"
+    implementation 'org.apache.logging.log4j:log4j-api:2.22.1'
+    implementation 'org.apache.logging.log4j:log4j-core:2.22.1'
+    implementation 'org.jetbrains:annotations:23.0.0'
+    implementation 'org.spongepowered:mixin:0.8.5'
+    implementation 'org.apache.logging.log4j:log4j-jul:2.22.1'
+
+    fabricImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    fabricImplementation "com.google.code.gson:gson:${gson_version}"
+
+    for (def lib : installerLibs) {
+        installer(lib) { exclude group: 'junit', module: 'junit' }
+    }
+    for (def lib : installerLibsFabric) {
+        installerFabric lib
+    }
+
+    installerFabric("net.fabricmc.fabric-api:fabric-api:${fabric_api_version}") { transitive = false }
+    installerFabric("net.minecrell:terminalconsoleappender:${terminal_console_appender_version}") { exclude group: 'org.apache.logging.log4j', module: 'log4j-core' }
+    installer project(':felt-paper-api')
+    installer "org.spongepowered:configurate-yaml:${configurate_paper_version}"
+    installer platform("net.kyori:adventure-bom:${adventure_version}")
+    installer "net.kyori:adventure-text-serializer-ansi"
+
+    gson "com.google.code.gson:gson:${gson_version}"
+
+    embedCommon("com.github.gr1mly4memes:felttools:${felttools_version}") {
+        exclude group: 'com.google.code.gson', module: 'gson'
+        exclude group: 'org.ow2.asm'
+    }
+    // Configurate 3 uses ninja.leaping packages; keep it separate from Paper's 4.x graph.
+    embedCommon("org.spongepowered:configurate-hocon:${hocon_version}") { transitive = false }
+    embedCommon("org.spongepowered:configurate-core:${hocon_version}") { transitive = false }
+    embedCommon("com.typesafe:config:${typesafe_config_version}") { transitive = false }
+
+    embedCommon 'commons-lang:commons-lang:2.6@jar'
+    embedCommon(project(':config')) { transitive = false }
+}
+
+jar {
+    from(configurations.embedCommon.collect { it.isDirectory() ? it : zipTree(it) }) {
+        exclude 'module-info.class'
+        exclude 'META-INF/versions/**'
+        exclude 'META-INF/MANIFEST.MF'
+        exclude 'META-INF/*.SF'
+        exclude 'META-INF/*.DSA'
+        exclude 'META-INF/*.RSA'
+        exclude 'LICENSE.txt'
+        exclude 'META-INF/services/**'
+        exclude 'org/apache/commons/lang/enum/**'
+    }
+}
+
+tasks.register('fabricJar', Jar) {
+    archiveBaseName.set "felt-fabric-${minecraft_version}"
+    manifest.attributes 'Main-Class': 'gr1mly4memes.felt.server.Launcher'
+    manifest.attributes 'Implementation-Title': 'Felt'
+    manifest.attributes 'Implementation-Version': "felt-${minecraft_version}-${project.version}-$gitHash"
+    manifest.attributes 'Implementation-Vendor': 'Felt Team'
+    manifest.attributes 'Implementation-Timestamp': new Date().format("yyyy-MM-dd HH:mm:ss")
+    manifest.attributes 'Automatic-Module-Name': 'felt.boot'
+    from(configurations.embedFabric.collect { it.isDirectory() ? it : zipTree(it) })
+    into('/') {
+        it.from(project(':felt-fabric').tasks.named('shadowJar').flatMap { it.archiveFile })
+        it.rename { name -> 'common.jar' }
+    }
+    into('/') {
+        it.from(configurations.gson.collect())
+        it.rename { name -> 'gson.jar' }
+    }
+    from sourceSets.applaunch.output
+    from sourceSets.fabric.output
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    dependsOn(project(':felt-fabric').tasks.build)
+}
+
+tasks.register('generateInstallerInfo', GenerateInstallerInfo) {
+    minecraftVersion = minecraft_version
+    fabricLoaderVersion = fabric_loader_version
+    def installer = file('build/arclight_installer/META-INF/installer.json')
+    outputs.file(installer)
+    configuration = project.configurations.installer
+    fabricExtra = project.configurations.installerFabric
+}
+
+project.sourceSets.main.output.dir file('build/arclight_installer'), builtBy: tasks.generateInstallerInfo
+project.sourceSets.fabric.output.dir file('build/arclight_installer'), builtBy: tasks.generateInstallerInfo
+
+project.sourceSets.fabric.output.dir file('build/fabric_async_catcher'), builtBy: tasks.register('fabricAsyncCatcher', RenameAsyncCatcherTask) {
+    inputFile.set project.file('async_catcher.json')
+    mapping.set 'official'
+    outputs.file('build/fabric_async_catcher/async_catcher.json')
+}
+
+compileJava {
+    sourceCompatibility = targetCompatibility = JavaVersion.VERSION_25
+    options.compilerArgs << '-XDignore.symbol.file' << '-XDenableSunApiLintControl'
+    options.encoding = 'UTF-8'
+}
+
+compileApplaunchJava {
+    sourceCompatibility = targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+tasks.register('runProdFabric', JavaExec) {
+    classpath = files(tasks.fabricJar)
+    // systemProperties 'bsl.debug': 'true'
+    systemProperties 'terminal.ansi': 'true'
+    systemProperties 'mixin.debug.export': 'true'
+    systemProperties 'mixin.dumpTargetOnFailure': 'true'
+    systemProperties 'arclight.alwaysExtract': 'true'
+    systemProperties 'arclight.remapper.dump': './.mixin.out/plugin_classes'
+    systemProperties 'sun.stdout.encoding': 'UTF-8'
+    systemProperties 'sun.stderr.encoding': 'UTF-8'
+    workingDir System.env.ARCLIGHT_PROD_DIR ?: file('run_prod/fabric')
+    maxHeapSize '4G'
+    args 'nogui'
+    standardInput System.in
+    javaLauncher.convention(javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(25)
+    })
+    dependsOn project.tasks.fabricJar
+}
+
+publishing {
+    repositories {
+        maven {
+            name = 'IzzelAliz'
+            url = uri('https://maven.izzel.io/' + (project.version.toString().endsWith('SNAPSHOT') ? 'snapshots' : 'releases'))
+            credentials {
+                username = project.findProperty("mavenUser") ?: System.getenv("ARCLIGHT_USER")
+                password = project.findProperty("mavenToken") ?: System.getenv("ARCLIGHT_TOKEN")
+            }
+        }
+    }
+}
+
+if ('true'.equalsIgnoreCase(System.getenv('APPVEYOR_REPO_TAG'))) {
+    tasks.build.dependsOn(tasks.publish)
+}

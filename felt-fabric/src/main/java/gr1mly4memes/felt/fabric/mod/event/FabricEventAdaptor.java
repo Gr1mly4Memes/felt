@@ -1,0 +1,31 @@
+package gr1mly4memes.felt.fabric.mod.event;
+
+import gr1mly4memes.felt.common.mod.util.FeltCaptures;
+import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
+import net.minecraft.world.InteractionResult;
+import org.bukkit.craftbukkit.event.CraftEventFactory;
+import org.bukkit.event.block.Action;
+
+import java.util.function.Function;
+
+public class FabricEventAdaptor {
+
+    public static <T> Function<T[], T> monitored(Class<? super T> type, Function<T[], T> factory) {
+        if (AttackBlockCallback.class == type) {
+            return (listeners) -> (T) monitorAttackBlock((AttackBlockCallback) factory.apply(listeners));
+        } else {
+            return factory;
+        }
+    }
+
+    private static AttackBlockCallback monitorAttackBlock(AttackBlockCallback callback) {
+        return (player, world, hand, pos, direction) -> {
+            final var result = callback.interact(player, world, hand, pos, direction);
+            if (result != InteractionResult.PASS) {
+                FeltCaptures.cancelNextPlayerInteract();
+                CraftEventFactory.callPlayerInteractEvent(player, Action.LEFT_CLICK_BLOCK, pos, direction, player.getInventory().getSelectedItem(), hand);
+            }
+            return result;
+        };
+    }
+}

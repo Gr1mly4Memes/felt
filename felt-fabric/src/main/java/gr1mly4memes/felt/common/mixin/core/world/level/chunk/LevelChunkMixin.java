@@ -1,0 +1,188 @@
+package gr1mly4memes.felt.common.mixin.core.world.level.chunk;
+
+import gr1mly4memes.felt.common.bridge.core.world.level.LevelAccessorBridge;
+import gr1mly4memes.felt.common.bridge.core.world.level.WorldBridge;
+import gr1mly4memes.felt.common.bridge.core.world.chunk.ChunkAccessBridge;
+import gr1mly4memes.felt.common.bridge.core.world.level.chunk.LevelChunkBridge;
+import gr1mly4memes.felttools.mixin.Decorate;
+import gr1mly4memes.felttools.mixin.DecorationOps;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.chunk.ProtoChunk;
+import net.minecraft.world.level.chunk.UpgradeData;
+import net.minecraft.world.level.levelgen.blending.BlendingData;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.ticks.LevelChunkTicks;
+import org.bukkit.Bukkit;
+import org.bukkit.craftbukkit.CraftChunk;
+import org.bukkit.craftbukkit.persistence.CraftPersistentDataContainer;
+import org.bukkit.craftbukkit.persistence.DirtyCraftPersistentDataContainer;
+import org.bukkit.event.world.ChunkLoadEvent;
+import org.spongepowered.asm.mixin.Final;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import javax.annotation.Nullable;
+
+@Mixin(LevelChunk.class)
+public abstract class LevelChunkMixin extends ChunkAccessMixin implements LevelChunkBridge {
+
+    // @formatter:off
+    @Shadow @Nullable public abstract BlockState setBlockState(BlockPos pos, BlockState state, int flags);
+    @Shadow @Final public Level level;
+    // @formatter:on
+
+    public boolean mustNotSave;
+    public boolean needsDecoration;
+    private transient boolean arclight$doPlace;
+    public ServerLevel r; // TODO f_62776_ check on update
+
+    @Inject(method = "<init>(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/level/ChunkPos;Lnet/minecraft/world/level/chunk/UpgradeData;Lnet/minecraft/world/ticks/LevelChunkTicks;Lnet/minecraft/world/ticks/LevelChunkTicks;J[Lnet/minecraft/world/level/chunk/LevelChunkSection;Lnet/minecraft/world/level/chunk/LevelChunk$PostLoadProcessor;Lnet/minecraft/world/level/levelgen/blending/BlendingData;)V", at = @At("RETURN"))
+    private void arclight$init(Level worldIn, ChunkPos p_196855_, UpgradeData p_196856_, LevelChunkTicks<Block> p_196857_, LevelChunkTicks<Fluid> p_196858_, long p_196859_, @Nullable LevelChunkSection[] p_196860_, @Nullable LevelChunk.PostLoadProcessor p_196861_, @Nullable BlendingData p_196862_, CallbackInfo ci) {
+        if (LevelAccessorBridge.from(worldIn) instanceof LevelAccessorBridge bridge) {
+            this.r = bridge.bridge$getMinecraftWorld();
+        }
+    }
+
+    @Inject(method = "<init>(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/chunk/ProtoChunk;Lnet/minecraft/world/level/chunk/LevelChunk$PostLoadProcessor;)V", at = @At("RETURN"))
+    private void arclight$init(ServerLevel p_196850_, ProtoChunk protoChunk, @Nullable LevelChunk.PostLoadProcessor p_196852_, CallbackInfo ci) {
+        this.needsDecoration = true;
+        this.persistentDataContainer = (DirtyCraftPersistentDataContainer) ((ChunkAccessBridge) protoChunk).bridge$getPersistentDataContainer();
+    }
+
+    @Inject(method = "removeBlockEntity", at = @At(value = "INVOKE_ASSIGN", remap = false, target = "Ljava/util/Map;remove(Ljava/lang/Object;)Ljava/lang/Object;"))
+    private void arclight$remove(BlockPos pos, CallbackInfo ci) {
+        if (!pendingBlockEntities.isEmpty()) {
+            pendingBlockEntities.remove(pos);
+        }
+    }
+
+    public org.bukkit.Chunk getBukkitChunk() {
+        return new CraftChunk((ServerLevel) this.level, this.chunkPos.x(), this.chunkPos.z());
+    }
+
+    @Override
+    public org.bukkit.Chunk bridge$getBukkitChunk() {
+        return getBukkitChunk();
+    }
+
+    @Override
+    public CraftPersistentDataContainer bridge$getPersistentContainer() {
+        return this.persistentDataContainer;
+    }
+
+    public BlockState setBlockState(BlockPos pos, BlockState state, boolean isMoving, boolean doPlace) {
+        this.arclight$doPlace = doPlace;
+        try {
+            return this.setBlockState(pos, state, isMoving ? 64 : 0);
+        } finally {
+            this.arclight$doPlace = true;
+        }
+    }
+
+    @Override
+    public BlockState bridge$setType(BlockPos pos, BlockState state, boolean isMoving, boolean doPlace) {
+        return this.setBlockState(pos, state, isMoving, doPlace);
+    }
+
+    @Override
+    public boolean bridge$isMustNotSave() {
+        return this.mustNotSave;
+    }
+
+    @Override
+    public void bridge$setMustNotSave(boolean mustNotSave) {
+        this.mustNotSave = mustNotSave;
+    }
+
+    @Override
+    public boolean bridge$isNeedsDecoration() {
+        return this.needsDecoration;
+    }
+
+    @Override
+    public void bridge$loadCallback() {
+        loadCallback();
+    }
+
+    @Override
+    public void bridge$unloadCallback() {
+        unloadCallback();
+    }
+
+    @Override
+    public void bridge$loadCallback(java.util.function.Consumer<LevelChunk> entityLoadCallback) {
+        loadCallback(entityLoadCallback);
+    }
+
+    public void loadCallback() {
+        loadCallback(null);
+    }
+
+    private void loadCallback(java.util.function.Consumer<LevelChunk> entityLoadCallback) {
+        org.bukkit.Server server = Bukkit.getServer();
+        if (server != null) {
+            /*
+             * If it's a new world, the first few chunks are generated inside
+             * the World constructor. We can't reliably alter that, so we have
+             * no way of creating a CraftWorld/CraftServer at that point.
+             */
+
+            var bukkitChunk = new CraftChunk((ServerLevel) this.level, this.chunkPos.x(), this.chunkPos.z());
+            server.getPluginManager().callEvent(new ChunkLoadEvent(bukkitChunk, this.needsDecoration));
+            if (entityLoadCallback != null) {
+                entityLoadCallback.accept((LevelChunk) (Object) this);
+            }
+
+            if (this.needsDecoration) {
+                this.needsDecoration = false;
+                java.util.Random random = new java.util.Random();
+                random.setSeed(((ServerLevel) level).getSeed());
+                long xRand = random.nextLong() / 2L * 2L + 1L;
+                long zRand = random.nextLong() / 2L * 2L + 1L;
+                random.setSeed((long) this.chunkPos.x() * xRand + (long) this.chunkPos.z() * zRand ^ ((ServerLevel) level).getSeed());
+
+                org.bukkit.World world = ((WorldBridge) this.level).bridge$getWorld();
+                if (world != null) {
+                    ((WorldBridge) this.level).bridge$setPopulating(true);
+                    try {
+                        for (org.bukkit.generator.BlockPopulator populator : world.getPopulators()) {
+                            populator.populate(world, random, bukkitChunk);
+                        }
+                    } finally {
+                        ((WorldBridge) this.level).bridge$setPopulating(false);
+                    }
+                }
+                server.getPluginManager().callEvent(new org.bukkit.event.world.ChunkPopulateEvent(bukkitChunk));
+            }
+        }
+    }
+
+    public void unloadCallback() {
+        org.bukkit.Server server = Bukkit.getServer();
+        var bukkitChunk = new CraftChunk((ServerLevel) this.level, this.chunkPos.x(), this.chunkPos.z());
+        org.bukkit.event.world.ChunkUnloadEvent unloadEvent = new org.bukkit.event.world.ChunkUnloadEvent(bukkitChunk, true);
+        server.getPluginManager().callEvent(unloadEvent);
+        // note: saving can be prevented, but not forced if no saving is actually required
+        this.mustNotSave = !unloadEvent.isSaveChunk();
+    }
+
+    @Decorate(method = "setBlockState", at = @At(value = "INVOKE", ordinal = 1, target = "Lnet/minecraft/world/level/Level;isClientSide()Z"))
+    public boolean arclight$redirectIsRemote(Level world) throws Throwable {
+        return (boolean) DecorationOps.callsite().invoke(world) && this.arclight$doPlace;
+    }
+
+    @Override
+    public boolean isUnsaved() {
+        return super.isUnsaved() && !this.mustNotSave;
+    }
+}

@@ -1,0 +1,23 @@
+package gr1mly4memes.felt.common.mixin.core.network.protocol.game;
+
+import gr1mly4memes.felt.common.mod.mixins.annotation.CreateConstructor;
+import gr1mly4memes.felt.common.mod.mixins.annotation.ShadowConstructor;
+import net.md_5.bungee.api.chat.BaseComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
+import org.bukkit.craftbukkit.util.CraftChatMessage;
+import org.spongepowered.asm.mixin.Mixin;
+
+@Mixin(ClientboundSystemChatPacket.class)
+public class ClientboundSystemChatPacketMixin {
+
+    @ShadowConstructor
+    public void arclight$constructor(Component content, boolean overlay) {
+        throw new RuntimeException();
+    }
+
+    @CreateConstructor
+    public void arclight$constructor(BaseComponent[] content, boolean overlay) {
+        arclight$constructor(CraftChatMessage.bungeeToVanilla(content), overlay);
+    }
+}

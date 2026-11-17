@@ -1,0 +1,101 @@
+package gr1mly4memes.felt.common.mixin.core.world.entity.boss.wither;
+
+import gr1mly4memes.felt.common.mixin.core.world.entity.PathfinderMobMixin;
+import gr1mly4memes.felt.common.bridge.core.world.entity.boss.WitherBossBridge;
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
+import org.spongepowered.asm.mixin.Unique;
+import gr1mly4memes.felt.common.bridge.core.world.entity.LivingEntityBridge;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import gr1mly4memes.felttools.mixin.Decorate;
+import gr1mly4memes.felttools.mixin.DecorationOps;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.boss.wither.WitherBoss;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import org.bukkit.Bukkit;
+import org.bukkit.craftbukkit.event.CraftEventFactory;
+import org.bukkit.event.entity.EntityRegainHealthEvent;
+import org.bukkit.event.entity.EntityRemoveEvent;
+import org.bukkit.event.entity.EntityTargetEvent;
+import org.bukkit.event.entity.ExplosionPrimeEvent;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+@Mixin(WitherBoss.class)
+public abstract class WitherBossMixin extends PathfinderMobMixin implements WitherBossBridge {
+
+    @Unique private boolean canPortal; // Paper added
+
+    @Override
+    public void setCanTravelThroughPortals(boolean value) {
+        this.canPortal = value;
+    }
+
+    @ModifyReturnValue(method = "canUsePortal", at = @At("RETURN"))
+    private boolean arclight$canUsePortal(boolean original) {
+        return this.canPortal;
+    }
+
+    @Inject(method = "checkDespawn", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/boss/wither/WitherBoss;discard()V"))
+    private void arclight$despawn(CallbackInfo ci) {
+        this.bridge$pushEntityRemoveCause(EntityRemoveEvent.Cause.DESPAWN);
+    }
+
+    @Decorate(method = "customServerAiStep", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;explode(Lnet/minecraft/world/entity/Entity;DDDFZLnet/minecraft/world/level/Level$ExplosionInteraction;)V"))
+    private void arclight$explodeEvent(ServerLevel instance, Entity arg, double d, double e, double f, float radius, boolean fire, Level.ExplosionInteraction arg2) throws Throwable {
+        ExplosionPrimeEvent event = new ExplosionPrimeEvent(this.getBukkitEntity(), radius, fire);
+        Bukkit.getPluginManager().callEvent(event);
+        if (!event.isCancelled()) {
+            DecorationOps.callsite().invoke(instance, arg, d, e, f, event.getRadius(), event.getFire(), arg2);
+        }
+    }
+
+    @Decorate(method = "customServerAiStep", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/boss/wither/WitherBoss;setAlternativeTarget(II)V"))
+    private void arclight$targetLivingEvent(WitherBoss instance, int i, int entityId) throws Throwable {
+        if (i > 0 && entityId != 0) {
+            if (CraftEventFactory.callEntityTargetLivingEvent((WitherBoss) (Object) this, (LivingEntity) this.level().getEntity(entityId), EntityTargetEvent.TargetReason.CLOSEST_ENTITY).isCancelled()) {
+                return;
+            }
+        }
+        DecorationOps.callsite().invoke(instance, i, entityId);
+    }
+
+    @Decorate(method = "customServerAiStep", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;destroyBlock(Lnet/minecraft/core/BlockPos;ZLnet/minecraft/world/entity/Entity;)Z"))
+    private boolean arclight$damageBlock(ServerLevel instance, BlockPos blockPos, boolean b, Entity entity) throws Throwable {
+        if (!CraftEventFactory.callEntityChangeBlockEvent((WitherBoss) (Object) this, blockPos, Blocks.AIR.defaultBlockState())) {
+            return false;
+        }
+        return (boolean) DecorationOps.callsite().invoke(instance, blockPos, b, entity);
+    }
+
+    @WrapOperation(method = "customServerAiStep(Lnet/minecraft/server/level/ServerLevel;)V", at = @At(value = "INVOKE", ordinal = 0, target = "Lnet/minecraft/world/entity/boss/wither/WitherBoss;heal(F)V"))
+    private void arclight$healReason(WitherBoss instance, float amount, Operation<Void> original) {
+        LivingEntityBridge bridge = (LivingEntityBridge) instance;
+        EntityRegainHealthEvent.RegainReason previous = bridge.bridge$peekHealReason();
+        bridge.bridge$pushHealReason(EntityRegainHealthEvent.RegainReason.WITHER_SPAWN);
+        try {
+            original.call(instance, amount);
+        } finally {
+            bridge.bridge$pushHealReason(previous);
+        }
+    }
+
+    @WrapOperation(method = "customServerAiStep(Lnet/minecraft/server/level/ServerLevel;)V", at = @At(value = "INVOKE", ordinal = 1, target = "Lnet/minecraft/world/entity/boss/wither/WitherBoss;heal(F)V"))
+    private void arclight$healReason2(WitherBoss instance, float amount, Operation<Void> original) {
+        LivingEntityBridge bridge = (LivingEntityBridge) instance;
+        EntityRegainHealthEvent.RegainReason previous = bridge.bridge$peekHealReason();
+        bridge.bridge$pushHealReason(EntityRegainHealthEvent.RegainReason.REGEN);
+        try {
+            original.call(instance, amount);
+        } finally {
+            bridge.bridge$pushHealReason(previous);
+        }
+    }
+
+}

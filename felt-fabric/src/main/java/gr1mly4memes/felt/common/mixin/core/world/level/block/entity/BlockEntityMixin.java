@@ -1,0 +1,109 @@
+package gr1mly4memes.felt.common.mixin.core.world.level.block.entity;
+
+import gr1mly4memes.felt.common.bridge.core.world.level.block.entity.BlockEntityBridge;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentMap;
+import net.minecraft.core.component.DataComponentPatch;
+import net.minecraft.core.component.DataComponentType;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import org.bukkit.craftbukkit.block.CraftBlock;
+import org.bukkit.craftbukkit.persistence.CraftPersistentDataContainer;
+import org.bukkit.craftbukkit.persistence.CraftPersistentDataTypeRegistry;
+import org.bukkit.inventory.InventoryHolder;
+import org.spongepowered.asm.mixin.Final;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
+
+import javax.annotation.Nullable;
+import java.util.Set;
+
+@Mixin(BlockEntity.class)
+public abstract class BlockEntityMixin implements BlockEntityBridge {
+
+    private static final CraftPersistentDataTypeRegistry DATA_TYPE_REGISTRY = new CraftPersistentDataTypeRegistry();
+    public CraftPersistentDataContainer persistentDataContainer = new CraftPersistentDataContainer(DATA_TYPE_REGISTRY);
+
+    @Override
+    public CraftPersistentDataContainer bridge$getPersistentDataContainer() {
+        return this.persistentDataContainer;
+    }
+
+    // @formatter:off
+    @Shadow @Nullable public Level level;
+    @Shadow @Final protected BlockPos worldPosition;
+    @Shadow public abstract BlockState getBlockState();
+    @Shadow public BlockPos getBlockPos() { return null; }
+    @Shadow protected static void setChanged(Level p_155233_, BlockPos p_155234_, BlockState p_155235_) { }
+    @Shadow public abstract BlockEntityType<?> getType();
+    @Shadow public void setLevel(Level p_155231_) {}
+    // @formatter:on
+
+    @Shadow
+    public abstract void applyComponents(DataComponentMap dataComponentMap, DataComponentPatch dataComponentPatch);
+
+    @Inject(method = "getPosFromTag", at = @At("HEAD"), cancellable = true)
+    private static void arclight$nullBase(@Nullable ChunkPos base, CompoundTag tag, CallbackInfoReturnable<BlockPos> cir) {
+        // CraftBukkit reads item block-state metadata without an owning chunk.
+        if (base == null) {
+            cir.setReturnValue(new BlockPos(tag.getIntOr("x", 0), tag.getIntOr("y", 0), tag.getIntOr("z", 0)));
+        }
+    }
+
+    @Inject(method = "loadAdditional", at = @At("RETURN"))
+    public void arclight$loadPersistent(ValueInput input, CallbackInfo ci) {
+        this.persistentDataContainer.clear();
+
+        input.read("PublicBukkitValues", CompoundTag.CODEC).ifPresent(this.persistentDataContainer::putAll);
+    }
+
+    @Inject(method = {"saveWithoutMetadata(Lnet/minecraft/world/level/storage/ValueOutput;)V", "saveCustomOnly(Lnet/minecraft/world/level/storage/ValueOutput;)V"}, at = @At("RETURN"))
+    private void arclight$savePersistent(ValueOutput output, CallbackInfo ci) {
+        if (this.persistentDataContainer != null && !this.persistentDataContainer.isEmpty()) {
+            output.store("PublicBukkitValues", CompoundTag.CODEC, this.persistentDataContainer.toTagCompound());
+        }
+    }
+
+    private transient Set<DataComponentType<?>> arclight$appliedSet;
+
+    public final Set<DataComponentType<?>> applyComponentsSet(DataComponentMap datacomponentmap, DataComponentPatch datacomponentpatch) {
+        try {
+            this.applyComponents(datacomponentmap, datacomponentpatch);
+            return arclight$appliedSet;
+        } finally {
+            arclight$appliedSet = null;
+        }
+    }
+
+    @Inject(method = "applyComponents", locals = LocalCapture.CAPTURE_FAILHARD, at = @At("RETURN"))
+    private void arclight$captureSet(DataComponentMap dataComponentMap, DataComponentPatch dataComponentPatch, CallbackInfo ci, Set<DataComponentType<?>> set) {
+        set.remove(DataComponents.BLOCK_ENTITY_DATA);
+        arclight$appliedSet = set;
+    }
+
+    public InventoryHolder getOwner() {
+        if (this.level == null) return null;
+        org.bukkit.block.Block block = CraftBlock.at(this.level, this.worldPosition);
+        org.bukkit.block.BlockState state = block.getState();
+        if (state instanceof InventoryHolder) return (InventoryHolder) state;
+        return null;
+    }
+
+    @Override
+    public InventoryHolder bridge$getOwner() {
+        return getOwner();
+    }
+}

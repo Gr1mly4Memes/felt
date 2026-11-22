@@ -1,0 +1,31 @@
+package gr1mly4memes.felt.mixin.core.world.entity.projectile;
+
+import gr1mly4memes.felt.bridge.core.world.entity.LivingEntityBridge;
+import gr1mly4memes.felt.bridge.core.world.entity.projectile.ArrowBridge;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.arrow.Arrow;
+import org.bukkit.event.entity.EntityPotionEffectEvent;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+@Mixin(Arrow.class)
+public abstract class ArrowMixin extends AbstractArrowMixin implements ArrowBridge {
+
+    @Override
+    public void bridge$inactiveTick() {
+        var arrow = (Arrow) (Object) this;
+        if (arrow.isInGround()) {
+            ++arrow.life;
+        }
+        super.bridge$inactiveTick();
+    }
+
+    @Inject(method = "*", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;addEffect(Lnet/minecraft/world/effect/MobEffectInstance;Lnet/minecraft/world/entity/Entity;)Z"))
+    private static void felt$arrowHit(LivingEntity living, Entity source, MobEffectInstance effect, CallbackInfo ci) {
+        ((LivingEntityBridge) living).bridge$pushEffectCause(EntityPotionEffectEvent.Cause.ARROW);
+    }
+}

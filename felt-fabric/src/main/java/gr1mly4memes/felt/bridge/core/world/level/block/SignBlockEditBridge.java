@@ -1,0 +1,13 @@
+package gr1mly4memes.felt.bridge.core.world.level.block;
+
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.block.entity.SignBlockEntity;
+import net.minecraft.world.level.block.entity.SignTextSlot;
+import org.bukkit.event.player.PlayerSignOpenEvent;
+
+public interface SignBlockEditBridge {
+
+    void bridge$openTextEdit(Player player, SignBlockEntity sign, SignTextSlot slot,
+                            PlayerSignOpenEvent.Cause cause, Operation<Void> original);
+}

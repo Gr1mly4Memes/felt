@@ -1,0 +1,45 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/world/saveddata/PaperLevelOverrides.java b/paper-server/src/main/java/io/papermc/paper/world/saveddata/PaperLevelOverrides.java
+--- a/paper-server/src/main/java/io/papermc/paper/world/saveddata/PaperLevelOverrides.java
++++ b/paper-server/src/main/java/io/papermc/paper/world/saveddata/PaperLevelOverrides.java
+@@ -7,7 +7,6 @@
+ import net.minecraft.resources.Identifier;
+ import net.minecraft.resources.ResourceKey;
+ import net.minecraft.util.Mth;
+-import net.minecraft.util.datafix.DataFixTypes;
+ import net.minecraft.world.Difficulty;
+ import net.minecraft.world.level.GameType;
+ import net.minecraft.world.level.Level;
+@@ -31,10 +30,10 @@
+         LevelSettings.DifficultySettings.CODEC.fieldOf("difficulty_settings").forGetter(levelOverrides -> levelOverrides.difficultySettings)
+     ).apply(instance, PaperLevelOverrides::new));
+     public static final SavedDataType<PaperLevelOverrides> TYPE = new SavedDataType<>(
+-        Identifier.fromNamespaceAndPath(Identifier.PAPER_NAMESPACE, "level_overrides"),
++        Identifier.fromNamespaceAndPath("paper", "level_overrides"),
+         PaperLevelOverrides::new,
+         CODEC,
+-        DataFixTypes.NONE
++        null
+     );
+ 
+     private RespawnData respawnData;
+@@ -214,10 +213,16 @@
+     private void setDifficultySettings(final LevelSettings.DifficultySettings difficultySettings) {
+         if (!this.difficultySettings.equals(difficultySettings)) {
+             this.difficultySettings = difficultySettings;
+-            this.syncRootData(rootData -> rootData.settings = rootData.settings
+-                .withDifficulty(difficultySettings.difficulty())
+-                .withHardcore(difficultySettings.hardcore())
+-                .withDifficultyLock(difficultySettings.locked()));
++            this.syncRootData(rootData -> {
++                final LevelSettings settings = rootData.settings;
++                rootData.settings = new LevelSettings(
++                    settings.levelName(),
++                    settings.gameType(),
++                    difficultySettings,
++                    settings.allowCommands(),
++                    settings.dataConfiguration()
++                );
++            });
+             this.setDirty();
+         }
+     }

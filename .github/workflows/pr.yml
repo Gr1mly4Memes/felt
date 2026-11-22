@@ -26,12 +26,12 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.gradle
-        key: ${{ runner.os }}-gradle-user-home-v2-${{ hashFiles('**/*.gradle', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties', 'buildSrc/src/**', 'arclight-fabric/bukkit.at', 'arclight-fabric/extra_mapping.tsrg', 'gradle.properties') }}
+        key: ${{ runner.os }}-gradle-user-home-v2-${{ hashFiles('**/*.gradle', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties', 'buildSrc/src/**', 'felt-fabric/bukkit.at', 'felt-fabric/extra_mapping.tsrg', 'gradle.properties') }}
     - name: Cache Gradle Files
       uses: actions/cache@v4
       with:
         path: ./.gradle
-        key: ${{ runner.os }}-gradle-file-v2-${{ hashFiles('**/*.gradle', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties', 'buildSrc/src/**', 'arclight-fabric/bukkit.at', 'arclight-fabric/extra_mapping.tsrg', 'gradle.properties') }}
+        key: ${{ runner.os }}-gradle-file-v2-${{ hashFiles('**/*.gradle', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties', 'buildSrc/src/**', 'felt-fabric/bukkit.at', 'felt-fabric/extra_mapping.tsrg', 'gradle.properties') }}
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build

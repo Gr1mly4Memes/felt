@@ -1,0 +1,63 @@
+package gr1mly4memes.felt.bridge.bukkit;
+
+import gr1mly4memes.felt.mod.config.MaterialPropertySpec;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import org.bukkit.block.BlockState;
+import org.bukkit.craftbukkit.block.CraftBlock;
+import org.bukkit.craftbukkit.inventory.CraftMetaItem;
+import org.bukkit.inventory.meta.ItemMeta;
+
+import javax.annotation.Nullable;
+import java.util.function.Function;
+
+public interface MaterialBridge {
+
+    Identifier AIR = Identifier.parse("air");
+
+    void bridge$setupBlock(Identifier key, MaterialPropertySpec spec);
+
+    void bridge$setupVanillaBlock(MaterialPropertySpec spec);
+
+    void bridge$setupItem(Identifier key, MaterialPropertySpec spec);
+
+    void bridge$setBlock();
+
+    void bridge$setItem();
+
+    @Nullable
+    MaterialPropertySpec bridge$getSpec();
+
+    MaterialPropertySpec.MaterialType bridge$getType();
+
+    Function<CraftMetaItem, ItemMeta> bridge$itemMetaFactory();
+
+    void bridge$setItemMetaFactory(Function<CraftMetaItem, ItemMeta> func);
+
+    Function<CraftBlock, BlockState> bridge$blockStateFactory();
+
+    void bridge$setBlockStateFactory(Function<CraftBlock, BlockState> func);
+
+    boolean bridge$shouldApplyStateFactory();
+
+    default Item bridge$getCraftRemainingItem(Item item) {
+        var remaining = item.getCraftingRemainder();
+        return remaining == null ? null : remaining.item().value();
+    }
+
+    default int bridge$mod$getMaxStackSize(Item item) {
+        return item.getDefaultMaxStackSize();
+    }
+
+    default int bridge$mod$getDurability(Item item) {
+        return item.components().getOrDefault(DataComponents.MAX_DAMAGE, 0);
+    }
+
+    default boolean bridge$mod$isFuel(Item item) {
+        MinecraftServer server = gr1mly4memes.felt.mod.server.FeltServer.getMinecraftServer();
+        return server != null && new ItemStack(item).has(DataComponents.COOKING_FUEL);
+    }
+}

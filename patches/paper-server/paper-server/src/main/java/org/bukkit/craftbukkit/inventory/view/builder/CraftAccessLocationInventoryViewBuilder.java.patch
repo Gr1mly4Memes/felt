@@ -1,0 +1,15 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/view/builder/CraftAccessLocationInventoryViewBuilder.java b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/view/builder/CraftAccessLocationInventoryViewBuilder.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/view/builder/CraftAccessLocationInventoryViewBuilder.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/view/builder/CraftAccessLocationInventoryViewBuilder.java
+@@ -35,9 +35,9 @@
+             effectiveBlockState = block.defaultBlockState();
+         }
+ 
+-        final MenuProvider provider = block.getMenuProvider(effectiveBlockState, effectiveLevel, effectiveBlockPos);
++        final MenuProvider provider = block.withPropertiesOf(effectiveBlockState).getMenuProvider(effectiveLevel, effectiveBlockPos);
+         super.defaultTitle = provider.getDisplayName();
+-        return provider.createMenu(player.nextContainerCounter(), player.getInventory(), player);
++        return provider.createMenu(((gr1mly4memes.felt.bridge.core.server.level.ServerPlayerBridge) player).bridge$nextContainerCounter(), player.getInventory(), player);
+     }
+ 
+     @Override

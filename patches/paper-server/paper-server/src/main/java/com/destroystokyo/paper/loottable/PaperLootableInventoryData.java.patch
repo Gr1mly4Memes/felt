@@ -1,0 +1,38 @@
+diff --git a/paper-server/src/main/java/com/destroystokyo/paper/loottable/PaperLootableInventoryData.java b/paper-server/src/main/java/com/destroystokyo/paper/loottable/PaperLootableInventoryData.java
+--- a/paper-server/src/main/java/com/destroystokyo/paper/loottable/PaperLootableInventoryData.java
++++ b/paper-server/src/main/java/com/destroystokyo/paper/loottable/PaperLootableInventoryData.java
+@@ -99,7 +99,7 @@
+     public static final LootTableInterface<RandomizableContainer> CONTAINER = new LootTableInterface<>() {
+         @Override
+         public WorldConfiguration paperConfig(final RandomizableContainer holder) {
+-            return Objects.requireNonNull(holder.getLevel(), "Can only manager loot replenishment on block entities in a world").paperConfig();
++            throw new UnsupportedOperationException("Loot replenishment is not supported by Felt yet");
+         }
+ 
+         @Override
+@@ -114,14 +114,14 @@
+ 
+         @Override
+         public LootableInventory getInventoryForEvent(final RandomizableContainer holder) {
+-            return holder.getLootableInventory();
++            throw new UnsupportedOperationException("Loot replenishment is not supported by Felt yet");
+         }
+     };
+ 
+     public static final LootTableInterface<ContainerEntity> ENTITY = new LootTableInterface<>() {
+         @Override
+         public WorldConfiguration paperConfig(final ContainerEntity holder) {
+-            return holder.level().paperConfig();
++            throw new UnsupportedOperationException("Loot replenishment is not supported by Felt yet");
+         }
+ 
+         @Override
+@@ -136,7 +136,7 @@
+ 
+         @Override
+         public LootableInventory getInventoryForEvent(final ContainerEntity holder) {
+-            return holder.getLootableInventory();
++            throw new UnsupportedOperationException("Loot replenishment is not supported by Felt yet");
+         }
+     };
+ 

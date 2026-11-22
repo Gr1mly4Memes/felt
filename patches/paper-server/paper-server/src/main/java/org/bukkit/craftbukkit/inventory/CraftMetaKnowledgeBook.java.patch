@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaKnowledgeBook.java b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaKnowledgeBook.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaKnowledgeBook.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaKnowledgeBook.java
+@@ -23,7 +23,7 @@
+ 
+     protected List<NamespacedKey> recipes = new ArrayList<>();
+ 
+-    CraftMetaKnowledgeBook(CraftMetaItem meta) {
++    public CraftMetaKnowledgeBook(CraftMetaItem meta) {
+         super(meta);
+ 
+         if (meta instanceof final CraftMetaKnowledgeBook bookMeta) {

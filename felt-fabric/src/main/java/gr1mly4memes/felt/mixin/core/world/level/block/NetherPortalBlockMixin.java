@@ -1,0 +1,94 @@
+package gr1mly4memes.felt.mixin.core.world.level.block;
+
+import gr1mly4memes.felt.bridge.core.entity.EntityBridge;
+import gr1mly4memes.felt.bridge.core.world.entity.EntityTypeBridge;
+import gr1mly4memes.felt.bridge.core.world.level.portal.PortalForcerBridge;
+import gr1mly4memes.felt.bridge.core.world.level.portal.DimensionTransitionBridge;
+import gr1mly4memes.felttools.mixin.Decorate;
+import gr1mly4memes.felttools.mixin.DecorationOps;
+import gr1mly4memes.felttools.mixin.Local;
+import io.papermc.paper.event.entity.EntityPortalReadyEvent;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.BlockUtil;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.InsideBlockEffectApplier;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.NetherPortalBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.border.WorldBorder;
+import net.minecraft.world.level.portal.TeleportTransition;
+import net.minecraft.world.phys.Vec3;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.craftbukkit.util.CraftLocation;
+import org.bukkit.event.entity.CreatureSpawnEvent;
+import org.bukkit.event.entity.EntityPortalEnterEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+@Mixin(NetherPortalBlock.class)
+public class NetherPortalBlockMixin {
+
+    @Redirect(method = "randomTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/EntityType;spawn(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/entity/EntitySpawnReason;)Lnet/minecraft/world/entity/Entity;"))
+    public Entity felt$spawn(EntityType<?> instance, ServerLevel p_262634_, BlockPos p_262707_, EntitySpawnReason p_262597_) {
+        return ((EntityTypeBridge<?>) instance).bridge$spawnCreature(p_262634_, p_262707_, p_262597_, CreatureSpawnEvent.SpawnReason.NETHER_PORTAL);
+    }
+
+    @Inject(method = "entityInside", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setAsInsidePortal(Lnet/minecraft/world/level/block/Portal;Lnet/minecraft/core/BlockPos;)V"))
+    public void felt$portalEnter(BlockState state, Level worldIn, BlockPos pos, Entity entityIn, InsideBlockEffectApplier effectApplier, boolean isInside, CallbackInfo ci) {
+        EntityPortalEnterEvent event = new EntityPortalEnterEvent(entityIn.bridge$getBukkitEntity(),
+            new Location(worldIn.bridge$getWorld(), pos.getX(), pos.getY(), pos.getZ()));
+        Bukkit.getPluginManager().callEvent(event);
+    }
+
+    @Decorate(method = "getPortalDestination(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/Entity;Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/portal/TeleportTransition;",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;getLevel(Lnet/minecraft/resources/ResourceKey;)Lnet/minecraft/server/level/ServerLevel;"), require = 1, allow = 1)
+    private ServerLevel felt$portalReady(MinecraftServer server, ResourceKey<Level> dimension,
+                                            @Local(ordinal = 0) Entity entity) throws Throwable {
+        ServerLevel target = (ServerLevel) DecorationOps.callsite().invoke(server, dimension);
+        var event = new EntityPortalReadyEvent(entity.bridge$getBukkitEntity(), target == null ? null : target.bridge$getWorld(), org.bukkit.PortalType.NETHER);
+        Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) {
+            entity.portalProcess = null;
+            return null;
+        }
+        return event.getTargetWorld() == null ? null : ((CraftWorld) event.getTargetWorld()).getHandle();
+    }
+
+    @Decorate(method = "getPortalDestination", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/NetherPortalBlock;getExitPortal(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/Entity;Lnet/minecraft/core/BlockPos;Lnet/minecraft/core/BlockPos;ZLnet/minecraft/world/level/border/WorldBorder;)Lnet/minecraft/world/level/portal/TeleportTransition;"))
+    private TeleportTransition felt$createPortalEvent(NetherPortalBlock instance, ServerLevel serverLevel, Entity entity, BlockPos blockPos, BlockPos blockPos2, boolean bl, WorldBorder worldBorder) throws Throwable {
+        var event = ((EntityBridge) entity).bridge$callPortalEvent(entity, CraftLocation.toBukkit(blockPos2, serverLevel.bridge$getWorld()), PlayerTeleportEvent.TeleportCause.NETHER_PORTAL, bl ? 16 : 128, 16);
+        if (event == null) {
+            return null;
+        }
+        serverLevel = ((CraftWorld) event.to().getWorld()).getHandle();
+        worldBorder = serverLevel.getWorldBorder();
+        blockPos2 = worldBorder.clampToBounds(event.to().getX(), event.to().getY(), event.to().getZ());
+        ((PortalForcerBridge) serverLevel.getPortalForcer()).bridge$pushSearchRadius(event.searchRadius());
+        ((PortalForcerBridge) serverLevel.getPortalForcer()).bridge$pushPortalCreate(entity, event.createRadius());
+        var result = (TeleportTransition) DecorationOps.callsite().invoke(instance, serverLevel, entity, blockPos, blockPos2, bl, worldBorder);
+        ((PortalForcerBridge) serverLevel.getPortalForcer()).bridge$pushSearchRadius(-1);
+        ((PortalForcerBridge) serverLevel.getPortalForcer()).bridge$pushPortalCreate(null, -1);
+        return result;
+    }
+
+    @Inject(method = "createDimensionTransition", at = @At("RETURN"))
+    private static void felt$setCause(ServerLevel serverLevel, BlockUtil.FoundRectangle foundRectangle, Direction.Axis axis, Vec3 vec3, Entity entity, TeleportTransition.PostTeleportTransition postTeleportTransition, CallbackInfoReturnable<TeleportTransition> cir) {
+        var dimensionTransition = cir.getReturnValue();
+        if (dimensionTransition != null) {
+            ((DimensionTransitionBridge) (Object) dimensionTransition).bridge$setTeleportCause(PlayerTeleportEvent.TeleportCause.NETHER_PORTAL);
+        }
+    }
+}

@@ -1,0 +1,14 @@
+diff --git a/paper-server/src/main/java/com/destroystokyo/paper/entity/ai/MobGoalHelper.java b/paper-server/src/main/java/com/destroystokyo/paper/entity/ai/MobGoalHelper.java
+--- a/paper-server/src/main/java/com/destroystokyo/paper/entity/ai/MobGoalHelper.java
++++ b/paper-server/src/main/java/com/destroystokyo/paper/entity/ai/MobGoalHelper.java
+@@ -254,6 +254,10 @@
+     }
+ 
+     public static <T extends Mob> GoalKey<T> getKey(Class<? extends Goal> goalClass) {
++        if (!goalClass.getName().startsWith("net.minecraft.")) {
++            String path = goalClass.getName().replaceAll("[^a-zA-Z0-9/._-]", "_").toLowerCase(java.util.Locale.ROOT);
++            return GoalKey.of((Class<T>) Mob.class, new NamespacedKey("felt", path));
++        }
+         Class<T> type = getGenericType(goalClass);
+ 
+         String name = goalClass.getName();

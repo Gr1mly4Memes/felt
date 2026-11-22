@@ -1,0 +1,11 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftThrownPotion.java b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftThrownPotion.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftThrownPotion.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftThrownPotion.java
+@@ -42,6 +42,6 @@
+ 
+     @Override
+     public void splash() {
+-        this.getHandle().splash(null);
++        throw new UnsupportedOperationException("Felt does not support active potion splashing yet");
+     }
+ }

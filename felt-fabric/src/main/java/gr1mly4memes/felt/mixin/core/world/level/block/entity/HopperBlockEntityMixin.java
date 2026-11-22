@@ -1,0 +1,248 @@
+package gr1mly4memes.felt.mixin.core.world.level.block.entity;
+
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Local;
+import com.llamalad7.mixinextras.sugar.Share;
+import com.llamalad7.mixinextras.sugar.ref.LocalLongRef;
+import gr1mly4memes.felt.bridge.core.world.IInventoryBridge;
+import gr1mly4memes.felt.bridge.core.world.level.WorldBridge;
+import gr1mly4memes.felt.mod.server.FeltServer;
+import gr1mly4memes.felt.mod.util.FeltCaptures;
+import gr1mly4memes.felt.mod.util.DistValidate;
+import gr1mly4memes.felttools.mixin.Decorate;
+import gr1mly4memes.felttools.mixin.DecorationOps;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.NonNullList;
+import net.minecraft.world.CompoundContainer;
+import net.minecraft.world.Container;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.Hopper;
+import net.minecraft.world.level.block.entity.HopperBlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import org.bukkit.Bukkit;
+import org.bukkit.craftbukkit.block.CraftBlock;
+import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+import org.bukkit.craftbukkit.inventory.CraftInventory;
+import org.bukkit.craftbukkit.inventory.CraftInventoryDoubleChest;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
+import org.bukkit.entity.HumanEntity;
+import org.bukkit.entity.Item;
+import org.bukkit.event.entity.EntityRemoveEvent;
+import org.bukkit.event.inventory.HopperInventorySearchEvent;
+import org.bukkit.event.inventory.InventoryMoveItemEvent;
+import org.bukkit.event.inventory.InventoryPickupItemEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.BooleanSupplier;
+
+@Mixin(HopperBlockEntity.class)
+public abstract class HopperBlockEntityMixin extends BaseContainerBlockEntityMixin {
+
+    // @formatter:off
+    @Shadow private NonNullList<ItemStack> items;
+    @Shadow public abstract void setItem(int index, ItemStack stack);
+    @Shadow private static boolean tryMoveItems(Level p_155579_, BlockPos p_155580_, BlockState p_155581_, HopperBlockEntity p_155582_, BooleanSupplier p_155583_) { return false; }
+    // @formatter:on
+
+    public List<HumanEntity> transaction = new ArrayList<>();
+    private int maxStack = MAX_STACK;
+
+    @Redirect(method = "pushItemsTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/entity/HopperBlockEntity;tryMoveItems(Lnet/minecraft/world/level/Level;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/block/entity/HopperBlockEntity;Ljava/util/function/BooleanSupplier;)Z"))
+    private static boolean felt$hopperCheck(Level level, BlockPos pos, BlockState state, HopperBlockEntity hopper, BooleanSupplier flag) {
+        var result = tryMoveItems(level, pos, state, hopper, flag);
+        if (!result && DistValidate.isValid(level) && ((WorldBridge) level).bridge$spigotConfig().hopperCheck > 1) {
+            hopper.setCooldown(((WorldBridge) level).bridge$spigotConfig().hopperCheck);
+        }
+        return result;
+    }
+
+    @WrapOperation(method = "ejectItems", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/entity/HopperBlockEntity;isFullContainer(Lnet/minecraft/world/Container;Lnet/minecraft/core/Direction;)Z"))
+    private static boolean felt$preparePush(Container destination, Direction direction, Operation<Boolean> original,
+                                               @Local(argsOnly = true) Level level,
+                                               @Local(argsOnly = true) HopperBlockEntity source,
+                                               @Share("feltDisallowedSlots") LocalLongRef disallowedSlots) {
+        boolean full = original.call(destination, direction);
+        disallowedSlots.set(full ? 0L : felt$prepareTransfer(level, source, destination, true));
+        return full;
+    }
+
+    @WrapOperation(method = "ejectItems", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/entity/HopperBlockEntity;getItem(I)Lnet/minecraft/world/item/ItemStack;"))
+    private static ItemStack felt$filterPush(HopperBlockEntity source, int slot, Operation<ItemStack> original,
+                                               @Share("feltDisallowedSlots") LocalLongRef disallowedSlots) {
+        if ((disallowedSlots.get() & (1L << slot)) != 0) {
+            return ItemStack.EMPTY;
+        }
+        return original.call(source, slot);
+    }
+
+    @Decorate(method = "suckInItems", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/entity/HopperBlockEntity;getSlots(Lnet/minecraft/world/Container;Lnet/minecraft/core/Direction;)[I"))
+    private static int[] felt$preparePull(Container source, Direction direction,
+                                            @gr1mly4memes.felttools.mixin.Local(ordinal = 0) Level level,
+                                            @gr1mly4memes.felttools.mixin.Local(ordinal = 0) Hopper destination) throws Throwable {
+        long disallowedSlots = felt$prepareTransfer(level, source, destination, false);
+        int[] slots = (int[]) DecorationOps.callsite().invoke(source, direction);
+        return disallowedSlots == 0L ? slots : java.util.Arrays.stream(slots)
+            .filter(slot -> (disallowedSlots & (1L << slot)) == 0).toArray();
+    }
+
+    private static long felt$prepareTransfer(Level level, Container source, Container destination, boolean didSourceInitiate) {
+        if (io.papermc.paper.event.inventory.PrepareHopperTransferEvent.getHandlerList().getRegisteredListeners().length == 0
+            || ((WorldBridge) level).bridge$paperConfig().hopper.disableMoveEvent || source.isEmpty()) {
+            return 0L;
+        }
+        var event = new io.papermc.paper.event.inventory.PaperPrepareHopperTransferEvent(
+            felt$transferInventory(source), felt$transferInventory(destination), didSourceInitiate);
+        event.callEvent();
+        return event.getDisallowedSlots();
+    }
+
+    private static Inventory felt$transferInventory(Container container) {
+        return container instanceof CompoundContainer compoundContainer
+            ? new CraftInventoryDoubleChest(compoundContainer)
+            : ((IInventoryBridge) container).getOwnerInventory();
+    }
+
+    // Keep require = 0; see also VanillaInventoryCodeHooksMixin.
+    @Decorate(method = "ejectItems", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/entity/HopperBlockEntity;addItem(Lnet/minecraft/world/Container;Lnet/minecraft/world/Container;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/core/Direction;)Lnet/minecraft/world/item/ItemStack;"))
+    private static ItemStack felt$moveItem(Container source, Container destination, ItemStack stack, Direction direction) throws Throwable {
+        var entity = (HopperBlockEntity) FeltCaptures.getTickingBlockEntity();
+        if (entity != null) {
+            CraftItemStack original = CraftItemStack.asCraftMirror(stack);
+
+            Inventory destinationInventory;
+            // Have to special case large chests as they work oddly
+            if (destination instanceof CompoundContainer) {
+                destinationInventory = new CraftInventoryDoubleChest(((CompoundContainer) destination));
+            } else {
+                // Felt: Owner nullity check already done inside getOwnerInventory
+                destinationInventory = ((IInventoryBridge) destination).getOwnerInventory();
+            }
+
+            InventoryMoveItemEvent event = new InventoryMoveItemEvent(((IInventoryBridge) source).getOwnerInventory(), original.clone(), destinationInventory, true);
+            Bukkit.getPluginManager().callEvent(event);
+            if (event.isCancelled()) {
+                entity.setCooldown(((WorldBridge) entity.getLevel()).bridge$spigotConfig().hopperTransfer); // Delay hopper checks
+                // Felt: we can return stack directly so we use vanilla revert logic and eventually return false if none is transferred
+                // Felt: but CraftBukkit makes it delayed directly, don't know why, so have to catch the index to revert change?
+                return stack;
+            }
+            stack = CraftItemStack.asNMSCopy(event.getItem());
+        }
+        return (ItemStack) DecorationOps.callsite().invoke(source, destination, stack, direction);
+    }
+
+    @Decorate(method = "tryTakeInItemFromSlot", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/entity/HopperBlockEntity;addItem(Lnet/minecraft/world/Container;Lnet/minecraft/world/Container;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/core/Direction;)Lnet/minecraft/world/item/ItemStack;"))
+    private static ItemStack felt$pullItem(Container source, Container destination, ItemStack stack, Direction direction) throws Throwable {
+        var entity = (HopperBlockEntity) FeltCaptures.getTickingBlockEntity();
+        if (entity != null) {
+            CraftItemStack original = CraftItemStack.asCraftMirror(stack);
+
+            Inventory sourceInventory;
+            // Have to special case large chests as they work oddly
+            if (source instanceof CompoundContainer) {
+                sourceInventory = new CraftInventoryDoubleChest(((CompoundContainer) source));
+            } else {
+                // Felt: Owner nullity check already done inside getOwnerInventory
+                sourceInventory = ((IInventoryBridge) source).getOwnerInventory();
+            }
+
+            InventoryMoveItemEvent event = new InventoryMoveItemEvent(sourceInventory, original.clone(), ((IInventoryBridge) destination).getOwnerInventory(), false);
+            Bukkit.getPluginManager().callEvent(event);
+            if (event.isCancelled()) {
+                // inv.setItem(index, origin);
+                entity.setCooldown(((WorldBridge) entity.getLevel()).bridge$spigotConfig().hopperTransfer); // Delay hopper checks
+                // Felt: we can return stack directly so we use vanilla revert logic and eventually return false if none is transferred
+                // Felt: but CraftBukkit makes it delayed directly, don't know why, so have to catch the index to revert change?
+                return stack;
+            }
+            stack = CraftItemStack.asNMSCopy(event.getItem());
+        }
+        return (ItemStack) DecorationOps.callsite().invoke(source, destination, stack, direction);
+    }
+
+    @Inject(method = "addItem(Lnet/minecraft/world/Container;Lnet/minecraft/world/entity/item/ItemEntity;)Z", cancellable = true, at = @At("HEAD"))
+    private static void felt$pickupItem(Container inventory, ItemEntity itemEntity, CallbackInfoReturnable<Boolean> cir) {
+        InventoryPickupItemEvent event = new InventoryPickupItemEvent(((IInventoryBridge) inventory).getOwnerInventory(), (Item) itemEntity.bridge$getBukkitEntity());
+        Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) {
+            cir.setReturnValue(false);
+        }
+    }
+
+    @Inject(method = "addItem(Lnet/minecraft/world/Container;Lnet/minecraft/world/entity/item/ItemEntity;)Z", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/item/ItemEntity;discard()V"))
+    private static void felt$pickupCause(Container container, ItemEntity itemEntity, CallbackInfoReturnable<Boolean> cir) {
+        itemEntity.bridge().bridge$pushEntityRemoveCause(EntityRemoveEvent.Cause.PICKUP);
+    }
+
+    private static Container runHopperInventorySearchEvent(Container inventory, CraftBlock hopper, CraftBlock searchLocation, HopperInventorySearchEvent.ContainerType containerType) {
+        var event = new HopperInventorySearchEvent((inventory != null) ? new CraftInventory(inventory) : null, containerType, hopper, searchLocation);
+        Bukkit.getServer().getPluginManager().callEvent(event);
+        CraftInventory craftInventory = (CraftInventory) event.getInventory();
+        return (craftInventory != null) ? craftInventory.getInventory() : null;
+    }
+
+    @Inject(method = "getAttachedContainer", cancellable = true, at = @At("RETURN"))
+    private static void felt$searchTo(Level level, BlockPos pos, HopperBlockEntity hopperBlockEntity, CallbackInfoReturnable<Container> cir) {
+        var container = cir.getReturnValue();
+        var hopper = CraftBlock.at(level, pos);
+        var searchBlock = CraftBlock.at(level, pos.relative(hopperBlockEntity.facing));
+        cir.setReturnValue(runHopperInventorySearchEvent(container, hopper, searchBlock, HopperInventorySearchEvent.ContainerType.DESTINATION));
+    }
+
+    @Inject(method = "getSourceContainer", cancellable = true, at = @At("RETURN"))
+    private static void felt$searchFrom(Level level, Hopper hopper, BlockPos blockposition, BlockState iblockdata, CallbackInfoReturnable<Container> cir) {
+        var container = cir.getReturnValue();
+        var blockPos = BlockPos.containing(hopper.getLevelX(), hopper.getLevelY(), hopper.getLevelZ());
+        var hopperBlock = CraftBlock.at(level, blockPos);
+        var containerBlock = CraftBlock.at(level, blockPos.above());
+        cir.setReturnValue(runHopperInventorySearchEvent(container, hopperBlock, containerBlock, HopperInventorySearchEvent.ContainerType.SOURCE));
+    }
+
+    @Override
+    public List<ItemStack> getContents() {
+        return this.items;
+    }
+
+    @Override
+    public void onOpen(CraftHumanEntity who) {
+        transaction.add(who);
+    }
+
+    @Override
+    public void onClose(CraftHumanEntity who) {
+        transaction.remove(who);
+    }
+
+    @Override
+    public List<HumanEntity> getViewers() {
+        return transaction;
+    }
+
+    @Override
+    public void setOwner(InventoryHolder owner) {
+    }
+
+    @Override
+    public int getMaxStackSize() {
+        if (maxStack == 0) maxStack = MAX_STACK;
+        return maxStack;
+    }
+
+    @Override
+    public void setMaxStackSize(int size) {
+        this.maxStack = size;
+    }
+}

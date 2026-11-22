@@ -1,0 +1,21 @@
+package gr1mly4memes.felt.mixin.core.world.entity.animal;
+
+import net.minecraft.world.entity.animal.chicken.Chicken;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+@Mixin(Chicken.class)
+public abstract class ChickenMixin extends AnimalMixin {
+
+    @Inject(method = "aiStep", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/animal/chicken/Chicken;dropFromGiftLootTable(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/resources/ResourceKey;Ljava/util/function/BiConsumer;)Z"))
+    private void felt$forceDropOn(CallbackInfo ci) {
+        this.forceDrops = true;
+    }
+
+    @Inject(method = "aiStep", at = @At(value = "INVOKE", shift = At.Shift.AFTER, target = "Lnet/minecraft/world/entity/animal/chicken/Chicken;dropFromGiftLootTable(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/resources/ResourceKey;Ljava/util/function/BiConsumer;)Z"))
+    private void felt$forceDropOff(CallbackInfo ci) {
+        this.forceDrops = false;
+    }
+}

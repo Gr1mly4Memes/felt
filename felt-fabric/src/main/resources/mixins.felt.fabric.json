@@ -1,9 +1,9 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "gr1mly4memes.felt.fabric.mixin",
+  "package": "gr1mly4memes.felt.mixin",
   "target": "@env(DEFAULT)",
-  "plugin": "gr1mly4memes.felt.fabric.mod.FabricMixinPlugin",
+  "plugin": "gr1mly4memes.felt.mod.FabricMixinPlugin",
   "setSourceFile": true,
   "injectors": {
     "defaultRequire": 1

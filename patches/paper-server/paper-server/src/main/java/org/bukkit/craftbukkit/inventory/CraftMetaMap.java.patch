@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaMap.java b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaMap.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaMap.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaMap.java
+@@ -30,7 +30,7 @@
+     private Integer mapId;
+     private byte scaling = CraftMetaMap.SCALING_EMPTY;
+ 
+-    CraftMetaMap(CraftMetaItem meta) {
++    public CraftMetaMap(CraftMetaItem meta) {
+         super(meta);
+ 
+         if (!(meta instanceof final CraftMetaMap mapMeta)) {

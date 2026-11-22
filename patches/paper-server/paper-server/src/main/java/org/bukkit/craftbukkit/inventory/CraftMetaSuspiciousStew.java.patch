@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSuspiciousStew.java b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSuspiciousStew.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSuspiciousStew.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSuspiciousStew.java
+@@ -24,7 +24,7 @@
+ 
+     private List<io.papermc.paper.potion.SuspiciousEffectEntry> customEffects;
+ 
+-    CraftMetaSuspiciousStew(CraftMetaItem meta) {
++    public CraftMetaSuspiciousStew(CraftMetaItem meta) {
+         super(meta);
+         if (!(meta instanceof CraftMetaSuspiciousStew suspiciousStewMeta)) {
+             return;

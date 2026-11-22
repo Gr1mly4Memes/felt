@@ -1,0 +1,23 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/world/migration/WorldFolderMigration.java b/paper-server/src/main/java/io/papermc/paper/world/migration/WorldFolderMigration.java
+--- a/paper-server/src/main/java/io/papermc/paper/world/migration/WorldFolderMigration.java
++++ b/paper-server/src/main/java/io/papermc/paper/world/migration/WorldFolderMigration.java
+@@ -1,6 +1,5 @@
+ package io.papermc.paper.world.migration;
+ 
+-import com.mojang.logging.LogUtils;
+ import io.papermc.paper.world.saveddata.PaperLevelOverrides;
+ import io.papermc.paper.world.saveddata.PaperWorldMetadata;
+ import java.io.IOException;
+@@ -20,10 +19,11 @@
+ import net.minecraft.world.level.storage.LevelStorageSource;
+ import org.jspecify.annotations.NullMarked;
+ import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
+ 
+ @NullMarked
+ public final class WorldFolderMigration {
+-    private static final Logger LOGGER = LogUtils.getClassLogger();
++    private static final Logger LOGGER = LoggerFactory.getLogger(WorldFolderMigration.class.getSimpleName());
+     private static final boolean DISABLE_MIGRATION_DELAY = Boolean.getBoolean("paper.disableMigrationDelay");
+     public static boolean didInitialLoad;
+     private static boolean startupMigrationWarningShown;

@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaTropicalFishBucket.java b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaTropicalFishBucket.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaTropicalFishBucket.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaTropicalFishBucket.java
+@@ -40,7 +40,7 @@
+     private @Nullable CompoundTag entityTag;
+     private @Nullable CompoundTag bucketEntityTag;
+ 
+-    CraftMetaTropicalFishBucket(CraftMetaItem meta) {
++    public CraftMetaTropicalFishBucket(CraftMetaItem meta) {
+         super(meta);
+ 
+         if (!(meta instanceof final CraftMetaTropicalFishBucket tropicalFishBucketMeta)) {

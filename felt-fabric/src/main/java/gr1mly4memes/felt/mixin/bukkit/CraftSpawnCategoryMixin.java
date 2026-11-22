@@ -1,0 +1,29 @@
+package gr1mly4memes.felt.mixin.bukkit;
+
+import net.minecraft.world.entity.MobCategory;
+import org.bukkit.craftbukkit.util.CraftSpawnCategory;
+import org.bukkit.entity.SpawnCategory;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Overwrite;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+@Mixin(value = CraftSpawnCategory.class, remap = false)
+public class CraftSpawnCategoryMixin {
+
+    @Overwrite
+    public static boolean isValidForLimits(SpawnCategory spawnCategory) {
+        return spawnCategory != null && spawnCategory.ordinal() < SpawnCategory.MISC.ordinal();
+    }
+
+    @Inject(method = "toBukkit", cancellable = true, at = @At(value = "NEW", target = "java/lang/MatchException"))
+    private static void felt$modToBukkit(MobCategory mobCategory, CallbackInfoReturnable<SpawnCategory> cir) {
+        cir.setReturnValue(SpawnCategory.valueOf(mobCategory.name()));
+    }
+
+    @Inject(method = "toNMS", cancellable = true, at = @At(value = "NEW", target = "java/lang/MatchException"))
+    private static void felt$bukkitToMod(SpawnCategory spawnCategory, CallbackInfoReturnable<MobCategory> cir) {
+        cir.setReturnValue(MobCategory.valueOf(spawnCategory.name()));
+    }
+}

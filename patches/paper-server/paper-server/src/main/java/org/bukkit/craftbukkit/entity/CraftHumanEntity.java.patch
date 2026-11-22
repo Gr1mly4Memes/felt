@@ -1,0 +1,188 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftHumanEntity.java b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftHumanEntity.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftHumanEntity.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftHumanEntity.java
+@@ -205,7 +205,8 @@
+         }
+ 
+         final BedRule bedRule = bedBlock.getBedRule(level, pos);
+-        if (this.getHandle().startSleepInBed(bedBlock, state, bedRule, pos, force).left().isPresent()) {
++        gr1mly4memes.felt.bridge.core.world.entity.player.PlayerBridge player = this.getHandle();
++        if (player.bridge$trySleep(pos, force).left().isPresent()) {
+             return false;
+         }
+ 
+@@ -330,7 +331,13 @@
+ 
+     @Override
+     public InventoryView getOpenInventory() {
+-        return this.getHandle().containerMenu.getBukkitView();
++        net.minecraft.world.entity.player.Player handle = this.getHandle();
++        try {
++            gr1mly4memes.felt.mod.util.FeltCaptures.captureContainerOwner(handle);
++            return ((gr1mly4memes.felt.bridge.core.world.inventory.AbstractContainerMenuBridge) handle.containerMenu).bridge$getBukkitView();
++        } finally {
++            gr1mly4memes.felt.mod.util.FeltCaptures.popContainerOwner(handle);
++        }
+     }
+ 
+     @Override
+@@ -361,9 +368,9 @@
+ 
+         if (menuProvider != null) {
+             this.getHandle().openMenu(menuProvider);
+-        } else if (inventory instanceof CraftInventorySaddledMount craft && craft.getInventory().getOwner() instanceof CraftAbstractHorse horse) {
++        } else if (inventory instanceof CraftInventorySaddledMount craft && ((gr1mly4memes.felt.bridge.core.world.IInventoryBridge) craft.getInventory()).getOwner() instanceof CraftAbstractHorse horse) {
+             this.getHandle().openHorseInventory(horse.getHandle(), craft.getInventory());
+-        } else if (inventory instanceof CraftInventorySaddledMount craft && craft.getInventory().getOwner() instanceof CraftAbstractNautilus nautilus) {
++        } else if (inventory instanceof CraftInventorySaddledMount craft && ((gr1mly4memes.felt.bridge.core.world.IInventoryBridge) craft.getInventory()).getOwner() instanceof CraftAbstractNautilus nautilus) {
+             this.getHandle().openNautilusInventory(nautilus.getHandle(), craft.getInventory());
+         } else {
+             MenuType<?> container = CraftContainer.getNotchInventoryType(inventory);
+@@ -374,13 +381,13 @@
+             return null;
+         }
+         this.getHandle().containerMenu.checkReachable = false;
+-        return this.getHandle().containerMenu.getBukkitView();
++        return this.getOpenInventory();
+     }
+ 
+     private static void openCustomInventory(Inventory inventory, ServerPlayer player, MenuType<?> windowType) {
+         if (player.connection == null) return;
+         Preconditions.checkArgument(windowType != null, "Unknown windowType");
+-        AbstractContainerMenu container = new CraftContainer(inventory, player, player.nextContainerCounter());
++        AbstractContainerMenu container = new CraftContainer(inventory, player, ((gr1mly4memes.felt.bridge.core.server.level.ServerPlayerBridge) player).bridge$nextContainerCounter());
+ 
+         // Paper start - Add titleOverride to InventoryOpenEvent
+         final com.mojang.datafixers.util.Pair<net.kyori.adventure.text.Component, AbstractContainerMenu> result = CraftEventFactory.callInventoryOpenEventWithTitle(player, container);
+@@ -388,13 +395,13 @@
+         // Paper end - Add titleOverride to InventoryOpenEvent
+         if (container == null) return;
+ 
+-        //String title = container.getBukkitView().getTitle(); // Paper - comment
+-        net.kyori.adventure.text.Component adventure$title = container.getBukkitView().title(); // Paper
+-        if (adventure$title == null) adventure$title = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(container.getBukkitView().getTitle()); // Paper
++        //String title = ((gr1mly4memes.felt.bridge.core.world.inventory.AbstractContainerMenuBridge) container).bridge$getBukkitView().getTitle(); // Paper - comment
++        net.kyori.adventure.text.Component adventure$title = ((gr1mly4memes.felt.bridge.core.world.inventory.AbstractContainerMenuBridge) container).bridge$getBukkitView().title(); // Paper
++        if (adventure$title == null) adventure$title = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(((gr1mly4memes.felt.bridge.core.world.inventory.AbstractContainerMenuBridge) container).bridge$getBukkitView().getTitle()); // Paper
+         if (result.getFirst() != null) adventure$title = result.getFirst(); // Paper - Add titleOverride to InventoryOpenEvent
+ 
+         //player.connection.send(new ClientboundOpenScreenPacket(container.containerId, windowType, CraftChatMessage.fromString(title)[0])); // Paper - comment
+-        if (!player.isImmobile()) player.connection.send(new ClientboundOpenScreenPacket(container.containerId, windowType, io.papermc.paper.adventure.PaperAdventure.asVanilla(adventure$title))); // Paper - Prevent opening inventories when frozen
++        if (!((gr1mly4memes.felt.bridge.core.server.level.ServerPlayerBridge) player).bridge$isMovementBlocked()) player.connection.send(new ClientboundOpenScreenPacket(container.containerId, windowType, io.papermc.paper.adventure.PaperAdventure.asVanilla(adventure$title))); // Paper - Prevent opening inventories when frozen
+         player.containerMenu = container;
+         player.initMenu(container);
+     }
+@@ -414,7 +421,7 @@
+         if (force) {
+             this.getHandle().containerMenu.checkReachable = false;
+         }
+-        return this.getHandle().containerMenu.getBukkitView();
++        return this.getOpenInventory();
+     }
+ 
+     @Override
+@@ -447,7 +454,7 @@
+         if (force) {
+             this.getHandle().containerMenu.checkReachable = false;
+         }
+-        return this.getHandle().containerMenu.getBukkitView();
++        return this.getOpenInventory();
+     }
+ 
+     @Override
+@@ -465,7 +472,7 @@
+             container = ((CraftInventoryView) inventory).getHandle();
+             Preconditions.checkArgument(!(container instanceof InventoryMenu), "Can not open player's InventoryView");
+         } else {
+-            container = new CraftContainer(inventory, this.getHandle(), player.nextContainerCounter());
++            container = new CraftContainer(inventory, this.getHandle(), ((gr1mly4memes.felt.bridge.core.server.level.ServerPlayerBridge) player).bridge$nextContainerCounter());
+         }
+ 
+         // Trigger an INVENTORY_OPEN event
+@@ -488,7 +495,7 @@
+         net.kyori.adventure.text.Component adventure$title = inventory.title(); // Paper
+         if (adventure$title == null) adventure$title = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(inventory.getTitle()); // Paper
+         if (result.getFirst() != null) adventure$title = result.getFirst(); // Paper - Add titleOverride to InventoryOpenEvent
+-        if (!player.isImmobile()) {
++        if (!((gr1mly4memes.felt.bridge.core.server.level.ServerPlayerBridge) player).bridge$isMovementBlocked()) {
+             if (container instanceof AbstractMountInventoryMenu mountMenu) {
+                 player.connection.send(new ClientboundMountScreenOpenPacket(mountMenu.containerId, getMountInventoryColumns(mountMenu), mountMenu.mount.getId()));
+             } else {
+@@ -539,7 +546,7 @@
+         mcMerchant.setTradingPlayer(this.getHandle());
+         mcMerchant.openTradingScreen(this.getHandle(), name, level);
+ 
+-        return this.getHandle().containerMenu.getBukkitView();
++        return this.getOpenInventory();
+     }
+ 
+     @Override
+@@ -599,9 +606,11 @@
+         } else {
+             throw new IllegalArgumentException("Unsupported inventory type: " + material);
+         }
+-        this.getHandle().openMenu(block.getMenuProvider(null, this.getHandle().level(), new BlockPos(location.getBlockX(), location.getBlockY(), location.getBlockZ())));
++        if (this.getHandle().openMenu(block.defaultBlockState().getMenuProvider(this.getHandle().level(), new BlockPos(location.getBlockX(), location.getBlockY(), location.getBlockZ()))).isEmpty()) {
++            return null;
++        }
+         this.getHandle().containerMenu.checkReachable = !force;
+-        return this.getHandle().containerMenu.getBukkitView();
++        return this.getOpenInventory();
+     }
+ 
+     @Override
+@@ -672,7 +681,7 @@
+         Preconditions.checkArgument(item != null, "Item cannot be null");
+ 
+         Identifier cooldownGroup = this.getHandle().getCooldowns().getCooldownGroup(CraftItemStack.asNMSCopy(item));
+-        return this.getHandle().getCooldowns().getRemainingCooldown(cooldownGroup);
++        return ((gr1mly4memes.felt.bridge.core.world.item.ItemCooldownsBridge) (Object) this.getHandle().getCooldowns()).bridge$getRemainingCooldown(cooldownGroup);
+     }
+ 
+     @Override
+@@ -687,7 +696,7 @@
+     public int getCooldown(Key cooldownGroup) {
+         Preconditions.checkArgument(cooldownGroup != null, "cooldownGroup cannot be null");
+ 
+-        return this.getHandle().getCooldowns().getRemainingCooldown(PaperAdventure.asVanilla(cooldownGroup));
++        return ((gr1mly4memes.felt.bridge.core.world.item.ItemCooldownsBridge) (Object) this.getHandle().getCooldowns()).bridge$getRemainingCooldown(PaperAdventure.asVanilla(cooldownGroup));
+     }
+ 
+     @Override
+@@ -778,7 +787,7 @@
+     @Override
+     public boolean dropItem(boolean dropAll) {
+         if (!(this.getHandle() instanceof ServerPlayer player)) return false;
+-        boolean success = player.drop(dropAll);
++        boolean success = ((gr1mly4memes.felt.bridge.core.server.level.ServerPlayerBridge) player).bridge$dropSelectedItem(dropAll);
+         if (!success) {
+             return false;
+         }
+@@ -810,7 +819,7 @@
+         final net.minecraft.world.item.ItemStack dropContent = nmsItemStack.split(amount);
+ 
+         // This will return the itemstack back to its original amount in case events fail
+-        final ItemEntity droppedEntity = this.getHandle().drop(dropContent, true, Prediction.PREDICTED, throwRandomly, true, entityOperation);
++        final ItemEntity droppedEntity = ((gr1mly4memes.felt.bridge.core.world.entity.player.PlayerBridge) this.getHandle()).bridge$dropInventoryItem(dropContent, throwRandomly, entityOperation);
+         return droppedEntity == null ? null : (Item) droppedEntity.getBukkitEntity();
+     }
+ 
+@@ -824,7 +833,7 @@
+         final net.minecraft.world.item.ItemStack nmsItemStack = CraftItemStack.asNMSCopy(itemStack);
+ 
+         // Do *not* call the event here, the item is not in the player inventory, they are not dropping it / do not need recovering logic (which would be a dupe).
+-        final ItemEntity droppedEntity = this.getHandle().drop(nmsItemStack, true, Prediction.PREDICTED, throwRandomly, false, entityOperation);
++        final ItemEntity droppedEntity = ((gr1mly4memes.felt.bridge.core.world.entity.player.PlayerBridge) this.getHandle()).bridge$dropProvidedItem(nmsItemStack, throwRandomly, entityOperation);
+         return droppedEntity == null ? null : (Item) droppedEntity.getBukkitEntity();
+     }
+ 
+@@ -903,7 +912,8 @@
+         Preconditions.checkArgument(boosterItem != null, "boosterItem cannot be null");
+ 
+         FireworkRocketEntity fireworks = new FireworkRocketEntity(this.getHandle().level(), CraftItemStack.asNMSCopy(boosterItem), this.getHandle());
+-        boolean success = this.getHandle().level().addFreshEntity(fireworks, SpawnReason.CUSTOM);
++        gr1mly4memes.felt.bridge.core.world.level.WorldBridge level = this.getHandle().level();
++        boolean success = level.bridge$addEntity(fireworks, SpawnReason.CUSTOM);
+         return success ? (Firework) fireworks.getBukkitEntity() : null;
+     }
+ 

@@ -1,0 +1,35 @@
+package gr1mly4memes.felt.mixin.core.world.level.block;
+
+import gr1mly4memes.felttools.mixin.Decorate;
+import gr1mly4memes.felttools.mixin.DecorationOps;
+import gr1mly4memes.felttools.mixin.Local;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.DragonEggBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import org.bukkit.Bukkit;
+import org.bukkit.craftbukkit.block.CraftBlock;
+import org.bukkit.event.block.BlockFromToEvent;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+
+@Mixin(DragonEggBlock.class)
+public class DragonEggBlockMixin {
+
+    @Decorate(method = "teleport", at = @At(value = "INVOKE", target = "Lnet/minecraft/util/BlockUtil;packDifferenceInPosition(Lnet/minecraft/core/BlockPos;Lnet/minecraft/core/BlockPos;III)I"))
+    private int felt$blockFromTo(BlockPos fromPos, BlockPos toPos, int xRange, int yRange, int zRange,
+                                     BlockState blockState, Level world, BlockPos blockPos,
+                                     @Local(ordinal = -1) BlockPos pos) throws Throwable {
+        org.bukkit.block.Block from = CraftBlock.at(world, blockPos);
+        org.bukkit.block.Block to = CraftBlock.at(world, pos);
+        BlockFromToEvent event = new BlockFromToEvent(from, to);
+        Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) {
+            return (int) DecorationOps.cancel().invoke();
+        } else {
+            pos = new BlockPos(event.getToBlock().getX(), event.getToBlock().getY(), event.getToBlock().getZ());
+        }
+        DecorationOps.blackhole().invoke(pos);
+        return (int) DecorationOps.callsite().invoke(fromPos, pos, xRange, yRange, zRange);
+    }
+}

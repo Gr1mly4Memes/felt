@@ -1,0 +1,131 @@
+package gr1mly4memes.felt.mixin.core.world.level.material;
+
+import gr1mly4memes.felt.bridge.core.world.level.LevelAccessorBridge;
+import gr1mly4memes.felt.bridge.core.world.level.material.LavaFluidBridge;
+import gr1mly4memes.felt.mod.server.event.FeltEventFactory;
+import gr1mly4memes.felt.mod.util.DistValidate;
+import gr1mly4memes.felttools.mixin.Decorate;
+import gr1mly4memes.felttools.mixin.DecorationOps;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.LavaFluid;
+import org.bukkit.craftbukkit.block.CraftBlockState;
+import org.bukkit.craftbukkit.event.CraftEventFactory;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Overwrite;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.Group;
+import org.spongepowered.asm.mixin.injection.At;
+
+@Mixin(LavaFluid.class)
+public abstract class LavaFluidMixin implements LavaFluidBridge {
+
+    // @formatter:off
+    @Shadow protected abstract boolean hasFlammableNeighbours(LevelReader worldIn, BlockPos pos);
+    @Shadow protected abstract boolean isFlammable(LevelReader arg, BlockPos arg2);
+    // @formatter:on
+
+    /**
+     * @author IzzelAliz
+     * @reason
+     */
+    @Overwrite
+    public void randomTick(ServerLevel world, BlockPos pos, FluidState state, RandomSource random) {
+        if (world.canSpreadFireAround(pos)) {
+            int i = random.nextInt(3);
+            if (i > 0) {
+                BlockPos blockpos = pos;
+
+                for (int j = 0; j < i; ++j) {
+                    blockpos = blockpos.offset(random.nextInt(3) - 1, 1, random.nextInt(3) - 1);
+                    if (!world.isLoaded(blockpos)) {
+                        return;
+                    }
+
+                    BlockState blockstate = world.getBlockState(blockpos);
+                    if (blockstate.isAir()) {
+                        if (this.hasFlammableNeighbours(world, blockpos)) {
+                            if (world.getBlockState(blockpos).getBlock() != Blocks.FIRE) {
+                                if (DistValidate.isValid(world) && CraftEventFactory.callBlockIgniteEvent(world, blockpos, pos).isCancelled()) {
+                                    continue;
+                                }
+                            }
+                            world.setBlockAndUpdate(blockpos, bridge$mod$fireFluidPlaceBlockEvent(world, blockpos, pos, net.minecraft.world.level.block.BaseFireBlock.getState(world, blockpos)));
+                            return;
+                        }
+                    } else if (blockstate.is(BlockTags.BLOCKS_LAVA_FIRE_SPREAD)) {
+                        return;
+                    }
+                }
+            } else {
+                for (int k = 0; k < 3; ++k) {
+                    BlockPos blockpos1 = pos.offset(random.nextInt(3) - 1, 0, random.nextInt(3) - 1);
+                    if (!world.isLoaded(blockpos1)) {
+                        return;
+                    }
+
+                    if (world.isEmptyBlock(blockpos1.above()) && bridge$mod$isFlammable(world, blockpos1, Direction.UP)) {
+                        BlockPos up = blockpos1.above();
+                        if (world.getBlockState(up).getBlock() != Blocks.FIRE) {
+                            if (DistValidate.isValid(world) && CraftEventFactory.callBlockIgniteEvent(world, up, pos).isCancelled()) {
+                                continue;
+                            }
+                        }
+                        world.setBlockAndUpdate(blockpos1.above(), bridge$mod$fireFluidPlaceBlockEvent(world, blockpos1.above(), pos, net.minecraft.world.level.block.BaseFireBlock.getState(world, blockpos1)));
+                    }
+                }
+            }
+
+        }
+    }
+
+    @Group(name = "felt$blockForm", min = 1, max = 1)
+    @Decorate(method = "spreadTo", require = 0, allow = 1, at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/LevelAccessor;setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;I)Z"))
+    private boolean felt$blockFromTo(LevelAccessor world, BlockPos pos, BlockState newState, int flags) throws Throwable {
+        newState = felt$blockFormState(world, pos, newState, flags);
+        if (newState == null) {
+            return (boolean) DecorationOps.cancel().invoke();
+        }
+        return (boolean) DecorationOps.callsite().invoke(world, pos, newState, flags);
+    }
+
+    @Group(name = "felt$blockForm", min = 1, max = 1)
+    @Decorate(method = "spreadTo", require = 0, allow = 1, at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/LevelAccessor;setBlockAndUpdate(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;)Z"))
+    private boolean felt$blockFromToUpdate(LevelAccessor world, BlockPos pos, BlockState newState) throws Throwable {
+        newState = felt$blockFormState(world, pos, newState, Block.UPDATE_ALL);
+        if (newState == null) {
+            return (boolean) DecorationOps.cancel().invoke();
+        }
+        return (boolean) DecorationOps.callsite().invoke(world, pos, newState);
+    }
+
+    @Unique
+    private BlockState felt$blockFormState(LevelAccessor world, BlockPos pos, BlockState newState, int flags) {
+        if (LevelAccessorBridge.from(world) instanceof LevelAccessorBridge bridge) {
+            // Already checked in callBlockFormEvent
+            final var event = FeltEventFactory.callBlockFormEvent(bridge.bridge$getMinecraftWorld(), pos, newState, flags, null);
+            if (event != null) {
+                if (event.isCancelled()) {
+                    return null;
+                }
+                newState = ((CraftBlockState) event.getNewState()).getHandle();
+            }
+        }
+        return newState;
+    }
+
+    @Override
+    public boolean bridge$mod$isFlammable(LevelReader level, BlockPos pos, Direction face) {
+        return this.isFlammable(level, pos);
+    }
+}

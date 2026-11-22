@@ -1,0 +1,23 @@
+package gr1mly4memes.felt.mod.server;
+
+import io.papermc.paper.registry.data.util.Conversions;
+import net.minecraft.resources.RegistryOps;
+import net.minecraft.server.RegistryLayer;
+
+public final class PaperRegistryHooks {
+    private PaperRegistryHooks() {}
+
+    private static final class StaticConversions {
+        private static final Conversions INSTANCE = new Conversions(new RegistryOps.RegistryInfoLookup() {
+            @Override
+            public <T> java.util.Optional<net.minecraft.core.HolderGetter<T>> lookup(net.minecraft.resources.ResourceKey<? extends net.minecraft.core.Registry<? extends T>> key) {
+                return gr1mly4memes.felt.mixin.core.server.RegistryLayerAccessor.felt$staticAccess()
+                    .lookup(key).map(registry -> registry);
+            }
+        });
+    }
+
+    public static Conversions staticConversions() {
+        return StaticConversions.INSTANCE;
+    }
+}

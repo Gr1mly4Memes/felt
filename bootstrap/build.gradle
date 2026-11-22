@@ -5,12 +5,6 @@ apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'maven-publish'
 
-sourceSets {
-    applaunch {}
-
-    fabric {}
-}
-
 configurations {
     installer {
         attributes.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_RUNTIME))
@@ -46,8 +40,8 @@ dependencies {
     implementation 'org.spongepowered:mixin:0.8.5'
     implementation 'org.apache.logging.log4j:log4j-jul:2.22.1'
 
-    fabricImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
-    fabricImplementation "com.google.code.gson:gson:${gson_version}"
+    implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    implementation "com.google.code.gson:gson:${gson_version}"
 
     for (def lib : installerLibs) {
         installer(lib) { exclude group: 'junit', module: 'junit' }
@@ -69,16 +63,33 @@ dependencies {
         exclude group: 'com.google.code.gson', module: 'gson'
         exclude group: 'org.ow2.asm'
     }
-    // Configurate 3 uses ninja.leaping packages; keep it separate from Paper's 4.x graph.
-    embedCommon("org.spongepowered:configurate-hocon:${hocon_version}") { transitive = false }
-    embedCommon("org.spongepowered:configurate-core:${hocon_version}") { transitive = false }
-    embedCommon("com.typesafe:config:${typesafe_config_version}") { transitive = false }
-
     embedCommon 'commons-lang:commons-lang:2.6@jar'
-    embedCommon(project(':config')) { transitive = false }
+}
+
+// The launcher entry point stays Java 8 bytecode so it can report the required Java version
+// before the rest of the jar (compiled for Java 25) is loaded.
+tasks.register('compileLauncher', JavaCompile) {
+    source = fileTree('src/main/java') { include 'gr1mly4memes/felt/server/Launcher.java' }
+    classpath = files()
+    destinationDirectory = layout.buildDirectory.dir('classes/launcher')
+    sourceCompatibility = targetCompatibility = JavaVersion.VERSION_1_8
+    options.encoding = 'UTF-8'
+}
+
+tasks.register('fabricAsyncCatcher', RenameAsyncCatcherTask) {
+    inputFile.set project.file('async_catcher.json')
+    mapping.set 'official'
+    outputs.file('build/fabric_async_catcher/async_catcher.json')
 }
 
 jar {
+    // Launcher-side code and resources only belong to the outer felt-fabric jar.
+    exclude 'gr1mly4memes/felt/server/**'
+    exclude 'gr1mly4memes/felt/installer/**'
+    exclude 'gr1mly4memes/felt/boot/fabric/**'
+    exclude 'felt-log4j2.xml'
+    exclude 'felt-server-launch.properties'
+    exclude 'META-INF/services/net.fabricmc.loader.impl.game.GameProvider'
     from(configurations.embedCommon.collect { it.isDirectory() ? it : zipTree(it) }) {
         exclude 'module-info.class'
         exclude 'META-INF/versions/**'
@@ -93,11 +104,11 @@ jar {
 }
 
 tasks.register('fabricJar', Jar) {
-    archiveBaseName.set "felt-fabric-${minecraft_version}"
+    archiveBaseName.set "felt-${minecraft_version}"
     manifest.attributes 'Main-Class': 'gr1mly4memes.felt.server.Launcher'
     manifest.attributes 'Implementation-Title': 'Felt'
     manifest.attributes 'Implementation-Version': "felt-${minecraft_version}-${project.version}-$gitHash"
-    manifest.attributes 'Implementation-Vendor': 'Felt Team'
+    manifest.attributes 'Implementation-Vendor': 'Gr1mly4Memes'
     manifest.attributes 'Implementation-Timestamp': new Date().format("yyyy-MM-dd HH:mm:ss")
     manifest.attributes 'Automatic-Module-Name': 'felt.boot'
     from(configurations.embedFabric.collect { it.isDirectory() ? it : zipTree(it) })
@@ -109,29 +120,25 @@ tasks.register('fabricJar', Jar) {
         it.from(configurations.gson.collect())
         it.rename { name -> 'gson.jar' }
     }
-    from sourceSets.applaunch.output
-    from sourceSets.fabric.output
+    from(layout.buildDirectory.dir('classes/launcher'))
+    from(layout.buildDirectory.dir('fabric_async_catcher'))
+    from sourceSets.main.output
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     dependsOn(project(':felt-fabric').tasks.build)
+    dependsOn tasks.named('compileLauncher')
+    dependsOn tasks.named('fabricAsyncCatcher')
 }
 
 tasks.register('generateInstallerInfo', GenerateInstallerInfo) {
     minecraftVersion = minecraft_version
     fabricLoaderVersion = fabric_loader_version
-    def installer = file('build/arclight_installer/META-INF/installer.json')
+    def installer = file('build/felt_installer/META-INF/installer.json')
     outputs.file(installer)
     configuration = project.configurations.installer
     fabricExtra = project.configurations.installerFabric
 }
 
-project.sourceSets.main.output.dir file('build/arclight_installer'), builtBy: tasks.generateInstallerInfo
-project.sourceSets.fabric.output.dir file('build/arclight_installer'), builtBy: tasks.generateInstallerInfo
-
-project.sourceSets.fabric.output.dir file('build/fabric_async_catcher'), builtBy: tasks.register('fabricAsyncCatcher', RenameAsyncCatcherTask) {
-    inputFile.set project.file('async_catcher.json')
-    mapping.set 'official'
-    outputs.file('build/fabric_async_catcher/async_catcher.json')
-}
+project.sourceSets.main.output.dir file('build/felt_installer'), builtBy: tasks.generateInstallerInfo
 
 compileJava {
     sourceCompatibility = targetCompatibility = JavaVersion.VERSION_25
@@ -139,9 +146,8 @@ compileJava {
     options.encoding = 'UTF-8'
 }
 
-compileApplaunchJava {
-    sourceCompatibility = targetCompatibility = JavaVersion.VERSION_1_8
-}
+// Launcher.java is compiled separately at Java 8 bytecode by compileLauncher.
+sourceSets.main.java.exclude 'gr1mly4memes/felt/server/Launcher.java'
 
 tasks.register('runProdFabric', JavaExec) {
     classpath = files(tasks.fabricJar)
@@ -149,11 +155,11 @@ tasks.register('runProdFabric', JavaExec) {
     systemProperties 'terminal.ansi': 'true'
     systemProperties 'mixin.debug.export': 'true'
     systemProperties 'mixin.dumpTargetOnFailure': 'true'
-    systemProperties 'arclight.alwaysExtract': 'true'
-    systemProperties 'arclight.remapper.dump': './.mixin.out/plugin_classes'
+    systemProperties 'felt.alwaysExtract': 'true'
+    systemProperties 'felt.remapper.dump': './.mixin.out/plugin_classes'
     systemProperties 'sun.stdout.encoding': 'UTF-8'
     systemProperties 'sun.stderr.encoding': 'UTF-8'
-    workingDir System.env.ARCLIGHT_PROD_DIR ?: file('run_prod/fabric')
+    workingDir System.env.FELT_PROD_DIR ?: file('run_prod/fabric')
     maxHeapSize '4G'
     args 'nogui'
     standardInput System.in
@@ -169,8 +175,8 @@ publishing {
             name = 'IzzelAliz'
             url = uri('https://maven.izzel.io/' + (project.version.toString().endsWith('SNAPSHOT') ? 'snapshots' : 'releases'))
             credentials {
-                username = project.findProperty("mavenUser") ?: System.getenv("ARCLIGHT_USER")
-                password = project.findProperty("mavenToken") ?: System.getenv("ARCLIGHT_TOKEN")
+                username = project.findProperty("mavenUser") ?: System.getenv("FELT_USER")
+                password = project.findProperty("mavenToken") ?: System.getenv("FELT_TOKEN")
             }
         }
     }

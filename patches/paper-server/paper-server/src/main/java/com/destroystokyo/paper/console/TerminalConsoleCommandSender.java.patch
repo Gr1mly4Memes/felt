@@ -1,0 +1,17 @@
+diff --git a/paper-server/src/main/java/com/destroystokyo/paper/console/TerminalConsoleCommandSender.java b/paper-server/src/main/java/com/destroystokyo/paper/console/TerminalConsoleCommandSender.java
+--- a/paper-server/src/main/java/com/destroystokyo/paper/console/TerminalConsoleCommandSender.java
++++ b/paper-server/src/main/java/com/destroystokyo/paper/console/TerminalConsoleCommandSender.java
+@@ -12,6 +12,13 @@
+     private static final ComponentLogger LOGGER = ComponentLogger.logger(LogManager.getRootLogger().getName());
+ 
+     @Override
++    public void sendMessage(String message) {
++        if (!this.conversationTracker.isConversingModaly()) {
++            this.sendRawMessage(message);
++        }
++    }
++
++    @Override
+     public void sendRawMessage(String message) {
+         final Component msg = LegacyComponentSerializer.legacySection().deserialize(message);
+         this.sendMessage(msg);

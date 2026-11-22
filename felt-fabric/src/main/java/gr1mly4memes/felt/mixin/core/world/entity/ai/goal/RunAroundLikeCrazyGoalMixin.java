@@ -1,0 +1,22 @@
+package gr1mly4memes.felt.mixin.core.world.entity.ai.goal;
+
+import net.minecraft.world.entity.ai.goal.RunAroundLikeCrazyGoal;
+import net.minecraft.world.entity.animal.equine.AbstractHorse;
+import net.minecraft.world.entity.player.Player;
+import org.bukkit.craftbukkit.event.CraftEventFactory;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Redirect;
+
+@Mixin(RunAroundLikeCrazyGoal.class)
+public class RunAroundLikeCrazyGoalMixin {
+
+    @Redirect(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/animal/equine/AbstractHorse;tameWithName(Lnet/minecraft/world/entity/player/Player;)Z"))
+    private boolean felt$tame(AbstractHorse instance, Player player) {
+        if (!CraftEventFactory.callEntityTameEvent(instance, player).isCancelled()) {
+            return instance.tameWithName(player);
+        } else {
+            return false;
+        }
+    }
+}

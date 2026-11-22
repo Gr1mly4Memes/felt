@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/com/destroystokyo/paper/loottable/PaperLootableEntityInventory.java b/paper-server/src/main/java/com/destroystokyo/paper/loottable/PaperLootableEntityInventory.java
+--- a/paper-server/src/main/java/com/destroystokyo/paper/loottable/PaperLootableEntityInventory.java
++++ b/paper-server/src/main/java/com/destroystokyo/paper/loottable/PaperLootableEntityInventory.java
+@@ -16,7 +16,7 @@
+ 
+     @Override
+     default PaperLootableInventoryData lootableDataForAPI() {
+-        return this.getHandle().lootableData();
++        throw new UnsupportedOperationException("Loot replenishment and player loot history are not supported by Felt yet");
+     }
+ 
+     /* LootableEntityInventory */

@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftPig.java b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftPig.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftPig.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftPig.java
+@@ -46,7 +46,7 @@
+     public void setBoostTicks(int ticks) {
+         Preconditions.checkArgument(ticks >= 0, "ticks must be >= 0");
+ 
+-        this.getHandle().steering.boost(ticks);
++        ((gr1mly4memes.felt.bridge.core.world.entity.ItemBasedSteeringBridge) this.getHandle().steering).setBoostTicks(ticks);
+     }
+ 
+     @Override

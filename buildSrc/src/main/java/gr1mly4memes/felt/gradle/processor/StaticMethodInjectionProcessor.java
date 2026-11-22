@@ -46,7 +46,7 @@ public class StaticMethodInjectionProcessor implements MinecraftJarProcessor<Sta
     @Override
     public void processJar(Path jar, StaticMethodInjectionSpec spec, ProcessorContext context) throws IOException {
         if (!context.disableObfuscation()) throw new IOException("Static method injection requires official, unobfuscated Minecraft classes");
-        Path temporary = Files.createTempFile(jar.toAbsolutePath().getParent(), ".arclight-static-methods-", ".jar");
+        Path temporary = Files.createTempFile(jar.toAbsolutePath().getParent(), ".felt-static-methods-", ".jar");
         try {
             Files.copy(jar, temporary, StandardCopyOption.REPLACE_EXISTING);
             try (var zip = FileSystems.newFileSystem(temporary)) {

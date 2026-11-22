@@ -1,0 +1,28 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/plugin/lifecycle/event/types/MonitorableLifecycleEventType.java b/paper-server/src/main/java/io/papermc/paper/plugin/lifecycle/event/types/MonitorableLifecycleEventType.java
+--- a/paper-server/src/main/java/io/papermc/paper/plugin/lifecycle/event/types/MonitorableLifecycleEventType.java
++++ b/paper-server/src/main/java/io/papermc/paper/plugin/lifecycle/event/types/MonitorableLifecycleEventType.java
+@@ -8,6 +8,7 @@
+ import io.papermc.paper.plugin.lifecycle.event.handler.configuration.MonitorLifecycleEventHandlerConfigurationImpl;
+ import java.util.ArrayList;
+ import java.util.List;
++import java.util.ListIterator;
+ import java.util.function.Consumer;
+ import java.util.function.Predicate;
+ import org.checkerframework.checker.nullness.qual.NonNull;
+@@ -58,6 +59,15 @@
+ 
+     @Override
+     public void removeMatching(final Predicate<RegisteredHandler<O, E>> predicate) {
+-        this.handlers.removeIf(predicate);
++        final ListIterator<RegisteredHandler<O, E>> iterator = this.handlers.listIterator();
++        while (iterator.hasNext()) {
++            final int index = iterator.nextIndex();
++            if (predicate.test(iterator.next())) {
++                iterator.remove();
++                if (index < this.nonMonitorIdx) {
++                    this.nonMonitorIdx--;
++                }
++            }
++        }
+     }
+ }

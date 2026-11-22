@@ -1,0 +1,27 @@
+package gr1mly4memes.felt.bridge.core.world.level.chunk;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import org.bukkit.Chunk;
+import org.bukkit.craftbukkit.persistence.CraftPersistentDataContainer;
+
+public interface LevelChunkBridge {
+
+    Chunk bridge$getBukkitChunk();
+
+    BlockState bridge$setType(BlockPos pos, BlockState state, boolean isMoving, boolean doPlace);
+
+    boolean bridge$isMustNotSave();
+
+    void bridge$setMustNotSave(boolean mustNotSave);
+
+    boolean bridge$isNeedsDecoration();
+
+    void bridge$loadCallback();
+
+    void bridge$loadCallback(java.util.function.Consumer<net.minecraft.world.level.chunk.LevelChunk> entityLoadCallback);
+
+    void bridge$unloadCallback();
+
+    CraftPersistentDataContainer bridge$getPersistentContainer();
+}

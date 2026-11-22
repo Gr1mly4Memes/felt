@@ -1,0 +1,1065 @@
+package gr1mly4memes.felt.mixin.core.world.entity;
+
+import gr1mly4memes.felt.mod.util.BulkEffectRemovalContext;
+import gr1mly4memes.felt.mod.util.FeltCaptures;
+import com.google.common.base.Function;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.mojang.datafixers.util.Either;
+import gr1mly4memes.felt.bridge.core.world.entity.LivingEntityBridge;
+import gr1mly4memes.felt.bridge.core.server.level.ServerPlayerBridge;
+import gr1mly4memes.felt.bridge.core.server.network.ServerGamePacketListenerImplBridge;
+import gr1mly4memes.felt.bridge.core.world.level.LevelAccessorBridge;
+import gr1mly4memes.felt.bridge.core.world.level.WorldBridge;
+import gr1mly4memes.felt.mod.server.FeltServer;
+import gr1mly4memes.felt.mod.server.event.FeltEventFactory;
+import gr1mly4memes.felttools.mixin.Decorate;
+import gr1mly4memes.felttools.mixin.DecorationOps;
+import gr1mly4memes.felttools.mixin.Local;
+import net.minecraft.advancements.triggers.CriteriaTriggers;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.PositionMoveRotation;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.stats.Stats;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.tags.EntityTypeTags;
+import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.damagesource.CombatRules;
+import net.minecraft.world.damagesource.CombatTracker;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityEquipment;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.ExperienceOrb;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeMap;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.component.Consumable;
+import net.minecraft.world.item.component.Consumables;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.equipment.Equippable;
+import net.minecraft.world.level.gamerules.GameRules;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.gameevent.GameEvent;
+import net.minecraft.world.phys.Vec3;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.craftbukkit.CraftEquipmentSlot;
+import org.bukkit.craftbukkit.attribute.CraftAttributeMap;
+import org.bukkit.craftbukkit.block.CraftBlockState;
+import org.bukkit.craftbukkit.entity.CraftLivingEntity;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.craftbukkit.event.CraftEventFactory;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
+import org.bukkit.entity.Player;
+import org.bukkit.event.entity.*;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
+import org.objectweb.asm.Opcodes;
+import org.slf4j.Logger;
+import org.spigotmc.SpigotConfig;
+import org.spongepowered.asm.mixin.Final;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Overwrite;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.gen.Invoker;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.Slice;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
+
+import javax.annotation.Nullable;
+import java.util.*;
+
+@SuppressWarnings({"ConstantConditions", "Guava"})
+@Mixin(LivingEntity.class)
+public abstract class LivingEntityMixin extends EntityMixin implements LivingEntityBridge {
+
+    // @formatter:off
+    @Shadow protected abstract void dropFromShearingLootTable(ServerLevel level, net.minecraft.resources.ResourceKey<net.minecraft.world.level.storage.loot.LootTable> key, net.minecraft.world.item.ItemInstance tool, java.util.function.BiConsumer<ServerLevel, net.minecraft.world.item.ItemStack> consumer);
+    @Shadow public abstract float getMaxHealth();
+    @Shadow public abstract void heal(float healAmount);
+    @Shadow public abstract float getHealth();
+    @Shadow public abstract void setHealth(float health);
+    @Shadow public abstract float getYHeadRot();
+    @Shadow public abstract int getLastHurtByPlayerMemoryTime();
+    @Shadow protected abstract boolean shouldDropExperience();
+    @Shadow protected abstract boolean isAlwaysExperienceDropper();
+    @Shadow @Nullable public abstract net.minecraft.world.entity.player.Player getLastHurtByPlayer();
+    @Shadow public int deathTime;
+    @Shadow public boolean effectsDirty;
+    @Shadow public abstract boolean removeAllEffects();
+    @Shadow @Final public static EntityDataAccessor<Float> DATA_HEALTH_ID;
+    @Shadow @Final protected static EntityDataAccessor<Byte> DATA_LIVING_ENTITY_FLAGS;
+    @Shadow public abstract boolean isSleeping();
+    @Shadow protected int noActionTime;
+    @Shadow public abstract net.minecraft.world.item.ItemStack getItemBySlot(EquipmentSlot slotIn);
+    @Shadow @Nullable protected abstract SoundEvent getDeathSound();
+    @Shadow public abstract net.minecraft.world.item.ItemStack getItemInHand(InteractionHand hand);
+    @Shadow public abstract CombatTracker getCombatTracker();
+    @Shadow @Final private AttributeMap attributes;
+    @Shadow public abstract void take(Entity entityIn, int quantity);
+    @Shadow public abstract ItemStack getMainHandItem();
+    @Shadow @Nullable public abstract LivingEntity getLastHurtByMob();
+    @Shadow public abstract void setLastHurtByMob(@Nullable LivingEntity livingEntity);
+    @Shadow public CombatTracker combatTracker;
+    @Shadow public abstract ItemStack getOffhandItem();
+    @Shadow public abstract Optional<BlockPos> getSleepingPos();
+    @Shadow @Final private static EntityDataAccessor<Boolean> DATA_EFFECT_AMBIENCE_ID;
+    @Shadow @Final public Map<Holder<MobEffect>, MobEffectInstance> activeEffects;
+    @Shadow public abstract boolean isDeadOrDying();
+    @Shadow public abstract boolean isInvulnerableTo(ServerLevel serverLevel, DamageSource source);
+    @Shadow public boolean hurtServer(ServerLevel serverLevel, DamageSource source, float amount) { return false; }
+    @Shadow public abstract int getArrowCount();
+    @Shadow @Final public static EntityDataAccessor<Integer> DATA_ARROW_COUNT_ID;
+    @Shadow public abstract void setItemSlot(EquipmentSlot slotIn, ItemStack stack);
+    @Shadow public abstract void knockback(double power, double xd, double zd, DamageSource source, float damage);
+    @Shadow public abstract void stopUsingItem();
+    @Shadow protected abstract boolean doesEmitEquipEvent(EquipmentSlot p_217035_);
+    @Shadow public abstract boolean wasExperienceConsumed();
+    @Shadow @Nullable protected abstract SoundEvent getHurtSound(DamageSource p_21239_);
+    @Shadow protected abstract SoundEvent getFallDamageSound(int p_21313_);
+    @Shadow public abstract InteractionHand getUsedItemHand();
+    public int invulnerableDuration = 20;
+    @Shadow protected void actuallyHurt(ServerLevel serverLevel, DamageSource p_21240_, float p_21241_) {}
+    @Shadow public abstract void skipDropExperience();
+    @Shadow public abstract int getExperienceReward(ServerLevel serverLevel, @org.jetbrains.annotations.Nullable Entity entity);
+    @Shadow @org.jetbrains.annotations.Nullable public abstract AttributeInstance getAttribute(Holder<Attribute> holder);
+    @Shadow public abstract double getAttributeValue(Holder<Attribute> holder);
+    @Shadow public abstract boolean removeEffect(Holder<MobEffect> holder);
+    @Shadow public void stopFallFlying() {}
+    @Shadow public abstract boolean addEffect(MobEffectInstance mobEffectInstance, @org.jetbrains.annotations.Nullable Entity entity);
+    @Shadow @org.jetbrains.annotations.Nullable public abstract MobEffectInstance removeEffectNoUpdate(Holder<MobEffect> holder);
+    @Shadow public abstract EquipmentSlot getEquipmentSlotForItem(ItemStack itemStack);
+    @Shadow protected abstract void dropAllDeathLoot(ServerLevel serverLevel, DamageSource damageSource);
+    @Shadow public abstract void onEquipItem(EquipmentSlot slot, ItemStack original, ItemStack newStack);
+    @Shadow @Final protected EntityEquipment equipment;
+    // @formatter:on
+
+    @Shadow public abstract ItemStack getItemBlockingWith();
+
+    @Shadow public float lastHurt;
+    @Shadow public int damageCooldownTime;
+
+    @Shadow public abstract boolean hasEffect(Holder<MobEffect> arg);
+
+    @Shadow @Nullable public abstract MobEffectInstance getEffect(Holder<MobEffect> arg);
+
+    @Shadow public abstract float getAbsorptionAmount();
+
+    @Shadow public abstract int getArmorValue();
+
+    public int expToDrop;
+
+    public CraftAttributeMap craftAttributes;
+
+    @Override
+    public CraftAttributeMap bridge$getCraftAttributes() {
+        return this.craftAttributes;
+    }
+
+    public boolean collides;
+
+    public boolean bukkitPickUpLoot;
+
+    public Set<UUID> collidableExemptions = new HashSet<>();
+
+    @Override
+    public void bridge$inactiveTick() {
+        super.bridge$inactiveTick();
+        ++this.noActionTime;
+    }
+
+    @Redirect(method = "<init>", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;setHealth(F)V"))
+    private void felt$muteHealth(LivingEntity entity, float health) {
+        // do nothing
+    }
+
+    @Inject(method = "<init>", at = @At("RETURN"))
+    private void felt$init(EntityType<? extends LivingEntity> type, Level worldIn, CallbackInfo ci) {
+        this.collides = true;
+        this.craftAttributes = new CraftAttributeMap(this.attributes);
+        this.entityData.set(DATA_HEALTH_ID, (float) this.getAttributeValue(Attributes.MAX_HEALTH));
+    }
+
+    @Override
+    public boolean bridge$canCollideWithBukkit(Entity other, boolean pushable) {
+        // Selected fixed-CB semantics: false remains a veto even for exempt UUIDs.
+        return pushable && this.collides && !this.collidableExemptions.contains(other.getUUID());
+    }
+
+    public SoundEvent getHurtSound0(DamageSource damagesource) {
+        return getHurtSound(damagesource);
+    }
+
+    public SoundEvent getDeathSound0() {
+        return getDeathSound();
+    }
+
+    public SoundEvent getFallDamageSound0(int fallHeight) {
+        return getFallDamageSound(fallHeight);
+    }
+
+    public SoundEvent getDrinkingSound0(ItemStack itemstack) {
+        return itemstack.getOrDefault(DataComponents.CONSUMABLE, Consumables.DEFAULT_DRINK).sound().value();
+    }
+
+    public SoundEvent getEatingSound0(ItemStack itemstack) {
+        Consumable consumable = itemstack.get(DataComponents.CONSUMABLE);
+        return (consumable != null ? consumable : Consumables.DEFAULT_FOOD).sound().value();
+    }
+
+    // Preserve NMS invocation for Citizens2
+    @Invoker("detectEquipmentUpdates")
+    public abstract void detectEquipmentUpdatesPublic();
+
+    /**
+     * @author IzzelAliz
+     * @reason
+     */
+    @Overwrite
+    protected void dropExperience(ServerLevel serverLevel, Entity entity) {
+        if (((gr1mly4memes.felt.bridge.core.world.entity.DeathEventBridge) this).bridge$deathCancelled()) return;
+        // if (!this.world.isRemote && (this.isPlayer() || this.recentlyHit > 0 && this.canDropLoot() && this.world.getGameRules().getBoolean(GameRules.DO_MOB_LOOT))) {
+        if (!((Object) this instanceof EnderDragon)) {
+            int reward = this.bridge$mod$getExperienceDrop((LivingEntity) (Object) this, this.getLastHurtByPlayer(), this.expToDrop);
+            ExperienceOrb.award(serverLevel, this.position(), reward);
+            bridge$setExpToDrop(0);
+        }
+    }
+
+    private boolean isTickingEffects = false;
+    private final List<Map.Entry<Either<MobEffectInstance, Holder<MobEffect>>, EntityPotionEffectEvent.Cause>> effectsToProcess = Lists.newArrayList();
+
+    @Inject(method = "tickEffects", at = @At("HEAD"))
+    private void felt$startTicking(CallbackInfo ci) {
+        this.isTickingEffects = true;
+    }
+
+    @Decorate(method = "tickEffects", inject = true, at = @At(value = "INVOKE", target = "Ljava/util/Iterator;remove()V"))
+    private void felt$effectExpire(@Local(ordinal = -1) MobEffectInstance mobeffect) throws Throwable {
+        EntityPotionEffectEvent event = CraftEventFactory.callEntityPotionEffectChangeEvent((LivingEntity) (Object) this, mobeffect, null, EntityPotionEffectEvent.Cause.EXPIRATION);
+        if (event.isCancelled()) {
+            throw DecorationOps.jumpToLoopStart();
+        }
+    }
+
+    @Inject(method = "tickEffects", at = @At("TAIL"))
+    private void felt$pendingEffects(CallbackInfo ci) {
+        isTickingEffects = false;
+        for (var e : effectsToProcess) {
+            var either = e.getKey();
+            var cause = e.getValue();
+            if (either.left().isPresent()) {
+                addEffect(either.left().get(), cause);
+            } else {
+                removeEffect(either.right().get(), cause);
+            }
+        }
+        effectsToProcess.clear();
+    }
+
+    @Decorate(method = "die", at = @At(value = "INVOKE", target = "Lorg/slf4j/Logger;info(Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)V"))
+    private void felt$logNamedEntityDeath(Logger instance, String s, Object o1, Object o2) throws Throwable {
+        if (!SpigotConfig.logNamedDeaths) {
+            return;
+        }
+        DecorationOps.callsite().invoke(instance, s, o1, o2);
+    }
+
+    private transient EntityPotionEffectEvent.Cause felt$cause;
+
+    public boolean addEffect(MobEffectInstance effect, EntityPotionEffectEvent.Cause cause) {
+        return this.addEffect(effect, null, cause);
+    }
+
+    public boolean addEffect(MobEffectInstance effect, Entity entity, EntityPotionEffectEvent.Cause cause) {
+        bridge$pushEffectCause(cause);
+        return this.addEffect(effect, entity);
+    }
+
+    public boolean removeAllEffects(EntityPotionEffectEvent.Cause cause) {
+        bridge$pushEffectCause(cause);
+        return this.removeAllEffects();
+    }
+
+    /**
+     * Capture the cause and the pre-call active map exactly once. Loader adapters
+     * invoke bridge$willRemoveEffect only at their actual physical-removal gate.
+     * The result reflects keys that truly left activeEffects, not the loader's
+     * optimistic boolean (which can be true when every candidate is vetoed).
+     */
+    @WrapMethod(method = "removeAllEffects")
+    private boolean felt$bulkEffectRemovalScope(Operation<Boolean> original) {
+        BulkEffectRemovalContext context = new BulkEffectRemovalContext(
+            new HashMap<>(this.activeEffects),
+            bridge$getEffectCause().orElse(EntityPotionEffectEvent.Cause.UNKNOWN)
+        );
+        this.felt$bulkEffectRemovalContexts.push(context);
+        try {
+            original.call();
+            for (Holder<MobEffect> effect : context.originalEffects.keySet()) {
+                if (!this.activeEffects.containsKey(effect)) {
+                    return true;
+                }
+            }
+            return false;
+        } finally {
+            this.felt$bulkEffectRemovalContexts.pop();
+        }
+    }
+
+    @Override
+    public boolean bridge$willRemoveEffect(MobEffectInstance effect) {
+        BulkEffectRemovalContext context = this.felt$bulkEffectRemovalContexts.peek();
+        EntityPotionEffectEvent.Cause cause = context == null
+            ? bridge$getEffectCause().orElse(EntityPotionEffectEvent.Cause.UNKNOWN)
+            : context.cause;
+        return !CraftEventFactory.callEntityPotionEffectChangeEvent(
+            (LivingEntity) (Object) this, effect, null, cause, EntityPotionEffectEvent.Action.CLEARED
+        ).isCancelled();
+    }
+
+    @Unique private final Deque<BulkEffectRemovalContext> felt$bulkEffectRemovalContexts = new ArrayDeque<>();
+
+
+    @Override
+    public boolean bridge$removeAllEffects(EntityPotionEffectEvent.Cause cause) {
+        return removeAllEffects(cause);
+    }
+
+    @Decorate(method = "addEffect(Lnet/minecraft/world/effect/MobEffectInstance;Lnet/minecraft/world/entity/Entity;)Z", inject = true, at = @At(value = "JUMP", opcode = Opcodes.IFNE, ordinal = 0))
+    private void felt$addPendingEffects(MobEffectInstance mobEffectInstance, Entity entity,
+                                            @Local(allocate = "cause") EntityPotionEffectEvent.Cause cause) throws Throwable {
+        cause = bridge$getEffectCause().orElse(EntityPotionEffectEvent.Cause.UNKNOWN);
+        if (isTickingEffects) {
+            effectsToProcess.add(Maps.immutableEntry(Either.left(mobEffectInstance), cause));
+            DecorationOps.cancel().invoke(true);
+            return;
+        }
+        DecorationOps.blackhole().invoke();
+    }
+
+    @Decorate(method = "addEffect(Lnet/minecraft/world/effect/MobEffectInstance;Lnet/minecraft/world/entity/Entity;)Z", inject = true,
+        at = @At(value = "INVOKE", target = "Ljava/util/Map;put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;"))
+    private void felt$effectAdd(MobEffectInstance mobEffectInstance, Entity entity, @Local(allocate = "cause") EntityPotionEffectEvent.Cause cause) throws Throwable {
+        var event = CraftEventFactory.callEntityPotionEffectChangeEvent((LivingEntity) (Object) this, null, mobEffectInstance, entity, cause, null, false);
+        if (event.isCancelled()) {
+            DecorationOps.cancel().invoke(false);
+            return;
+        }
+        DecorationOps.blackhole().invoke();
+    }
+
+    @Decorate(method = "addEffect(Lnet/minecraft/world/effect/MobEffectInstance;Lnet/minecraft/world/entity/Entity;)Z",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/effect/MobEffectInstance;update(Lnet/minecraft/world/effect/MobEffectInstance;)Z"))
+    private boolean felt$effectReplace(MobEffectInstance oldEffect, MobEffectInstance newEffect,
+                                           MobEffectInstance mobEffectInstance, Entity entity, @Local(allocate = "cause") EntityPotionEffectEvent.Cause cause) throws Throwable {
+        var override = new MobEffectInstance(oldEffect).update(newEffect);
+        var event = CraftEventFactory.callEntityPotionEffectChangeEvent((LivingEntity) (Object) this, oldEffect, newEffect, entity, cause, null, override);
+        if (event.isCancelled()) {
+            return (boolean) DecorationOps.cancel().invoke(false);
+        }
+        if (event.isOverride()) {
+            var b = (boolean) DecorationOps.callsite().invoke(oldEffect, newEffect);
+            DecorationOps.blackhole().invoke(b);
+        }
+        return event.isOverride();
+    }
+
+    public boolean removeEffect(Holder<MobEffect> effect, EntityPotionEffectEvent.Cause cause) {
+        bridge$pushEffectCause(cause);
+        return removeEffect(effect);
+    }
+
+    @Override
+    public boolean bridge$removeEffect(Holder<MobEffect> effect, EntityPotionEffectEvent.Cause cause) {
+        return removeEffect(effect, cause);
+    }
+
+    public MobEffectInstance removeEffectNoUpdate(@Nullable Holder<MobEffect> holder, EntityPotionEffectEvent.Cause cause) {
+        bridge$pushEffectCause(cause);
+        return removeEffectNoUpdate(holder);
+    }
+
+    @Inject(method = "removeEffectNoUpdate", cancellable = true, at = @At("HEAD"))
+    public void felt$clearActive(Holder<MobEffect> holder, CallbackInfoReturnable<MobEffectInstance> cir) {
+        EntityPotionEffectEvent.Cause cause = bridge$getEffectCause().orElse(EntityPotionEffectEvent.Cause.UNKNOWN);
+        if (isTickingEffects) {
+            effectsToProcess.add(Maps.immutableEntry(Either.right(holder), cause));
+            cir.setReturnValue(null);
+            return;
+        }
+
+        MobEffectInstance effectInstance = this.activeEffects.get(holder);
+        if (effectInstance == null) {
+            cir.setReturnValue(null);
+            return;
+        }
+
+        EntityPotionEffectEvent event = CraftEventFactory.callEntityPotionEffectChangeEvent((LivingEntity) (Object) this, effectInstance, null, cause);
+        if (event.isCancelled()) {
+            cir.setReturnValue(null);
+        }
+    }
+
+    // Fix entity removing itself when effect is removed causes looping remove
+    @Unique private boolean removing = false;
+
+    @Inject(method = "remove", cancellable = true, at = @At("HEAD"))
+    private void felt$beginOnDeathMobEffects(Entity.RemovalReason removalReason, CallbackInfo ci) {
+        if (removing) {
+            ci.cancel();
+            FeltServer.LOGGER.warn("remove() is called recursively, skipping");
+            return;
+        }
+        removing = true;
+    }
+
+    @Inject(method = "remove", at = @At("TAIL"))
+    private void felt$endOnDeathMobEffects(CallbackInfo ci) {
+        removing = false;
+    }
+
+    @Decorate(method = "triggerOnDeathMobEffects", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/effect/MobEffectInstance;onMobRemoved(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/Entity$RemovalReason;)V"))
+    private void felt$fireRemoveEvents(MobEffectInstance instance, ServerLevel serverLevel, LivingEntity arg, Entity.RemovalReason arg2) throws Throwable {
+        DecorationOps.callsite().invoke(instance, serverLevel, arg, arg2);
+        CraftEventFactory.callEntityPotionEffectChangeEvent((LivingEntity) (Object) this, instance, null, EntityPotionEffectEvent.Cause.DEATH);
+        // We don't care about your result because the entity is removed dead!
+    }
+
+    @Override
+    public boolean bridge$canPickUpLoot() {
+        return bukkitPickUpLoot;
+    }
+
+    @Override
+    public float getBukkitYaw() {
+        return getYHeadRot();
+    }
+
+    public int getExpReward(Entity entity) {
+        if (this.level() instanceof ServerLevel serverLevel && !this.wasExperienceConsumed() && (this.isAlwaysExperienceDropper() || this.getLastHurtByPlayerMemoryTime() > 0 && this.shouldDropExperience() && serverLevel.getGameRules().get(GameRules.MOB_DROPS))) {
+            int exp = this.getExperienceReward(serverLevel, entity);
+            return this.bridge$mod$getExperienceDrop((LivingEntity) (Object) this, this.getLastHurtByPlayer(), exp);
+        } else {
+            return 0;
+        }
+    }
+
+    @Override
+    public int bridge$getExpReward(Entity entity) {
+        return getExpReward(entity);
+    }
+
+    @Override
+    public void bridge$setExpToDrop(int amount) {
+        this.expToDrop = amount;
+    }
+
+    @Override
+    public int bridge$getExpToDrop() {
+        return this.expToDrop;
+    }
+
+    // Apply after serialized attributes, but before Health is read and clamped.
+    @Inject(method = "readAdditionalSaveData(Lnet/minecraft/world/level/storage/ValueInput;)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;getMaxHealth()F"))
+    public void felt$readMaxHealth(ValueInput input, CallbackInfo ci) {
+        float maxHealth = input.getFloatOr("Bukkit.MaxHealth", -1.0F);
+        if (maxHealth > 0.0F) {
+            this.getAttribute(Attributes.MAX_HEALTH).setBaseValue(maxHealth);
+        }
+    }
+
+    /**
+     * Both actual loader paths invoke the plural notification after their map
+     * mutation. Do not dispatch Bukkit from this post-removal hook: adapters have
+     * already decided each candidate. Filtering protects NMS/client notification
+     * from Fabric/mod loader entries that stayed active after a veto.
+     */
+    @Decorate(method = "removeAllEffects", require = 0,
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;onEffectsRemoved(Ljava/util/Collection;)V"))
+    private void felt$notifyOnlyActuallyRemovedBulkEffects(LivingEntity instance,
+                                                                 Collection<MobEffectInstance> effects) throws Throwable {
+        List<MobEffectInstance> removed = new ArrayList<>();
+        for (MobEffectInstance effect : effects) {
+            if (!this.activeEffects.containsKey(effect.getEffect())) {
+                removed.add(effect);
+            }
+        }
+        DecorationOps.callsite().invoke(instance, (Collection<MobEffectInstance>) removed);
+    }
+
+    /**
+     * @author IzzelAliz
+     * @reason
+     */
+    @Overwrite
+    public boolean isAlive() {
+        return !this.isRemoved() && this.entityData.get(DATA_HEALTH_ID) > 0.0F;
+    }
+
+    @Inject(method = "getHealth", cancellable = true, at = @At("HEAD"))
+    public void felt$scaledHealth(CallbackInfoReturnable<Float> cir) {
+        if (this instanceof ServerPlayerBridge && ((ServerPlayerBridge) this).bridge$initialized()) {
+            cir.setReturnValue((float) ((ServerPlayerBridge) this).bridge$getBukkitEntity().getHealth());
+        }
+    }
+
+    @Inject(method = "setHealth", cancellable = true, at = @At("HEAD"))
+    public void felt$setScaled(float health, CallbackInfo ci) {
+        if (this instanceof ServerPlayerBridge && ((ServerPlayerBridge) this).bridge$initialized()) {
+            CraftPlayer player = ((ServerPlayerBridge) this).bridge$getBukkitEntity();
+
+            double realHealth = Mth.clamp(health, 0.0F, player.getMaxHealth());
+            player.setRealHealth(realHealth);
+
+            player.updateScaledHealth(false);
+            player.setRealHealth(realHealth);
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "blockedByItem(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/damagesource/DamageSource;FZ)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;knockback(DDDLnet/minecraft/world/damagesource/DamageSource;F)V"))
+    private void felt$shieldKnockback(LivingEntity defender, DamageSource source, float damage, boolean fullyBlocked, CallbackInfo ci) {
+        ((LivingEntityBridge) defender).bridge$pushKnockbackCause((Entity) (Object) this, EntityKnockbackEvent.KnockbackCause.SHIELD_BLOCK);
+    }
+
+    private transient Entity felt$knockbackAttacker;
+    private transient EntityKnockbackEvent.KnockbackCause felt$knockbackCause;
+
+    @Override
+    public void bridge$pushKnockbackCause(Entity attacker, EntityKnockbackEvent.KnockbackCause cause) {
+        this.felt$knockbackAttacker = attacker;
+        this.felt$knockbackCause = cause;
+    }
+
+    public void knockback(double d, double e, double f, Entity attacker, EntityKnockbackEvent.KnockbackCause cause) {
+        this.bridge$pushKnockbackCause(attacker, cause);
+        this.knockback(d, e, f, this.damageSources().generic(), 0.0F);
+    }
+
+    @Decorate(method = "knockback(DDDLnet/minecraft/world/damagesource/DamageSource;FZ)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;setDeltaMovement(DDD)V"))
+    private void felt$knockbackEvent(LivingEntity instance, double x, double y, double z, double d, double e, double f, DamageSource source, float damage, boolean comesFromEffect) throws Throwable {
+        var attacker = felt$knockbackAttacker;
+        var cause = felt$knockbackCause == null ? EntityKnockbackEvent.KnockbackCause.UNKNOWN : felt$knockbackCause;
+        felt$knockbackAttacker = null;
+        felt$knockbackCause = null;
+        Vec3 before = instance.getDeltaMovement();
+        Vec3 increment = new Vec3(x, y, z).subtract(before);
+        var event = CraftEventFactory.callEntityKnockbackEvent(this.getBukkitEntity(), attacker, attacker,
+            io.papermc.paper.event.entity.EntityKnockbackEvent.Cause.valueOf(cause.name()), d, increment);
+        if (!event.isCancelled()) {
+            var knockback = event.getKnockback();
+            DecorationOps.callsite().invoke(instance, before.x + knockback.getX(), before.y + knockback.getY(), before.z + knockback.getZ());
+        }
+    }
+
+    @Override
+    public int bridge$getInvulnerableDuration() {
+        return this.invulnerableDuration;
+    }
+
+    @Override
+    public void bridge$setInvulnerableDuration(int ticks) {
+        this.invulnerableDuration = ticks;
+    }
+
+    @org.spongepowered.asm.mixin.injection.ModifyConstant(method = "hurtServer", constant = @org.spongepowered.asm.mixin.injection.Constant(intValue = 20), require = 0)
+    private int felt$resetInvulnerableDuration(int original) {
+        return this.invulnerableDuration;
+    }
+
+    @org.spongepowered.asm.mixin.injection.ModifyConstant(method = "handleDamageEvent", constant = @org.spongepowered.asm.mixin.injection.Constant(intValue = 20))
+    private int felt$clientInvulnerableDuration(int original) {
+        return this.invulnerableDuration;
+    }
+
+    protected transient boolean felt$damageResult;
+
+    @Inject(method = "hurtServer", at = @At("HEAD"))
+    private void felt$resetDamageResult(ServerLevel serverLevel, DamageSource damageSource, float f, CallbackInfoReturnable<Boolean> cir) {
+        felt$damageResult = false;
+    }
+
+    @Decorate(method = "hurtServer", at = @At(value = "FIELD", target = "Lnet/minecraft/world/entity/LivingEntity;damageCooldownTime:I"),
+        slice = @Slice(to = @At(value = "FIELD", target = "Lnet/minecraft/tags/DamageTypeTags;BYPASSES_COOLDOWN:Lnet/minecraft/tags/TagKey;")))
+    private int felt$useInvulnerableDuration(LivingEntity instance) throws Throwable {
+        int result = (int) DecorationOps.callsite().invoke(instance);
+        return result + 10 - (invulnerableDuration / 2);
+    }
+
+    @Override
+    public EntityDamageEvent felt$fireEntityDamageEvent(DamageSource source, float original) {
+        float damage = original;
+
+        Function<Double, Double> blocking = f -> -((this.getItemBlockingWith() != null) ? f : 0.0);
+        float blockingModifier = blocking.apply((double) damage).floatValue();
+        damage += blockingModifier;
+
+        Function<Double, Double> freezing = f -> {
+            if (source.is(DamageTypeTags.IS_FREEZING) && this.getType().builtInRegistryHolder().is(EntityTypeTags.FREEZE_HURTS_EXTRA_TYPES)) {
+                return -(f - (f * 5.0F));
+            }
+            return -0.0;
+        };
+        float freezingModifier = freezing.apply((double) damage).floatValue();
+        damage += freezingModifier;
+
+        Function<Double, Double> hardHat = f -> {
+            if (source.is(DamageTypeTags.DAMAGES_HELMET) && !this.getItemBySlot(EquipmentSlot.HEAD).isEmpty()) {
+                return -(f - (f * 0.75F));
+            }
+            return -0.0;
+        };
+        float hardHatModifier = hardHat.apply((double) damage).floatValue();
+        damage += hardHatModifier;
+
+        if ((float) this.damageCooldownTime > (float) invulnerableDuration / 2.0F && !source.is(DamageTypeTags.BYPASSES_COOLDOWN)) {
+            if (damage <= this.lastHurt) {
+                return null;
+            }
+        }
+
+        Function<Double, Double> armor = f -> {
+            if (!source.is(DamageTypeTags.BYPASSES_ARMOR)) {
+                return -(f - CombatRules.getDamageAfterAbsorb((LivingEntity) (Object) this, f.floatValue(), source, (float) this.getArmorValue(), (float) this.getAttributeValue(Attributes.ARMOR_TOUGHNESS)));
+            }
+
+            return -0.0;
+        };
+        float armorModifier = armor.apply((double) damage).floatValue();
+        damage += armorModifier;
+
+        Function<Double, Double> resistance = f -> {
+            if (!source.is(DamageTypeTags.BYPASSES_EFFECTS) && this.hasEffect(MobEffects.RESISTANCE) && !source.is(DamageTypeTags.BYPASSES_RESISTANCE)) {
+                int i = (this.getEffect(MobEffects.RESISTANCE).getAmplifier() + 1) * 5;
+                int j = 25 - i;
+                float f1 = f.floatValue() * (float) j;
+                return -(f - (f1 / 25.0F));
+            }
+            return -0.0;
+        };
+        float resistanceModifier = resistance.apply((double) damage).floatValue();
+        damage += resistanceModifier;
+
+        Function<Double, Double> magic = f -> {
+            float l;
+            if (this.level() instanceof ServerLevel serverLevel) {
+                l = EnchantmentHelper.getDamageProtection(serverLevel, (LivingEntity) (Object) this, source);
+            } else {
+                l = 0.0F;
+            }
+
+            if (l > 0.0F) {
+                return -(f - CombatRules.getDamageAfterMagicAbsorb(f.floatValue(), l));
+            }
+            return -0.0;
+        };
+        float magicModifier = magic.apply((double) damage).floatValue();
+        damage += magicModifier;
+
+        Function<Double, Double> absorption = f -> -(Math.max(f - Math.max(f - this.getAbsorptionAmount(), 0.0F), 0.0F));
+        float absorptionModifier = absorption.apply((double) damage).floatValue();
+
+        return CraftEventFactory.handleLivingEntityDamageEvent((LivingEntity) (Object) this, source, original, freezingModifier, hardHatModifier, blockingModifier, armorModifier, resistanceModifier, magicModifier, absorptionModifier, freezing, hardHat, blocking, armor, resistance, magic, absorption);
+    }
+
+    @Inject(method = "actuallyHurt", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;getCombatTracker()Lnet/minecraft/world/damagesource/CombatTracker;"))
+    private void felt$setDamageResult(ServerLevel serverLevel, DamageSource damageSource, float f, CallbackInfo ci) {
+        felt$damageResult = true;
+    }
+
+    @Inject(method = "dealDefaultKnockback(Lnet/minecraft/world/damagesource/DamageSource;FZ)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;knockback(DDDLnet/minecraft/world/damagesource/DamageSource;F)V"))
+    private void felt$knockbackCause(DamageSource damageSource, float damage, boolean sendAnimation, CallbackInfo ci) {
+        this.bridge$pushKnockbackCause(damageSource.getEntity(), damageSource.getEntity() == null ? EntityKnockbackEvent.KnockbackCause.DAMAGE : EntityKnockbackEvent.KnockbackCause.ENTITY_ATTACK);
+    }
+
+    private transient EntityRegainHealthEvent.RegainReason felt$regainReason;
+
+    public void heal(float healAmount, EntityRegainHealthEvent.RegainReason regainReason) {
+        bridge$pushHealReason(regainReason);
+        this.heal(healAmount);
+    }
+
+    @Redirect(method = "heal", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;setHealth(F)V"))
+    public void felt$healEvent(LivingEntity livingEntity, float health) {
+        EntityRegainHealthEvent.RegainReason regainReason = felt$regainReason == null ? EntityRegainHealthEvent.RegainReason.CUSTOM : felt$regainReason;
+        felt$regainReason = null;
+        float f = this.getHealth();
+        float amount = health - f;
+        EntityRegainHealthEvent event = new EntityRegainHealthEvent(this.getBukkitEntity(), amount, regainReason);
+        if (this.valid) {
+            Bukkit.getPluginManager().callEvent(event);
+        }
+
+        if (!event.isCancelled()) {
+            this.setHealth(this.getHealth() + (float) event.getAmount());
+        }
+    }
+
+    @Inject(method = "heal", at = @At(value = "RETURN"))
+    public void felt$resetReason(float healAmount, CallbackInfo ci) {
+        felt$regainReason = null;
+    }
+
+    public CraftLivingEntity getBukkitEntity() {
+        return (CraftLivingEntity) internal$getBukkitEntity();
+    }
+
+    @Override
+    public CraftLivingEntity bridge$getBukkitEntity() {
+        return (CraftLivingEntity) internal$getBukkitEntity();
+    }
+
+    /**
+     * @author IzzelAliz
+     * @reason
+     */
+    @Overwrite
+    private boolean checkTotemDeathProtection(DamageSource damageSourceIn) {
+        if (damageSourceIn.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+            return false;
+        } else {
+            net.minecraft.world.item.ItemStack itemstack = null;
+
+            net.minecraft.world.item.ItemStack itemstack1 = ItemStack.EMPTY;
+            org.bukkit.inventory.EquipmentSlot bukkitHand = null;
+            for (InteractionHand hand : InteractionHand.values()) {
+                itemstack1 = this.getItemInHand(hand);
+                if (itemstack1.is(Items.TOTEM_OF_UNDYING) && this.bridge$mod$onLivingUseTotem((LivingEntity) (Object) this, damageSourceIn, itemstack1, hand)) {
+                    itemstack = itemstack1.copy();
+                    bukkitHand = CraftEquipmentSlot.getHand(hand);
+                    // itemstack1.shrink(1);
+                    break;
+                }
+            }
+
+            EntityResurrectEvent event = new EntityResurrectEvent(this.getBukkitEntity(), bukkitHand);
+            event.setCancelled(itemstack == null);
+            Bukkit.getPluginManager().callEvent(event);
+
+            if (!event.isCancelled()) {
+                if (!itemstack1.isEmpty()) {
+                    itemstack1.shrink(1);
+                }
+                if (itemstack != null && (Object) this instanceof ServerPlayer serverplayerentity) {
+                    serverplayerentity.awardStat(Stats.ITEM_USED.get(Items.TOTEM_OF_UNDYING));
+                    CriteriaTriggers.USED_TOTEM.trigger(serverplayerentity, itemstack);
+                    this.gameEvent(GameEvent.ITEM_INTERACT_FINISH);
+                }
+
+                this.setHealth(1.0F);
+                this.removeAllEffects(EntityPotionEffectEvent.Cause.TOTEM);
+                this.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 900, 1), EntityPotionEffectEvent.Cause.TOTEM);
+                bridge$pushEffectCause(EntityPotionEffectEvent.Cause.TOTEM);
+                this.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, 100, 1), EntityPotionEffectEvent.Cause.TOTEM);
+                this.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 800, 1), EntityPotionEffectEvent.Cause.TOTEM);
+                this.level().broadcastEntityEvent((Entity) (Object) this, (byte) 35);
+            }
+            return !event.isCancelled();
+        }
+    }
+
+    @Inject(method = "createWitherRose", cancellable = true, locals = LocalCapture.CAPTURE_FAILHARD, at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;addFreshEntity(Lnet/minecraft/world/entity/Entity;)Z"))
+    private void felt$witherRoseDrop(LivingEntity livingEntity, CallbackInfo ci, ServerLevel serverLevel, boolean flag, ItemEntity
+        itemEntity) {
+        org.bukkit.event.entity.EntityDropItemEvent event = new org.bukkit.event.entity.EntityDropItemEvent(this.getBukkitEntity(), (org.bukkit.entity.Item) (itemEntity.bridge$getBukkitEntity()));
+        org.bukkit.Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "jumpFromGround", at = @At(value = "FIELD", target = "Lnet/minecraft/world/entity/LivingEntity;needsSync:Z", opcode = Opcodes.PUTFIELD))
+    private void felt$exhaustPlayerJump(CallbackInfo ci) {
+        if (!((Object) this instanceof net.minecraft.world.entity.player.Player player)) {
+            return;
+        }
+        org.spigotmc.SpigotWorldConfig config = ((WorldBridge) level()).bridge$spigotConfig();
+        float exhaustion;
+        EntityExhaustionEvent.ExhaustionReason reason;
+        if (config != null) {
+            if (this.isSprinting()) {
+                exhaustion = config.jumpSprintExhaustion;
+                reason = EntityExhaustionEvent.ExhaustionReason.JUMP_SPRINT;
+            } else {
+                exhaustion = config.jumpWalkExhaustion;
+                reason = EntityExhaustionEvent.ExhaustionReason.JUMP;
+            }
+        } else if (this.isSprinting()) {
+            exhaustion = 0.2F;
+            reason = EntityExhaustionEvent.ExhaustionReason.JUMP_SPRINT;
+        } else {
+            exhaustion = 0.05F;
+            reason = EntityExhaustionEvent.ExhaustionReason.JUMP;
+        }
+        ((gr1mly4memes.felt.bridge.core.world.entity.player.PlayerBridge) player).bridge$pushExhaustReason(reason);
+        player.causeFoodExhaustion(exhaustion);
+    }
+
+    @Decorate(method = "createWitherRose(Lnet/minecraft/world/entity/LivingEntity;)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;setBlockAndUpdate(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;)Z"))
+    private boolean felt$fireWitherRoseForm(Level level, BlockPos pos, BlockState newState) throws Throwable {
+        if (LevelAccessorBridge.from(level) instanceof LevelAccessorBridge bridge) {
+            final var event = FeltEventFactory.callBlockFormEvent(bridge.bridge$getMinecraftWorld(), pos, newState, 3, null);
+            if (event != null) {
+                if (event.isCancelled()) {
+                    return false;
+                }
+                newState = ((CraftBlockState) event.getNewState()).getHandle();
+            }
+        }
+        return (boolean) DecorationOps.callsite().invoke(level, pos, newState);
+    }
+
+    @Decorate(method = "travelFallFlying", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;stopFallFlying()V"))
+    private void felt$stopGlide(LivingEntity livingEntity) throws Throwable {
+        if (!CraftEventFactory.callToggleGlideEvent(livingEntity, false).isCancelled()) {
+            DecorationOps.callsite().invoke(livingEntity);
+        }
+    }
+
+    @Decorate(method = "updateFallFlying", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;setSharedFlag(IZ)V"))
+    private void felt$toggleGlide(LivingEntity livingEntity, int flag, boolean set) throws Throwable {
+        if (set != livingEntity.getSharedFlag(flag) && !CraftEventFactory.callToggleGlideEvent(livingEntity, set).isCancelled()) {
+            DecorationOps.callsite().invoke(livingEntity, flag, set);
+        }
+    }
+
+    /**
+     * @author IzzelAliz
+     * @reason
+     */
+    @Overwrite
+    public boolean isPickable() {
+        return !this.isRemoved() && this.collides;
+    }
+
+    @Decorate(method = "completeUsingItem", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/ItemStack;finishUsingItem(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/entity/LivingEntity;)Lnet/minecraft/world/item/ItemStack;"))
+    private ItemStack felt$itemConsume(ItemStack itemStack, Level worldIn, LivingEntity entityLiving) throws
+        Throwable {
+        if (this instanceof ServerPlayerBridge) {
+            final org.bukkit.inventory.ItemStack craftItem = CraftItemStack.asBukkitCopy(itemStack);
+            final PlayerItemConsumeEvent event = new PlayerItemConsumeEvent((Player) this.getBukkitEntity(), craftItem, CraftEquipmentSlot.getHand(this.getUsedItemHand()));
+            Bukkit.getPluginManager().callEvent(event);
+            if (event.isCancelled()) {
+                ((ServerPlayerBridge) this).bridge$getBukkitEntity().updateInventory();
+                ((ServerPlayerBridge) this).bridge$getBukkitEntity().updateScaledHealth();
+                return (ItemStack) DecorationOps.cancel().invoke();
+            } else if (!craftItem.equals(event.getItem())) {
+                itemStack = CraftItemStack.asNMSCopy(event.getItem());
+            }
+        }
+        return (ItemStack) DecorationOps.callsite().invoke(itemStack, worldIn, entityLiving);
+    }
+
+    // Chorus scope wraps the physical body in the loader-specific LivingEntity mixin.
+    // Do not wrap mod loader's four-argument delegator: a second enter would shadow its claimed scope.
+
+    // The physical teleport lives in the position-check helper; mod loader adds the consumed stack.
+    @Decorate(method = {"checkPositionAndTeleport(DDDZLjava/util/function/Predicate;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/Level;)Z", "checkPositionAndTeleport(DDDZLjava/util/function/Predicate;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/Level;Lnet/minecraft/world/item/ItemStack;)Z"}, at = @At(value = "INVOKE", ordinal = 0, target = "Lnet/minecraft/world/entity/LivingEntity;teleportTo(DDD)V"))
+    private void felt$entityTeleport(LivingEntity entity, double x, double y, double z,
+                                         @Local(ordinal = 0) boolean showParticles) throws Throwable {
+        if ((Object) this instanceof ServerPlayer player) {
+            double fromX = this.getX(), fromY = this.getY(), fromZ = this.getZ();
+            boolean valid;
+            this.setPos(x, y, z);
+            try {
+                valid = this.level().noCollision((Entity) (Object) this) && !this.level().containsAnyLiquid(this.getBoundingBox());
+            } finally {
+                this.setPos(fromX, fromY, fromZ);
+            }
+            if (!valid) {
+                DecorationOps.cancel().invoke(false);
+                return;
+            }
+            ServerGamePacketListenerImplBridge connection = (ServerGamePacketListenerImplBridge) player.connection;
+            var chorus = FeltCaptures.chorusActive;
+            if (chorus != null) {
+                connection.bridge$pushTeleportCause(org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.CHORUS_FRUIT);
+            }
+            player.connection.teleport(new PositionMoveRotation(new Vec3(x, y, z), Vec3.ZERO, this.getYRot(), this.getXRot()), java.util.Collections.emptySet());
+            boolean cancelled = connection.bridge$teleportCancelled();
+            if (chorus != null) {
+                chorus.getSecond().setValue(cancelled);
+            }
+            if (cancelled) {
+                DecorationOps.cancel().invoke(false);
+                return;
+            }
+            if (showParticles) {
+                this.level().broadcastEntityEvent((Entity) (Object) this, (byte) 46);
+            }
+            DecorationOps.cancel().invoke(true);
+            return;
+        } else {
+            EntityTeleportEvent event = new EntityTeleportEvent(getBukkitEntity(), new Location(this.level().bridge$getWorld(), this.getX(), this.getY(), this.getZ()),
+                new Location(this.level().bridge$getWorld(), x, y, z));
+            Bukkit.getPluginManager().callEvent(event);
+            if (!event.isCancelled()) {
+                x = event.getTo().getX();
+                y = event.getTo().getY();
+                z = event.getTo().getZ();
+            } else {
+                x = this.getX();
+                y = this.getY();
+                z = this.getZ();
+            }
+            if (event.isCancelled()) {
+                var chorus = FeltCaptures.chorusActive;
+                if (chorus != null) {
+                    chorus.getSecond().setValue(true);
+                }
+                DecorationOps.cancel().invoke(false);
+                return;
+            }
+            DecorationOps.callsite().invoke(entity, x, y, z);
+        }
+        DecorationOps.blackhole().invoke();
+    }
+
+    @Override
+    public void bridge$heal(float healAmount, EntityRegainHealthEvent.RegainReason regainReason) {
+        this.heal(healAmount, regainReason);
+    }
+
+    @Override
+    public void bridge$pushHealReason(EntityRegainHealthEvent.RegainReason regainReason) {
+        felt$regainReason = regainReason;
+    }
+
+    @Override
+    public EntityRegainHealthEvent.RegainReason bridge$peekHealReason() {
+        return felt$regainReason;
+    }
+
+    @Override
+    public void bridge$pushEffectCause(EntityPotionEffectEvent.Cause cause) {
+        felt$cause = cause;
+    }
+
+    @Override
+    public boolean bridge$addEffect(MobEffectInstance effect, EntityPotionEffectEvent.Cause cause) {
+        return addEffect(effect, cause);
+    }
+
+    @Override
+    public Optional<EntityPotionEffectEvent.Cause> bridge$getEffectCause() {
+        try {
+            return Optional.ofNullable(felt$cause);
+        } finally {
+            felt$cause = null;
+        }
+    }
+
+    @Inject(method = "setArrowCount", cancellable = true, at = @At("HEAD"))
+    private void felt$onArrowChange(int count, CallbackInfo ci) {
+        if (felt$callArrowCountChange(count, false)) {
+            ci.cancel();
+        }
+    }
+
+    public final void setArrowCount(int count, boolean reset) {
+        if (felt$callArrowCountChange(count, reset)) {
+            return;
+        }
+        this.entityData.set(DATA_ARROW_COUNT_ID, count);
+    }
+
+    private boolean felt$callArrowCountChange(int newCount, boolean reset) {
+        return CraftEventFactory.callArrowBodyCountChangeEvent((LivingEntity) (Object) this, this.getArrowCount(), newCount, reset).isCancelled();
+    }
+
+    public void setItemSlot(EquipmentSlot slot, ItemStack stack, boolean silent) {
+        this.onEquipItem(slot, this.equipment.set(slot, stack), stack, silent);
+    }
+
+    public void onEquipItem(EquipmentSlot slot, ItemStack stack, ItemStack stack1, boolean silent) {
+        this.onEquipItem(slot, stack, stack1);
+    }
+
+    @Override
+    public void bridge$setSlot(EquipmentSlot slot, ItemStack stack, boolean silent) {
+        this.setItemSlot(slot, stack, silent);
+    }
+
+    protected void equipEventAndSound(EquipmentSlot slot, ItemStack oldItem, ItemStack newItem, boolean silent) {
+        boolean flag = newItem.isEmpty() && oldItem.isEmpty();
+        if (!flag && !ItemStack.isSameItemSameComponents(oldItem, newItem) && !this.firstTick) {
+            Equippable equipable = newItem.get(DataComponents.EQUIPPABLE);
+            if (!this.level().isClientSide() && !this.isSpectator()) {
+                if (!this.isSilent() && equipable != null && equipable.slot() == slot && !silent) {
+                    this.level().playSeededSound(null, this.getX(), this.getY(), this.getZ(), equipable.equipSound(), this.getSoundSource(), 1.0F, 1.0F, this.random.nextLong());
+                }
+
+                if (this.doesEmitEquipEvent(slot)) {
+                    this.gameEvent(equipable != null ? GameEvent.EQUIP : GameEvent.UNEQUIP);
+                }
+            }
+
+        }
+    }
+
+    @Override
+    public void bridge$playEquipSound(EquipmentSlot slot, ItemStack oldItem, ItemStack newItem, boolean silent) {
+        this.equipEventAndSound(slot, oldItem, newItem, silent);
+    }
+
+    @Inject(method = "tickDeath", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;remove(Lnet/minecraft/world/entity/Entity$RemovalReason;)V"))
+    private void felt$killedCause(CallbackInfo ci) {
+        this.bridge$pushEntityRemoveCause(EntityRemoveEvent.Cause.DEATH);
+    }
+    @Decorate(method = "drop(Lnet/minecraft/world/item/ItemStack;ZLnet/minecraft/util/Prediction;)Lnet/minecraft/world/entity/item/ItemEntity;", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;createItemStackToDrop(Lnet/minecraft/world/item/ItemStack;ZZ)Lnet/minecraft/world/entity/item/ItemEntity;"))
+    private ItemEntity felt$prepareApiDrop(LivingEntity living, ItemStack stack, boolean randomly, boolean thrownFromHand) throws Throwable {
+        if (living instanceof gr1mly4memes.felt.bridge.core.world.entity.player.PlayerBridge bridge) {
+            randomly = bridge.bridge$takeApiDropRandomly(randomly);
+        }
+        ItemEntity entity = (ItemEntity) DecorationOps.callsite().invoke(living, stack, randomly, thrownFromHand);
+        if (living instanceof gr1mly4memes.felt.bridge.core.world.entity.player.PlayerBridge bridge) {
+            return bridge.bridge$prepareApiDrop(entity);
+        }
+        return entity;
+    }
+
+    @Decorate(method = "drop(Lnet/minecraft/world/item/ItemStack;ZLnet/minecraft/util/Prediction;)Lnet/minecraft/world/entity/item/ItemEntity;", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;addFreshEntity(Lnet/minecraft/world/entity/Entity;)Z"))
+    private boolean felt$dropBeforeAdd(net.minecraft.world.level.Level level, Entity entity,
+            ItemStack stack, boolean thrownFromHand, net.minecraft.util.Prediction prediction) throws Throwable {
+        if (this instanceof gr1mly4memes.felt.bridge.core.world.entity.player.PlayerBridge bridge
+            && !bridge.bridge$callDropItemEvent((ItemEntity) entity, thrownFromHand)) {
+            return (boolean) DecorationOps.cancel().invoke((ItemEntity) null);
+        }
+        if (this.bridge$capturePlayerDrop((ItemEntity) entity)) {
+            return true;
+        }
+        return (boolean) DecorationOps.callsite().invoke(level, entity);
+    }
+
+    public org.bukkit.craftbukkit.entity.CraftLivingEntity getBukkitLivingEntity() {
+        return this.bridge$getBukkitEntity();
+    }
+
+}

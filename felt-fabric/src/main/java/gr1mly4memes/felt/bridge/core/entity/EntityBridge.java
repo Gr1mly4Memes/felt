@@ -1,0 +1,170 @@
+package gr1mly4memes.felt.bridge.core.entity;
+
+import gr1mly4memes.felt.bridge.core.command.CommandSourceBridge;
+import gr1mly4memes.felt.mod.server.entity.FeltSpawnReason;
+import gr1mly4memes.felttools.product.Product;
+import gr1mly4memes.felttools.product.Product4;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragonPart;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
+import org.bukkit.Location;
+import org.bukkit.craftbukkit.entity.CraftEntity;
+import org.bukkit.craftbukkit.event.PortalEventResult;
+import org.bukkit.event.entity.CreatureSpawnEvent;
+import org.bukkit.event.entity.EntityRemoveEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.projectiles.ProjectileSource;
+
+import javax.annotation.Nullable;
+import java.util.List;
+
+public interface EntityBridge extends CommandSourceBridge {
+
+    io.papermc.paper.entity.activation.ActivationType bridge$getActivationType();
+    boolean bridge$getDefaultActivationState();
+    long bridge$getActivatedTick();
+    void bridge$setActivatedTick(long tick);
+    long bridge$getActivatedImmunityTick();
+    void bridge$setActivatedImmunityTick(long tick);
+    boolean bridge$isTemporarilyActive();
+    void bridge$setTemporarilyActive(boolean active);
+    void bridge$inactiveTick();
+
+    net.minecraft.world.phys.AABB bridge$getBoundingBoxAt(double x, double y, double z);
+
+    default EntityBridge bridge() {
+        return this;
+    }
+
+    default CraftEntity getBukkitEntity() {
+        return bridge$getBukkitEntity();
+    }
+
+    default float getBukkitYaw() {
+        return bridge$getBukkitYaw();
+    }
+
+    default boolean isChunkLoaded() {
+        return bridge$isChunkLoaded();
+    }
+
+    /** Apply Bukkit's pair rule to an already evaluated native pushability result. */
+    default boolean bridge$canCollideWithBukkit(Entity other, boolean pushable) {
+        return pushable;
+    }
+
+    void bridge$setOnFire(float seconds, boolean callEvent);
+
+    CraftEntity bridge$getBukkitEntity();
+
+    /** Returns the existing wrapper without constructing one. */
+    @Nullable
+    CraftEntity bridge$peekBukkitEntity();
+
+    void bridge$setBukkitEntity(CraftEntity craftEntity);
+
+    boolean bridge$saveSnapshot(net.minecraft.world.level.storage.ValueOutput output);
+
+    boolean bridge$saveEntity(net.minecraft.world.level.storage.ValueOutput output, boolean includeAll, boolean includeNonSaveable, boolean forceSerialization);
+
+    boolean bridge$isPersist();
+
+    void bridge$setPersist(boolean persist);
+
+    boolean bridge$isValid();
+
+    void bridge$setValid(boolean valid);
+
+    boolean bridge$isInWorld();
+
+    void bridge$setInWorld(boolean inWorld);
+
+    ProjectileSource bridge$getProjectileSource();
+
+    void bridge$setProjectileSource(ProjectileSource projectileSource);
+
+    float bridge$getBukkitYaw();
+
+    boolean bridge$isChunkLoaded();
+
+    boolean bridge$isLastDamageCancelled();
+
+    void bridge$setLastDamageCancelled(boolean cancelled);
+
+    void bridge$postTick();
+
+    List<Entity> bridge$getPassengers();
+
+    void bridge$setRideCooldown(int rideCooldown);
+
+    int bridge$getRideCooldown();
+
+    void bridge$setLastLavaContact(BlockPos pos);
+
+    void bridge$revive();
+
+    void bridge$pushEntityRemoveCause(EntityRemoveEvent.Cause cause);
+
+    EntityRemoveEvent.Cause bridge$getRemoveEventCause();
+
+    PortalEventResult bridge$callPortalEvent(Entity entity, Location exit, PlayerTeleportEvent.TeleportCause cause, int searchRadius, int creationRadius);
+
+    boolean bridge$pluginRemoved();
+
+    void bridge$removeFromPlugin();
+
+    boolean bridge$isForceDrops();
+
+    void bridge$setForceDrops(boolean b);
+
+    default boolean bridge$mod$isPartEntity() {
+        return this instanceof EnderDragonPart;
+    }
+
+    default Entity[] bridge$mod$getParts() {
+        return this instanceof EnderDragon dragon ? dragon.getSubEntities() : null;
+    }
+
+    default Product4<Boolean /* Cancelled */, Double /* X */, Double /* Y */, Double /* Z */>
+    bridge$onEntityTeleportCommand(ServerLevel level, double x, double y, double z) {
+        return Product.of(false, x, y, z);
+    }
+
+    void felt$pushAddEntityReason(CreatureSpawnEvent.SpawnReason reason);
+
+    CreatureSpawnEvent.SpawnReason felt$getAddEntityReason();
+
+    void felt$pushExtraSpawnReason(FeltSpawnReason reason);
+
+    FeltSpawnReason felt$getExtraSpawnReason();
+
+    ItemEntity felt$spawnAtLocationNoAdd(ItemStack stack, float yOffset);
+
+    default ItemEntity felt$spawnAtLocationNoAdd(ItemStack stack) {
+        return felt$spawnAtLocationNoAdd(stack, 0f);
+    }
+
+    /**
+     * Called when an Entity is added to a ServerLevel via {@link ServerLevel#addEntity(Entity)}.
+     * If entity is discarded before it can enter the level, the remove event will be wrongly sent (before it's actually added).
+     * And in the case when used by world generation, the server may crash for triggering {@link EntityRemoveEvent}
+     * asynchronously.
+     * We maintain whether it's "in the level" here, recording whether the event has been sent, with the assumption that an entity
+     * is only removed from the main thread, once it's added to the world. This will solve the problem above and more potential problems.
+     */
+    @SuppressWarnings("JavadocReference")
+    void felt$onAddedToLevel();
+
+    default net.minecraft.world.phys.AABB getBoundingBoxAt(double x, double y, double z) {
+        return this.bridge$getBoundingBoxAt(x, y, z);
+    }
+
+    default boolean saveAsPassenger(net.minecraft.world.level.storage.ValueOutput output, boolean includeAll, boolean includeNonSaveable, boolean forceSerialization) {
+        return this.bridge$saveEntity(output, includeAll, includeNonSaveable, forceSerialization);
+    }
+
+}

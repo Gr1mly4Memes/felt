@@ -1,0 +1,44 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/potion/PaperPotionBrewer.java b/paper-server/src/main/java/io/papermc/paper/potion/PaperPotionBrewer.java
+--- a/paper-server/src/main/java/io/papermc/paper/potion/PaperPotionBrewer.java
++++ b/paper-server/src/main/java/io/papermc/paper/potion/PaperPotionBrewer.java
+@@ -2,15 +2,7 @@
+ 
+ import com.google.common.base.Preconditions;
+ import java.util.Collection;
+-import net.minecraft.core.Holder;
+-import net.minecraft.core.HolderLookup;
+-import net.minecraft.core.RegistryAccess;
+-import net.minecraft.core.registries.Registries;
+ import net.minecraft.server.MinecraftServer;
+-import net.minecraft.world.item.crafting.BrewingRecipe;
+-import net.minecraft.world.item.crafting.RecipeHolder;
+-import net.minecraft.world.item.crafting.RecipeManager;
+-import net.minecraft.world.item.crafting.RecipeType;
+ import org.bukkit.potion.PotionBrewer;
+ import org.bukkit.potion.PotionEffect;
+ import org.bukkit.potion.PotionType;
+@@ -50,22 +42,7 @@
+     @Override
+     public void resetPotionMixes() {
+         AsyncCatcher.catchOp("Resetting potion mixes");
+-        final RecipeManager recipeManager = this.server.getRecipeManager();
+-        final RegistryAccess registryAccess = this.server.registryAccess();
+-
+-        final Collection<RecipeHolder<BrewingRecipe>> brewingRecipes = recipeManager.recipes.byType(RecipeType.BREWING);
+-
+-        // Completely clear brewing recipes.
+-        brewingRecipes.forEach(recipe -> recipeManager.recipes.byKey.remove(recipe.id()));
+-        brewingRecipes.clear();
+-
+-        // Restore recipe manager state for brewing from registries.
+-        registryAccess.get(Registries.RECIPE)
+-            .map(Holder.Reference::value)
+-            .stream()
+-            .flatMap(HolderLookup::listElements)
+-            .filter(recipe -> recipe.value().getType() == RecipeType.BREWING)
+-            .forEach(recipe -> recipeManager.recipes.addRecipe(new RecipeHolder<>(recipe.key(), recipe.value())));
+-        recipeManager.finalizeRecipeLoading();
++        ((gr1mly4memes.felt.bridge.core.world.item.crafting.RecipeManagerBridge) this.server.getRecipeManager())
++            .bridge$resetBrewingRecipes(this.server.registryAccess());
+     }
+ }

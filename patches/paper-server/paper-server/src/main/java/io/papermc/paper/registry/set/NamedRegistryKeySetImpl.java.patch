@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/registry/set/NamedRegistryKeySetImpl.java b/paper-server/src/main/java/io/papermc/paper/registry/set/NamedRegistryKeySetImpl.java
+--- a/paper-server/src/main/java/io/papermc/paper/registry/set/NamedRegistryKeySetImpl.java
++++ b/paper-server/src/main/java/io/papermc/paper/registry/set/NamedRegistryKeySetImpl.java
+@@ -45,7 +45,7 @@
+ 
+     @Override
+     public boolean contains(final TypedKey<T> valueKey) {
+-        return this.namedSet.contains(valueKey);
++        return this.values().contains(valueKey);
+     }
+ 
+     @Override

@@ -94,7 +94,7 @@ public abstract class VerifyStaticMethodInjections extends DefaultTask {
             }
             int effectiveAccess = actual.access;
             for (AnnotationNode annotation : annotations(actual.visibleAnnotations, actual.invisibleAnnotations)) {
-                if (annotation.desc.equals("Lgr1mly4memes/felt/common/mod/mixins/annotation/TransformAccess;")) {
+                if (annotation.desc.equals("Lgr1mly4memes/felt/mod/mixins/annotation/TransformAccess;")) {
                     effectiveAccess = (Integer) annotation.values.get(1);
                 }
             }

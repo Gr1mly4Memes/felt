@@ -1,0 +1,19 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/plugin/PluginInitializerManager.java b/paper-server/src/main/java/io/papermc/paper/plugin/PluginInitializerManager.java
+--- a/paper-server/src/main/java/io/papermc/paper/plugin/PluginInitializerManager.java
++++ b/paper-server/src/main/java/io/papermc/paper/plugin/PluginInitializerManager.java
+@@ -1,6 +1,5 @@
+ package io.papermc.paper.plugin;
+ 
+-import com.mojang.logging.LogUtils;
+ import io.papermc.paper.configuration.PaperConfigurations;
+ import io.papermc.paper.plugin.entrypoint.Entrypoint;
+ import io.papermc.paper.plugin.entrypoint.LaunchEntryPointHandler;
+@@ -23,7 +22,7 @@
+ 
+ public class PluginInitializerManager {
+ 
+-    private static final Logger LOGGER = LogUtils.getClassLogger();
++    private static final Logger LOGGER = org.slf4j.LoggerFactory.getLogger(PluginInitializerManager.class.getSimpleName());
+     private static PluginInitializerManager impl;
+     private final Path pluginDirectory;
+     private final Path updateDirectory;

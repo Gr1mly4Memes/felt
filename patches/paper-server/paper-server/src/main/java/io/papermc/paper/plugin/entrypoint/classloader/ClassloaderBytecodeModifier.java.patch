@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/ClassloaderBytecodeModifier.java b/paper-server/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/ClassloaderBytecodeModifier.java
+--- a/paper-server/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/ClassloaderBytecodeModifier.java
++++ b/paper-server/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/ClassloaderBytecodeModifier.java
+@@ -11,7 +11,7 @@
+         return Provider.INSTANCE;
+     }
+ 
+-    byte[] modify(PluginMeta config, byte[] bytecode);
++    byte[] modify(PluginMeta config, String className, byte[] bytecode, ClassLoader owner) throws ClassNotFoundException;
+ 
+     class Provider {
+ 

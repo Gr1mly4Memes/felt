@@ -1,0 +1,19 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/configuration/transformation/global/LegacyPaperConfig.java b/paper-server/src/main/java/io/papermc/paper/configuration/transformation/global/LegacyPaperConfig.java
+--- a/paper-server/src/main/java/io/papermc/paper/configuration/transformation/global/LegacyPaperConfig.java
++++ b/paper-server/src/main/java/io/papermc/paper/configuration/transformation/global/LegacyPaperConfig.java
+@@ -1,6 +1,5 @@
+ package io.papermc.paper.configuration.transformation.global;
+ 
+-import com.mojang.logging.LogUtils;
+ import io.papermc.paper.configuration.Configuration;
+ import java.util.function.Predicate;
+ import net.kyori.adventure.text.Component;
+@@ -18,7 +17,7 @@
+ import static org.spongepowered.configurate.NodePath.path;
+ 
+ public final class LegacyPaperConfig {
+-    private static final Logger LOGGER = LogUtils.getClassLogger();
++    private static final Logger LOGGER = org.slf4j.LoggerFactory.getLogger(LegacyPaperConfig.class.getSimpleName());
+ 
+     private LegacyPaperConfig() {
+     }

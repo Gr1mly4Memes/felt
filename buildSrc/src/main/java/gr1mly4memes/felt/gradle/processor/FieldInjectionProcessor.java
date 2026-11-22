@@ -56,7 +56,7 @@ public abstract class FieldInjectionProcessor implements MinecraftJarProcessor<F
         if (!context.disableObfuscation()) {
             throw new IOException("Felt field injection requires official, unobfuscated Minecraft classes");
         }
-        Path temporary = Files.createTempFile(jar.toAbsolutePath().getParent(), ".arclight-fields-", ".jar");
+        Path temporary = Files.createTempFile(jar.toAbsolutePath().getParent(), ".felt-fields-", ".jar");
         try {
             Files.copy(jar, temporary, StandardCopyOption.REPLACE_EXISTING);
             try (var zip = FileSystems.newFileSystem(temporary)) {

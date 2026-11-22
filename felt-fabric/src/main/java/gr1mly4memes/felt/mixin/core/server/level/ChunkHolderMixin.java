@@ -1,0 +1,119 @@
+package gr1mly4memes.felt.mixin.core.server.level;
+
+import gr1mly4memes.felt.bridge.core.world.level.chunk.LevelChunkBridge;
+import gr1mly4memes.felt.bridge.core.world.server.ChunkHolderBridge;
+import gr1mly4memes.felt.bridge.core.server.level.ChunkMapBridge;
+import gr1mly4memes.felt.mod.server.FeltServer;
+import it.unimi.dsi.fastutil.shorts.ShortSet;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.*;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.LevelHeightAccessor;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
+import org.spongepowered.asm.mixin.Final;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.gen.Accessor;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+
+@Mixin(ChunkHolder.class)
+public abstract class ChunkHolderMixin extends GenerationChunkHolder implements ChunkHolderBridge {
+
+    // @formatter:off
+    @Shadow public int oldTicketLevel;
+    @Shadow @Final private ShortSet[] changedBlocksPerSection;
+    @Shadow @Final private LevelHeightAccessor levelHeightAccessor;
+    @Shadow private int ticketLevel;
+    @Shadow public abstract CompletableFuture<ChunkResult<LevelChunk>> getFullChunkFuture();@Override @Accessor("oldTicketLevel") public abstract int bridge$getOldTicketLevel();
+    // @formatter:on
+
+    @Unique
+    private boolean felt$pendingUnload;
+
+    public ChunkHolderMixin(ChunkPos chunkPos) {
+        super(chunkPos);
+    }
+
+    public LevelChunk getFullChunkNow() {
+        if (!ChunkLevel.fullStatus(this.oldTicketLevel).isOrAfter(FullChunkStatus.FULL)) return null;
+        return this.getFullChunkNowUnchecked();
+    }
+
+    public LevelChunk getFullChunkNowUnchecked() {
+        return (LevelChunk) this.getChunkIfPresentUnchecked(ChunkStatus.FULL);
+    }
+
+    @Override
+    public LevelChunk bridge$getFullChunkNow() {
+        return this.getFullChunkNow();
+    }
+
+    @Override
+    public LevelChunk bridge$getFullChunkUnchecked() {
+        return this.getFullChunkNowUnchecked();
+    }
+
+    @Override
+    public void bridge$callEventIfUnloading(ChunkMap manager) {
+        callEventIfUnloading(manager);
+    }
+
+    @Override
+    public void bridge$resetPendingUnload() {
+        this.felt$pendingUnload = false;
+    }
+
+    protected void callEventIfUnloading(ChunkMap manager) {
+        FullChunkStatus oldFullChunkStatus = ChunkLevel.fullStatus(this.oldTicketLevel);
+        FullChunkStatus newFullChunkStatus = ChunkLevel.fullStatus(this.ticketLevel);
+        boolean oldIsFull = oldFullChunkStatus.isOrAfter(FullChunkStatus.FULL);
+        boolean newIsFull = newFullChunkStatus.isOrAfter(FullChunkStatus.FULL);
+        if (oldIsFull && !newIsFull) {
+            if (felt$pendingUnload) {
+                return;
+            }
+            felt$pendingUnload = true;
+            this.getFullChunkFuture().thenAccept((either) -> {
+                LevelChunk chunk = either.orElse(null);
+                if (chunk != null) {
+                    ((ChunkMapBridge)manager).bridge$getCallbackExecutor().execute(() -> {
+                        // Minecraft will apply the chunks tick lists to the world once the chunk got loaded, and then store the tick
+                        // lists again inside the chunk once the chunk becomes inaccessible and set the chunk's needsSaving flag.
+                        // These actions may however happen deferred, so we manually set the needsSaving flag already here.
+                        chunk.markUnsaved();
+                        ((LevelChunkBridge)chunk).bridge$unloadCallback();
+                    });
+                }
+            }).exceptionally((throwable) -> {
+                // ensure exceptions are printed, by default this is not the case
+                MinecraftServer.LOGGER.error("Failed to schedule unload callback for chunk " + pos, throwable);
+                return null;
+            });
+
+            // Run callback right away if the future was already done
+            ((ChunkMapBridge) manager).bridge$getCallbackExecutor().run();
+        } else if (felt$pendingUnload) {
+            FeltServer.LOGGER.warn("Chunk status changed multiple times during chunk ticket tracking / unload event for chunk {}", getPos());
+        }
+    }
+
+    @Inject(method = "blockChanged", cancellable = true,
+            at = @At(value = "FIELD", ordinal = 0, target = "Lnet/minecraft/server/level/ChunkHolder;changedBlocksPerSection:[Lit/unimi/dsi/fastutil/shorts/ShortSet;"))
+    private void felt$outOfBound(BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
+        int i = this.levelHeightAccessor.getSectionIndex(pos.getY());
+        if (i < 0 || i >= this.changedBlocksPerSection.length) {
+            cir.setReturnValue(false);
+        }
+    }
+
+
+}

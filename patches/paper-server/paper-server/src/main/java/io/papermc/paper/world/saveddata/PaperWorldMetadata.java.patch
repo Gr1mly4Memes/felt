@@ -1,0 +1,24 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/world/saveddata/PaperWorldMetadata.java b/paper-server/src/main/java/io/papermc/paper/world/saveddata/PaperWorldMetadata.java
+--- a/paper-server/src/main/java/io/papermc/paper/world/saveddata/PaperWorldMetadata.java
++++ b/paper-server/src/main/java/io/papermc/paper/world/saveddata/PaperWorldMetadata.java
+@@ -6,7 +6,6 @@
+ import java.util.UUID;
+ import net.minecraft.core.UUIDUtil;
+ import net.minecraft.resources.Identifier;
+-import net.minecraft.util.datafix.DataFixTypes;
+ import net.minecraft.world.level.saveddata.SavedData;
+ import net.minecraft.world.level.saveddata.SavedDataType;
+ import org.jspecify.annotations.NullMarked;
+@@ -17,10 +16,10 @@
+         UUIDUtil.CODEC.fieldOf("uuid").forGetter(PaperWorldMetadata::uuid)
+     ).apply(instance, PaperWorldMetadata::new));
+     public static final SavedDataType<PaperWorldMetadata> TYPE = new SavedDataType<>(
+-        Identifier.fromNamespaceAndPath(Identifier.PAPER_NAMESPACE, "metadata"),
++        Identifier.fromNamespaceAndPath("paper", "metadata"),
+         () -> new PaperWorldMetadata(UUID.randomUUID()),
+         CODEC,
+-        DataFixTypes.NONE
++        null
+     );
+ 
+     private UUID uuid;

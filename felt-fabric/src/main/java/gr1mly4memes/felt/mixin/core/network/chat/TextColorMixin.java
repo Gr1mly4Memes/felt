@@ -1,0 +1,51 @@
+package gr1mly4memes.felt.mixin.core.network.chat;
+
+import gr1mly4memes.felt.mod.mixins.annotation.CreateConstructor;
+import gr1mly4memes.felt.mod.mixins.annotation.ShadowConstructor;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.TextColor;
+import org.spongepowered.asm.mixin.Final;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Mutable;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import javax.annotation.Nullable;
+
+@Mixin(TextColor.class)
+public class TextColorMixin {
+
+    // @formatter:off
+    @Shadow @Final @Mutable @Nullable public String name;
+    // @formatter:on
+
+    public ChatFormatting format;
+
+    @ShadowConstructor
+    public void felt$constructor(int color) {
+        throw new RuntimeException();
+    }
+
+    @CreateConstructor
+    public void felt$constructor(int color, String name, ChatFormatting textFormatting) {
+        felt$constructor(color);
+        this.name = name;
+        this.format = textFormatting;
+    }
+
+    @Inject(method = "<init>(ILjava/lang/String;)V", at = @At("RETURN"))
+    private void felt$withFormat(int color, String name, CallbackInfo ci) {
+        this.format = null;
+        if (name != null) {
+            String normalized = name.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z]", "");
+            for (ChatFormatting candidate : ChatFormatting.values()) {
+                if (candidate.name().toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z]", "").equals(normalized)) {
+                    this.format = candidate;
+                    break;
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,35 @@
+package gr1mly4memes.felt.mixin.core.world.entity.animal.axolotl;
+
+import gr1mly4memes.felt.bridge.core.world.entity.LivingEntityBridge;
+import gr1mly4memes.felt.mixin.core.world.entity.animal.AnimalMixin;
+import net.minecraft.world.entity.animal.axolotl.Axolotl;
+import net.minecraft.world.entity.player.Player;
+import org.bukkit.event.entity.EntityPotionEffectEvent;
+import org.spongepowered.asm.mixin.Final;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+@Mixin(Axolotl.class)
+public abstract class AxolotlMixin extends AnimalMixin {
+
+    @Shadow @Final private static int AXOLOTL_TOTAL_AIR_SUPPLY;
+
+    @Inject(method = "getMaxAirSupply", cancellable = true, at = @At("RETURN"))
+    private void felt$useBukkitMaxAir(CallbackInfoReturnable<Integer> cir) {
+        cir.setReturnValue(this.maxAirTicks);
+    }
+
+    @Override
+    public int getDefaultMaxAirSupply() {
+        return AXOLOTL_TOTAL_AIR_SUPPLY;
+    }
+
+    @Inject(method = "applySupportingEffects", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Player;addEffect(Lnet/minecraft/world/effect/MobEffectInstance;Lnet/minecraft/world/entity/Entity;)Z"))
+    private void felt$cause(Player player, CallbackInfo ci) {
+        ((LivingEntityBridge) player).bridge$pushEffectCause(EntityPotionEffectEvent.Cause.AXOLOTL);
+    }
+}

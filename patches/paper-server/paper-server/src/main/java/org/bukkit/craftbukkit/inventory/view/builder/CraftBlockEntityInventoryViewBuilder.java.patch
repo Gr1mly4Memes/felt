@@ -1,0 +1,26 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/view/builder/CraftBlockEntityInventoryViewBuilder.java b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/view/builder/CraftBlockEntityInventoryViewBuilder.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/view/builder/CraftBlockEntityInventoryViewBuilder.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/view/builder/CraftBlockEntityInventoryViewBuilder.java
+@@ -44,7 +44,7 @@
+             return buildFakeBlockEntity(player);
+         }
+ 
+-        final AbstractContainerMenu atBlock = container.createMenu(player.nextContainerCounter(), player.getInventory(), player);
++        final AbstractContainerMenu atBlock = container.createMenu(((gr1mly4memes.felt.bridge.core.server.level.ServerPlayerBridge) player).bridge$nextContainerCounter(), player.getInventory(), player);
+         if (atBlock.getType() != super.handle) {
+             return buildFakeBlockEntity(player);
+         }
+@@ -61,12 +61,10 @@
+         final MenuProvider inventory = this.builder.build(this.position, this.block.defaultBlockState());
+         if (inventory instanceof final BlockEntity blockEntity) {
+             blockEntity.setLevel(this.world);
+-            // marks this as "not in world" for gating general level broadcasts
+-            blockEntity.real = false;
+             super.defaultTitle = inventory.getDisplayName();
+         }
+ 
+-        return inventory.createMenu(player.nextContainerCounter(), player.getInventory(), player);
++        return inventory.createMenu(((gr1mly4memes.felt.bridge.core.server.level.ServerPlayerBridge) player).bridge$nextContainerCounter(), player.getInventory(), player);
+     }
+ 
+     @Override

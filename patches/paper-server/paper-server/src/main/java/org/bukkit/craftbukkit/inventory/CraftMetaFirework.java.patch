@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaFirework.java b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaFirework.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaFirework.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaFirework.java
+@@ -32,7 +32,7 @@
+     private List<FireworkEffect> effects;
+     public Integer power;
+ 
+-    CraftMetaFirework(CraftMetaItem meta) {
++    public CraftMetaFirework(CraftMetaItem meta) {
+         super(meta);
+ 
+         if (!(meta instanceof CraftMetaFirework that)) {

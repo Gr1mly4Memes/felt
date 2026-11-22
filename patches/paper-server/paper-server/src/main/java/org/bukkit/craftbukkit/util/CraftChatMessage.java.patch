@@ -1,0 +1,25 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/util/CraftChatMessage.java b/paper-server/src/main/java/org/bukkit/craftbukkit/util/CraftChatMessage.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/util/CraftChatMessage.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/util/CraftChatMessage.java
+@@ -300,13 +300,20 @@
+         }
+     }
+ 
++    private static java.util.stream.Stream<Component> componentStream(Component component) {
++        return java.util.stream.Stream.concat(java.util.stream.Stream.of(component),
++            component.getSiblings().stream().flatMap(CraftChatMessage::componentStream));
++    }
++
+     public static String fromComponent(Component component) {
+         if (component == null) return "";
+         if (component instanceof io.papermc.paper.adventure.AdventureComponent) component = ((io.papermc.paper.adventure.AdventureComponent) component).deepConverted();
+         StringBuilder out = new StringBuilder();
+ 
+         boolean hadFormat = false;
+-        for (Component c : component) {
++        var iterator = componentStream(component).iterator();
++        while (iterator.hasNext()) {
++            Component c = iterator.next();
+             Style modi = c.getStyle();
+             TextColor color = modi.getColor();
+             if (c.getContents() != PlainTextContents.EMPTY || color != null) {

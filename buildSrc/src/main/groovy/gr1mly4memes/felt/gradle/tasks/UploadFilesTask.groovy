@@ -29,8 +29,8 @@ abstract class UploadFilesTask extends DefaultTask {
 
     @TaskAction
     void run() {
-        if (!System.getenv().ARCLIGHT_FILES_TOKEN) {
-            project.logger.lifecycle('No arclight token set, skipping upload files.')
+        if (!System.getenv().FELT_FILES_TOKEN) {
+            project.logger.lifecycle('No felt token set, skipping upload files.')
             return
         }
 
@@ -58,7 +58,7 @@ abstract class UploadFilesTask extends DefaultTask {
             it.doOutput = true
             it.addRequestProperty("X-Lightning-Sha1", sha1)
             it.addRequestProperty("X-Lightning-Filename", file.name.replace(".jar", "-" + gitHash.get() + ".jar"))
-            it.addRequestProperty("AuthToken", System.getenv().ARCLIGHT_FILES_TOKEN)
+            it.addRequestProperty("AuthToken", System.getenv().FELT_FILES_TOKEN)
             it.addRequestProperty("Content-Type", "application/java-archive")
             it.addRequestProperty("Content-Length", Files.size(file.toPath()).toString())
             it.setInstanceFollowRedirects(true)
@@ -72,15 +72,15 @@ abstract class UploadFilesTask extends DefaultTask {
                 throw new Exception(reason)
             }
         }
-        link("/arclight/branches/${branch.get()}/versions-snapshot/${version.get()}/${modloader}", [type: 'object', value: sha1])
-        link("/arclight/branches/${branch.get()}/loaders/${modloader}/versions-snapshot/${version.get()}", [type: 'object', value: sha1])
-        link("/arclight/branches/${branch.get()}/latest-snapshot", [type: 'link', value: "/arclight/branches/${branch.get()}/versions-snapshot/${version.get()}", cache_seconds: 3600])
-        link("/arclight/branches/${branch.get()}/loaders/${modloader}/latest-snapshot", [type: 'link', value: "/arclight/branches/${branch.get()}/loaders/${modloader}/versions-snapshot/${version.get()}", cache_seconds: 3600])
+        link("/felt/branches/${branch.get()}/versions-snapshot/${version.get()}/${modloader}", [type: 'object', value: sha1])
+        link("/felt/branches/${branch.get()}/loaders/${modloader}/versions-snapshot/${version.get()}", [type: 'object', value: sha1])
+        link("/felt/branches/${branch.get()}/latest-snapshot", [type: 'link', value: "/felt/branches/${branch.get()}/versions-snapshot/${version.get()}", cache_seconds: 3600])
+        link("/felt/branches/${branch.get()}/loaders/${modloader}/latest-snapshot", [type: 'link', value: "/felt/branches/${branch.get()}/loaders/${modloader}/versions-snapshot/${version.get()}", cache_seconds: 3600])
         if (!snapshot.get()) {
-            link("/arclight/branches/${branch.get()}/versions-stable/${version.get()}/${modloader}", [type: 'object', value: sha1])
-            link("/arclight/branches/${branch.get()}/loaders/${modloader}/versions-stable/${version.get()}", [type: 'object', value: sha1])
-            link("/arclight/branches/${branch.get()}/latest-stable", [type: 'link', value: "/arclight/branches/${branch.get()}/versions-stable/${version.get()}", cache_seconds: 86400])
-            link("/arclight/branches/${branch.get()}/loaders/${modloader}/latest-stable", [type: 'link', value: "/arclight/branches/${branch.get()}/loaders/${modloader}/versions-stable/${version.get()}", cache_seconds: 86400])
+            link("/felt/branches/${branch.get()}/versions-stable/${version.get()}/${modloader}", [type: 'object', value: sha1])
+            link("/felt/branches/${branch.get()}/loaders/${modloader}/versions-stable/${version.get()}", [type: 'object', value: sha1])
+            link("/felt/branches/${branch.get()}/latest-stable", [type: 'link', value: "/felt/branches/${branch.get()}/versions-stable/${version.get()}", cache_seconds: 86400])
+            link("/felt/branches/${branch.get()}/loaders/${modloader}/latest-stable", [type: 'link', value: "/felt/branches/${branch.get()}/loaders/${modloader}/versions-stable/${version.get()}", cache_seconds: 86400])
         }
     }
 
@@ -89,7 +89,7 @@ abstract class UploadFilesTask extends DefaultTask {
             it.setRequestMethod("PUT")
             it.doOutput = true
             it.addRequestProperty("Content-Type", "application/json")
-            it.addRequestProperty("AuthToken", System.getenv().ARCLIGHT_FILES_TOKEN)
+            it.addRequestProperty("AuthToken", System.getenv().FELT_FILES_TOKEN)
             it.connect()
             Utils.using(it.outputStream) {
                 it.write(JsonOutput.toJson(payload).getBytes(StandardCharsets.UTF_8))

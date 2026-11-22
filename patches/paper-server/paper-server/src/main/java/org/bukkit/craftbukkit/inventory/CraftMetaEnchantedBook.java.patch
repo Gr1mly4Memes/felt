@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaEnchantedBook.java b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaEnchantedBook.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaEnchantedBook.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaEnchantedBook.java
+@@ -17,7 +17,7 @@
+ 
+     private Map<Enchantment, Integer> enchantments;
+ 
+-    CraftMetaEnchantedBook(CraftMetaItem meta) {
++    public CraftMetaEnchantedBook(CraftMetaItem meta) {
+         super(meta);
+ 
+         if (!(meta instanceof final CraftMetaEnchantedBook enchantedBookMeta)) {

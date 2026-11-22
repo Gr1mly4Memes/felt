@@ -1,0 +1,19 @@
+diff --git a/paper-server/src/main/java/com/destroystokyo/paper/loottable/PaperLootableBlockInventory.java b/paper-server/src/main/java/com/destroystokyo/paper/loottable/PaperLootableBlockInventory.java
+--- a/paper-server/src/main/java/com/destroystokyo/paper/loottable/PaperLootableBlockInventory.java
++++ b/paper-server/src/main/java/com/destroystokyo/paper/loottable/PaperLootableBlockInventory.java
+@@ -1,6 +1,5 @@
+ package com.destroystokyo.paper.loottable;
+ 
+-import java.util.Objects;
+ import net.minecraft.core.BlockPos;
+ import org.bukkit.block.Block;
+ import org.bukkit.craftbukkit.block.CraftBlock;
+@@ -13,7 +12,7 @@
+     /* PaperLootableInventory */
+     @Override
+     default PaperLootableInventoryData lootableDataForAPI() {
+-        return Objects.requireNonNull(this.getRandomizableContainer().lootableData(), "Can only manage loot tables on tile entities with lootableData");
++        throw new UnsupportedOperationException("Loot replenishment and player loot history are not supported by Felt yet");
+     }
+ 
+     /* LootableBlockInventory */

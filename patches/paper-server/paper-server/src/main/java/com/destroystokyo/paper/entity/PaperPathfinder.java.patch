@@ -1,0 +1,52 @@
+diff --git a/paper-server/src/main/java/com/destroystokyo/paper/entity/PaperPathfinder.java b/paper-server/src/main/java/com/destroystokyo/paper/entity/PaperPathfinder.java
+--- a/paper-server/src/main/java/com/destroystokyo/paper/entity/PaperPathfinder.java
++++ b/paper-server/src/main/java/com/destroystokyo/paper/entity/PaperPathfinder.java
+@@ -74,32 +74,32 @@
+ 
+     @Override
+     public boolean canOpenDoors() {
+-        return this.entity.getNavigation().pathFinder.nodeEvaluator.canOpenDoors();
++        return this.entity.getNavigation().getNodeEvaluator().canOpenDoors();
+     }
+ 
+     @Override
+     public void setCanOpenDoors(boolean canOpenDoors) {
+-        this.entity.getNavigation().pathFinder.nodeEvaluator.setCanOpenDoors(canOpenDoors);
++        this.entity.getNavigation().getNodeEvaluator().setCanOpenDoors(canOpenDoors);
+     }
+ 
+     @Override
+     public boolean canPassDoors() {
+-        return this.entity.getNavigation().pathFinder.nodeEvaluator.canPassDoors();
++        return this.entity.getNavigation().getNodeEvaluator().canPassDoors();
+     }
+ 
+     @Override
+     public void setCanPassDoors(boolean canPassDoors) {
+-        this.entity.getNavigation().pathFinder.nodeEvaluator.setCanPassDoors(canPassDoors);
++        this.entity.getNavigation().getNodeEvaluator().setCanPassDoors(canPassDoors);
+     }
+ 
+     @Override
+     public boolean canFloat() {
+-        return this.entity.getNavigation().pathFinder.nodeEvaluator.canFloat();
++        return this.entity.getNavigation().getNodeEvaluator().canFloat();
+     }
+ 
+     @Override
+     public void setCanFloat(boolean canFloat) {
+-        this.entity.getNavigation().pathFinder.nodeEvaluator.setCanFloat(canFloat);
++        this.entity.getNavigation().getNodeEvaluator().setCanFloat(canFloat);
+     }
+ 
+     public class PaperPathResult implements com.destroystokyo.paper.entity.PaperPathfinder.PathResult {
+@@ -125,7 +125,8 @@
+         @Override
+         public List<Location> getPoints() {
+             List<Location> points = new ArrayList<>();
+-            for (Node point : this.path.nodes) {
++            for (int i = 0; i < this.path.getNodeCount(); i++) {
++                Node point = this.path.getNode(i);
+                 points.add(CraftLocation.toBukkit(point, PaperPathfinder.this.entity.level()));
+             }
+             return points;

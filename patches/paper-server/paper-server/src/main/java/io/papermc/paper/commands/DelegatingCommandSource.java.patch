@@ -1,0 +1,27 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/commands/DelegatingCommandSource.java b/paper-server/src/main/java/io/papermc/paper/commands/DelegatingCommandSource.java
+--- a/paper-server/src/main/java/io/papermc/paper/commands/DelegatingCommandSource.java
++++ b/paper-server/src/main/java/io/papermc/paper/commands/DelegatingCommandSource.java
+@@ -7,7 +7,7 @@
+ 
+ import java.util.UUID;
+ 
+-public class DelegatingCommandSource implements CommandSource {
++public class DelegatingCommandSource implements CommandSource, gr1mly4memes.felt.bridge.core.command.CommandSourceBridge {
+ 
+     private final CommandSource delegate;
+ 
+@@ -35,8 +35,12 @@
+         return delegate.shouldInformAdmins();
+     }
+ 
+-    @Override
+     public CommandSender getBukkitSender(CommandSourceStack wrapper) {
+-        return delegate.getBukkitSender(wrapper);
++        return ((gr1mly4memes.felt.bridge.core.command.CommandSourceBridge) this.delegate).bridge$getBukkitSender(wrapper);
+     }
++
++    @Override
++    public CommandSender bridge$getBukkitSender(CommandSourceStack wrapper) {
++        return this.getBukkitSender(wrapper);
++    }
+ }

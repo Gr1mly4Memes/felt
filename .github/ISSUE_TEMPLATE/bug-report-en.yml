@@ -15,9 +15,7 @@ body:
       label: I have tried that...
       description: Please confirm the following to avoid invalid feedback
       options:
-        - label: I am using the latest [Felt build](https://arclight.izzel.io/)
-          required: true
-        - label: I have read the [FAQ](https://wiki.izzel.io/s/arclight-docs/doc/faq-ApcZ25PXVT) and [Troubleshooting](https://wiki.izzel.io/s/arclight-docs/doc/troubleshooting-1Ay2vsmIrn), they didn't solve my issue
+        - label: I am using the latest Felt build
           required: true
         - label: I have searched existing Issues and found no duplicates
           required: true
@@ -28,12 +26,12 @@ body:
         - label: I have updated all mods and/or plugins to their latest versions
           required: true
         - label: |
-            This issue cannot be reproduced on a Spigot server  
-            (Mod-related issues are considered non-reproducible on Spigot)
+            This issue cannot be reproduced on a Paper server  
+            (Mod-related issues are considered non-reproducible on Paper)
           required: true
         - label: |
-            This issue cannot be reproduced on the Fabric mod loader server  
-            (Plugin-related issues are considered non-reproducible on mod loaders)
+            This issue cannot be reproduced on a Fabric server  
+            (Plugin-related issues are considered non-reproducible on Fabric)
           required: true
 
   - type: input
@@ -44,11 +42,11 @@ body:
       required: true
 
   - type: input
-    id: arclight-version
+    id: felt-version
     attributes:
       label: Felt Version
       description: The version is printed when the Felt server starts
-      placeholder: e.g. arclight-1.15.2-1.0.3-SNAPSHOT-9455d03
+      placeholder: e.g. felt-26.3
     validations:
       required: true
 

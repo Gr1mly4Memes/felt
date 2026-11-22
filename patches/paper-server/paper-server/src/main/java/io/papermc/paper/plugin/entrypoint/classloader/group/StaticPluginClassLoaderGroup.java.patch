@@ -1,0 +1,20 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/group/StaticPluginClassLoaderGroup.java b/paper-server/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/group/StaticPluginClassLoaderGroup.java
+--- a/paper-server/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/group/StaticPluginClassLoaderGroup.java
++++ b/paper-server/src/main/java/io/papermc/paper/plugin/entrypoint/classloader/group/StaticPluginClassLoaderGroup.java
+@@ -5,6 +5,7 @@
+ import org.jetbrains.annotations.ApiStatus;
+ 
+ import java.util.List;
++import java.util.concurrent.CopyOnWriteArrayList;
+ 
+ @ApiStatus.Internal
+ public class StaticPluginClassLoaderGroup extends SimpleListPluginClassLoaderGroup {
+@@ -14,7 +15,7 @@
+     private final ConfiguredPluginClassLoader mainClassloaderHolder;
+ 
+     public StaticPluginClassLoaderGroup(List<ConfiguredPluginClassLoader> classloaders, ClassLoaderAccess access, ConfiguredPluginClassLoader mainClassloaderHolder) {
+-        super(classloaders);
++        super(new CopyOnWriteArrayList<>(classloaders));
+         this.access = access;
+         this.mainClassloaderHolder = mainClassloaderHolder;
+     }

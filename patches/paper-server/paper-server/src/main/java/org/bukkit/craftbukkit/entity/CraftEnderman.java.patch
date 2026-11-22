@@ -1,0 +1,29 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftEnderman.java b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftEnderman.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftEnderman.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftEnderman.java
+@@ -8,6 +8,7 @@
+ import org.bukkit.craftbukkit.CraftServer;
+ import org.bukkit.craftbukkit.block.data.CraftBlockData;
+ import org.bukkit.craftbukkit.util.CraftMagicNumbers;
++import gr1mly4memes.felt.bridge.core.world.entity.monster.EnderManBridge;
+ import org.bukkit.entity.Entity;
+ import org.bukkit.material.MaterialData;
+ 
+@@ -56,7 +57,7 @@
+ 
+     @Override
+     public void setScreaming(boolean screaming) {
+-        this.getHandle().setCreepy(screaming);
++        ((EnderManBridge) this.getHandle()).bridge$setCreepy(screaming);
+     }
+ 
+     @Override
+@@ -66,7 +67,7 @@
+ 
+     @Override
+     public void setHasBeenStaredAt(boolean hasBeenStaredAt) {
+-        this.getHandle().setHasBeenStaredAt(hasBeenStaredAt);
++        ((EnderManBridge) this.getHandle()).bridge$setHasBeenStaredAt(hasBeenStaredAt);
+     }
+ 
+     @Override

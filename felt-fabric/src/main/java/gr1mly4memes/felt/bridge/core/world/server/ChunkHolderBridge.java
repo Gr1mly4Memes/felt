@@ -1,0 +1,21 @@
+package gr1mly4memes.felt.bridge.core.world.server;
+
+import net.minecraft.server.level.ChunkMap;
+import net.minecraft.world.level.chunk.LevelChunk;
+
+public interface ChunkHolderBridge {
+
+    default LevelChunk getFullChunkNow() {
+        return bridge$getFullChunkNow();
+    }
+
+    int bridge$getOldTicketLevel();
+
+    LevelChunk bridge$getFullChunkNow();
+
+    LevelChunk bridge$getFullChunkUnchecked();
+
+    void bridge$callEventIfUnloading(ChunkMap manager);
+
+    void bridge$resetPendingUnload();
+}

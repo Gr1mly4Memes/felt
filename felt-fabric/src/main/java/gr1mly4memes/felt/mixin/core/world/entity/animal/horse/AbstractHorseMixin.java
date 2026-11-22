@@ -1,0 +1,83 @@
+package gr1mly4memes.felt.mixin.core.world.entity.animal.horse;
+
+import gr1mly4memes.felt.bridge.core.world.IInventoryBridge;
+import gr1mly4memes.felt.mixin.core.world.entity.animal.AnimalMixin;
+import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.animal.equine.AbstractHorse;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import org.bukkit.craftbukkit.event.CraftEventFactory;
+import org.bukkit.event.entity.EntityRegainHealthEvent;
+import org.bukkit.inventory.InventoryHolder;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Overwrite;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+@Mixin(AbstractHorse.class)
+public abstract class AbstractHorseMixin extends AnimalMixin {
+
+    public int maxDomestication;
+
+    @Inject(method = "<init>", at = @At("RETURN"))
+    private void felt$init(EntityType<? extends AbstractHorse> type, Level worldIn, CallbackInfo ci) {
+        this.maxDomestication = 100;
+    }
+
+    @Redirect(method = "createInventory", at = @At(value = "NEW", target = "(I)Lnet/minecraft/world/SimpleContainer;"))
+    private SimpleContainer felt$createInv(int slots) {
+        SimpleContainer inventory = new SimpleContainer(slots);
+        ((IInventoryBridge) inventory).setOwner((InventoryHolder) this.getBukkitEntity());
+        return inventory;
+    }
+
+    @Inject(method = "handleEating", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/animal/equine/AbstractHorse;heal(F)V"))
+    private void felt$healByEating(Player player, ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
+        bridge$pushHealReason(EntityRegainHealthEvent.RegainReason.EATING);
+    }
+
+    @Inject(method = "aiStep", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/animal/equine/AbstractHorse;heal(F)V"))
+    private void felt$healByRegen(CallbackInfo ci) {
+        bridge$pushHealReason(EntityRegainHealthEvent.RegainReason.REGEN);
+    }
+
+    @Inject(method = "addAdditionalSaveData", at = @At("RETURN"))
+    private void felt$writeTemper(ValueOutput output, CallbackInfo ci) {
+        output.putInt("Bukkit.MaxDomestication", this.maxDomestication);
+    }
+
+    @Inject(method = "readAdditionalSaveData", at = @At("RETURN"))
+    private void felt$readTemper(ValueInput input, CallbackInfo ci) {
+        this.maxDomestication = input.getIntOr("Bukkit.MaxDomestication", this.maxDomestication);
+    }
+
+    @Inject(method = "handleStartJump", cancellable = true, at = @At("HEAD"))
+    private void felt$horseJump(int i, CallbackInfo ci) {
+        float power;
+        if (i >= 90) {
+            power = 1.0F;
+        } else {
+            power = 0.4F + 0.4F * (float) i / 90.0F;
+        }
+        if (!CraftEventFactory.callHorseJumpEvent((AbstractHorse) (Object) this, power)) {
+            ci.cancel();
+        }
+    }
+
+    /**
+     * @author IzzelAliz
+     * @reason
+     */
+    @Overwrite
+    public int getMaxTemper() {
+        return maxDomestication;
+    }
+
+}

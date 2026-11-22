@@ -1,5 +1,5 @@
 {
-  "commit": "63e41db999978b24fefa4c48a286748c99ffbc95",
+  "commit": "d81ca50aeb956bccd912c124638f556b564ea8af",
   "groups": {
     "paper-api": {
       "roots": [
@@ -19,9 +19,7 @@
       ],
       "exclude": [
         "**/net/minecraft/**",
-        "**/ca/spottedleaf/moonrise/**",
         "**/io/papermc/paper/antixray/**",
-        "**/io/papermc/paper/SparksFly.java",
         "**/io/papermc/paper/PaperBootstrap.java",
         "**/META-INF/services/ca.spottedleaf.moonrise.*"
       ]

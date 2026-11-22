@@ -1,0 +1,19 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftAbstractWindCharge.java b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftAbstractWindCharge.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftAbstractWindCharge.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftAbstractWindCharge.java
+@@ -1,5 +1,6 @@
+ package org.bukkit.craftbukkit.entity;
+ 
++import gr1mly4memes.felt.bridge.core.entity.EntityBridge;
+ import org.bukkit.craftbukkit.CraftServer;
+ import org.bukkit.entity.AbstractWindCharge;
+ import org.bukkit.event.entity.EntityRemoveEvent;
+@@ -17,6 +18,7 @@
+     @Override
+     public void explode() {
+         this.getHandle().explode(this.getHandle().position());
+-        this.getHandle().discard(EntityRemoveEvent.Cause.EXPLODE); // SPIGOT-7577 - explode doesn't discard the entity, this happens only in tick and onHitBlock
++        ((EntityBridge) this.getHandle()).bridge$pushEntityRemoveCause(EntityRemoveEvent.Cause.EXPLODE);
++        this.getHandle().discard(); // SPIGOT-7577 - explode doesn't discard the entity, this happens only in tick and onHitBlock
+     }
+ }

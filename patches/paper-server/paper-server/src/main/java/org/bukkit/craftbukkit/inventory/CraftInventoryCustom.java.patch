@@ -1,0 +1,24 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryCustom.java b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryCustom.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryCustom.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryCustom.java
+@@ -64,7 +64,7 @@
+         }
+     }
+ 
+-    static class MinecraftInventory implements Container {
++    static class MinecraftInventory implements Container, gr1mly4memes.felt.bridge.core.world.IInventoryBridge {
+         private final NonNullList<ItemStack> items;
+         private int maxStack = MAX_STACK;
+         private final List<HumanEntity> viewers;
+@@ -209,6 +209,11 @@
+         }
+ 
+         @Override
++        public void setOwner(InventoryHolder owner) {
++            throw new UnsupportedOperationException("Custom inventory owner is fixed at construction");
++        }
++
++        @Override
+         public void clearContent() {
+             this.items.clear();
+         }

@@ -1,0 +1,91 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/bootstrap/Main.java b/paper-server/src/main/java/org/bukkit/craftbukkit/bootstrap/Main.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/bootstrap/Main.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/bootstrap/Main.java
+@@ -42,8 +42,12 @@
+ 
+             boolean readOnly = Boolean.getBoolean("bundlerReadOnly");
+             List<URL> extractedUrls = new ArrayList<>();
+-            this.readAndExtractDir("versions", outputDir, extractedUrls, readOnly);
+-            this.readAndExtractDir("libraries", outputDir, extractedUrls, readOnly);
++            List<FileEntry> versions = this.readResource("versions.list", reader -> reader.lines().map(FileEntry::parseLine).toList());
++            List<FileEntry> libraries = this.readResource("libraries.list", reader -> reader.lines().map(FileEntry::parseLine).toList());
++            UnpackProgress progress = new UnpackProgress(countEntries(versions) + countEntries(libraries));
++            this.readAndExtractDir("versions", versions, outputDir, extractedUrls, readOnly, progress);
++            this.readAndExtractDir("libraries", libraries, outputDir, extractedUrls, readOnly, progress);
++            progress.finish();
+ 
+             if (mainClassName == null || mainClassName.isEmpty()) {
+                 System.out.println("Empty main class specified, exiting");
+@@ -81,8 +85,17 @@
+         }
+     }
+ 
+-    private void readAndExtractDir(String subdir, Path outputDir, List<URL> extractedUrls, boolean readOnly) throws Exception {
+-        List<FileEntry> entries = this.readResource(subdir + ".list", reader -> reader.lines().map(FileEntry::parseLine).toList());
++    private static int countEntries(List<FileEntry> entries) {
++        int count = 0;
++        for (FileEntry entry : entries) {
++            if (!entry.path.startsWith("minecraft-server")) {
++                count++;
++            }
++        }
++        return count;
++    }
++
++    private void readAndExtractDir(String subdir, List<FileEntry> entries, Path outputDir, List<URL> extractedUrls, boolean readOnly, UnpackProgress progress) throws Exception {
+         Path subdirPath = outputDir.resolve(subdir);
+         for (FileEntry entry : entries) {
+             if (entry.path.startsWith("minecraft-server")) {
+@@ -93,12 +106,12 @@
+                 this.checkAndExtractJar(subdir, entry, outputFile);
+             }
+             extractedUrls.add(outputFile.toUri().toURL());
++            progress.complete();
+         }
+     }
+ 
+     private void checkAndExtractJar(String subdir, FileEntry entry, Path outputFile) throws Exception {
+         if (!Files.exists(outputFile) || !Main.checkIntegrity(outputFile, entry.hash())) {
+-            System.out.printf("Unpacking %s (%s:%s) to %s%n", entry.path, subdir, entry.id, outputFile);
+             this.extractJar(subdir, entry.path, outputFile);
+         }
+     }
+@@ -158,6 +171,38 @@
+         }
+     }
+ 
++    private static final class UnpackProgress {
++
++        private static final int WIDTH = 30;
++
++        private final int total;
++        private int completed;
++
++        UnpackProgress(int total) {
++            this.total = Math.max(total, 1);
++        }
++
++        synchronized void complete() {
++            this.completed++;
++            render();
++        }
++
++        synchronized void finish() {
++            this.completed = this.total;
++            render();
++            System.out.print("\n");
++            System.out.flush();
++        }
++
++        private void render() {
++            int percent = (int) (this.completed * 100L / this.total);
++            int filled = (int) (this.completed * (long) WIDTH / this.total);
++            String bar = "=".repeat(filled) + " ".repeat(WIDTH - filled);
++            System.out.print(String.format("\rUnpacking libraries [%s] %3d%% (%d/%d)   ", bar, percent, this.completed, this.total));
++            System.out.flush();
++        }
++    }
++
+     private static class Thrower<T extends Throwable> {
+ 
+         private static final Thrower<RuntimeException> INSTANCE = new Thrower();

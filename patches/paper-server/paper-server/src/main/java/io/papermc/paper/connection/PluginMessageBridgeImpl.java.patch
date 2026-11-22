@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/connection/PluginMessageBridgeImpl.java b/paper-server/src/main/java/io/papermc/paper/connection/PluginMessageBridgeImpl.java
+--- a/paper-server/src/main/java/io/papermc/paper/connection/PluginMessageBridgeImpl.java
++++ b/paper-server/src/main/java/io/papermc/paper/connection/PluginMessageBridgeImpl.java
+@@ -13,7 +13,7 @@
+ public interface PluginMessageBridgeImpl {
+ 
+     boolean DISABLE_CHANNEL_LIMIT = System.getProperty("paper.disableChannelLimit") != null;
+-    int CHANNEL_LIMIT = Integer.getInteger("paper.pluginMessageChannelLimit", 128);
++    int CHANNEL_LIMIT = Integer.getInteger("paper.pluginMessageChannelLimit", 2048);
+ 
+     default boolean addChannel(String channel) {
+         Preconditions.checkState(DISABLE_CHANNEL_LIMIT || this.channels().size() < CHANNEL_LIMIT, "Cannot register channel. Too many channels registered!");

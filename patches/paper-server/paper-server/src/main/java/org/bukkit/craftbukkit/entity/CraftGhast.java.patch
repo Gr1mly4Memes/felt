@@ -1,0 +1,11 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftGhast.java b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftGhast.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftGhast.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftGhast.java
+@@ -32,6 +32,6 @@
+     @Override
+     public void setExplosionPower(int explosionPower) {
+         com.google.common.base.Preconditions.checkArgument(explosionPower >= 0 && explosionPower <= 127, "The explosion power has to be between 0 and 127");
+-        this.getHandle().setExplosionPower(explosionPower);
++        this.getHandle().explosionPower = explosionPower;
+     }
+ }

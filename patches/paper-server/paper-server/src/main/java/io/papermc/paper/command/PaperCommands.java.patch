@@ -1,0 +1,29 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/command/PaperCommands.java b/paper-server/src/main/java/io/papermc/paper/command/PaperCommands.java
+--- a/paper-server/src/main/java/io/papermc/paper/command/PaperCommands.java
++++ b/paper-server/src/main/java/io/papermc/paper/command/PaperCommands.java
+@@ -1,10 +1,12 @@
+ package io.papermc.paper.command;
+ 
+ import com.mojang.brigadier.tree.LiteralCommandNode;
++import gr1mly4memes.felt.bridge.core.server.MinecraftServerBridge;
+ import io.papermc.paper.command.brigadier.CommandRegistrationFlag;
+ import io.papermc.paper.command.brigadier.CommandSourceStack;
+ import net.minecraft.server.MinecraftServer;
+ import org.bukkit.command.Command;
++import org.bukkit.craftbukkit.CraftServer;
+ 
+ import java.util.HashMap;
+ import java.util.List;
+@@ -22,10 +24,11 @@
+     private static final Map<String, Command> COMMANDS = new HashMap<>();
+ 
+     public static void registerCommands(final MinecraftServer server) {
++        final CraftServer craftServer = ((MinecraftServerBridge) server).bridge$getServer();
+         COMMANDS.put("paper", new PaperCommand("paper"));
+ 
+         COMMANDS.forEach((s, command) -> {
+-            server.server.getCommandMap().register(s, "Paper", command);
++            craftServer.getCommandMap().register(s, "Paper", command);
+         });
+     }
+ 

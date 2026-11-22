@@ -1,0 +1,20 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/configuration/type/number/IntOr.java b/paper-server/src/main/java/io/papermc/paper/configuration/type/number/IntOr.java
+--- a/paper-server/src/main/java/io/papermc/paper/configuration/type/number/IntOr.java
++++ b/paper-server/src/main/java/io/papermc/paper/configuration/type/number/IntOr.java
+@@ -1,7 +1,6 @@
+ package io.papermc.paper.configuration.type.number;
+ 
+ import com.google.common.base.Preconditions;
+-import com.mojang.logging.LogUtils;
+ import java.lang.reflect.AnnotatedType;
+ import java.util.OptionalInt;
+ import java.util.function.Function;
+@@ -12,7 +11,7 @@
+ 
+ public interface IntOr {
+ 
+-    Logger LOGGER = LogUtils.getClassLogger();
++    Logger LOGGER = org.slf4j.LoggerFactory.getLogger(IntOr.class);
+ 
+     default int or(final int fallback) {
+         return this.value().orElse(fallback);

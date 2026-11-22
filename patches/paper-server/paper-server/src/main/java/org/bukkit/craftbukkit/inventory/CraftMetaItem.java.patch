@@ -1,0 +1,59 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
+@@ -360,7 +360,7 @@
+ 
+     private int version = CraftMagicNumbers.INSTANCE.getDataVersion(); // Internal use only
+ 
+-    CraftMetaItem(CraftMetaItem meta) {
++    public CraftMetaItem(CraftMetaItem meta) {
+         if (meta == null) {
+             return;
+         }
+@@ -2104,6 +2104,8 @@
+             if (this.customTag != null) {
+                 clone.customTag = this.customTag.copy();
+             }
++            clone.unhandledTags = DataComponentPatch.builder();
++            clone.unhandledTags.map.putAll(this.unhandledTags.build().map);
+             clone.removedTags = Sets.newHashSet(this.removedTags);
+             clone.persistentDataContainer = new CraftPersistentDataContainer(this.persistentDataContainer.getTagsCloned(), CraftMetaItem.DATA_TYPE_REGISTRY); // Paper - deep clone NBT tags
+             if (this.tooltipDisplay != null) {
+@@ -2286,17 +2288,19 @@
+             }
+         }
+ 
++        DataComponentPatch.Builder serializedUnhandled = DataComponentPatch.builder();
++        serializedUnhandled.map.putAll(this.unhandledTags.build().map);
+         final boolean canBreakAddToUnhandled = this.canBreakPredicates != null && !this.canBreakPredicates.isEmpty();
+         if (canBreakAddToUnhandled) {
+-            this.unhandledTags.set(DataComponents.CAN_BREAK, new net.minecraft.world.item.AdventureModePredicate(this.canBreakPredicates));
++            serializedUnhandled.set(DataComponents.CAN_BREAK, new net.minecraft.world.item.AdventureModePredicate(this.canBreakPredicates));
+         }
+         final boolean canPlaceOnAddToUnhandled = this.canPlaceOnPredicates != null && !this.canPlaceOnPredicates.isEmpty();
+         if (canPlaceOnAddToUnhandled) {
+-            this.unhandledTags.set(DataComponents.CAN_PLACE_ON, new net.minecraft.world.item.AdventureModePredicate(this.canPlaceOnPredicates));
++            serializedUnhandled.set(DataComponents.CAN_PLACE_ON, new net.minecraft.world.item.AdventureModePredicate(this.canPlaceOnPredicates));
+         }
+ 
+-        if (!this.unhandledTags.isEmpty()) {
+-            net.minecraft.nbt.Tag unhandled = DataComponentPatch.CODEC.encodeStart(CraftRegistry.getMinecraftRegistry().createSerializationContext(NbtOps.INSTANCE), this.unhandledTags.build()).getOrThrow(IllegalStateException::new);
++        if (!serializedUnhandled.build().isEmpty()) {
++            net.minecraft.nbt.Tag unhandled = DataComponentPatch.CODEC.encodeStart(CraftRegistry.getMinecraftRegistry().createSerializationContext(NbtOps.INSTANCE), serializedUnhandled.build()).getOrThrow(IllegalStateException::new);
+             try {
+                 ByteArrayOutputStream buf = new ByteArrayOutputStream();
+                 NbtIo.writeCompressed((CompoundTag) unhandled, buf);
+@@ -2306,13 +2310,6 @@
+             }
+         }
+ 
+-        if (canBreakAddToUnhandled) {
+-            this.unhandledTags.clear(DataComponents.CAN_BREAK);
+-        }
+-        if (canPlaceOnAddToUnhandled) {
+-            this.unhandledTags.clear(DataComponents.CAN_PLACE_ON);
+-        }
+-
+         if (!this.removedTags.isEmpty()) {
+             RegistryAccess registryAccess = CraftRegistry.getMinecraftRegistry();
+             Registry<DataComponentType<?>> componentTypeRegistry = registryAccess.lookupOrThrow(Registries.DATA_COMPONENT_TYPE);

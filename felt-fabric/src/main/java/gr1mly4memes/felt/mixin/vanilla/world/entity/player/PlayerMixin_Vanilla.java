@@ -1,0 +1,53 @@
+package gr1mly4memes.felt.mixin.vanilla.world.entity.player;
+
+import gr1mly4memes.felt.mixin.vanilla.world.entity.LivingEntityMixin_Vanilla;
+import gr1mly4memes.felt.mod.util.FeltCaptures;
+import gr1mly4memes.felt.mod.util.FeltDamageContainer;
+import gr1mly4memes.felttools.mixin.Decorate;
+import gr1mly4memes.felttools.mixin.DecorationOps;
+import gr1mly4memes.felttools.mixin.Local;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Abilities;
+import net.minecraft.world.entity.player.Player;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+@Mixin(Player.class)
+public abstract class PlayerMixin_Vanilla extends LivingEntityMixin_Vanilla {
+
+    @Decorate(method = "actuallyHurt", inject = true, at = @At("HEAD"))
+    private void felt$vanilla$getEntityDamageEvent(ServerLevel level, DamageSource damageSource, float f, @Local(allocate = "feltDamageContainer") FeltDamageContainer container) throws Throwable {
+        container = FeltCaptures.getDamageContainer();
+        DecorationOps.blackhole().invoke(container);
+    }
+
+    @Decorate(method = "actuallyHurt", inject = true, at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Player;getDamageAfterMagicAbsorb(Lnet/minecraft/world/damagesource/DamageSource;F)F"))
+    private void felt$vanilla$postApplyArmor(ServerLevel level, DamageSource source, float original, @Local(allocate = "feltDamageContainer") FeltDamageContainer container) throws Throwable {
+        original = container.calculateStage(EntityDamageEvent.DamageModifier.ARMOR, original);
+        DecorationOps.blackhole().invoke(original);
+    }
+
+    @Decorate(method = "actuallyHurt", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Player;getDamageAfterMagicAbsorb(Lnet/minecraft/world/damagesource/DamageSource;F)F"))
+    private float felt$vanilla$postApplyMagic(Player entity, DamageSource source, float original, @Local(allocate = "feltDamageContainer") FeltDamageContainer container) throws Throwable {
+        float result = (float) DecorationOps.callsite().invoke(entity, source, original);
+        return container.calculateStage(EntityDamageEvent.DamageModifier.MAGIC, result);
+    }
+
+    @Decorate(method = "actuallyHurt", at = @At(value = "INVOKE", target = "Ljava/lang/Math;max(FF)F"))
+    private float felt$vanilla$postApplyAbsorption(float first, float second, @Local(allocate = "feltDamageContainer") FeltDamageContainer container) throws Throwable {
+        float result = (float) DecorationOps.callsite().invoke(first, second);
+        result = container.calculateStage(EntityDamageEvent.DamageModifier.ABSORPTION, result);
+        return Math.max(result, 0.0F);
+    }
+
+    @Inject(method = "actuallyHurt", at = @At("RETURN"))
+    private void felt$vanilla$popEntityDamageEvent(ServerLevel level, DamageSource arg, float g, CallbackInfo ci) {
+        FeltCaptures.popDamageContainer();
+    }
+}

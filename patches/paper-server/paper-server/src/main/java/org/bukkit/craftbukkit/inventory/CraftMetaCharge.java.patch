@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaCharge.java b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaCharge.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaCharge.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaCharge.java
+@@ -16,7 +16,7 @@
+ 
+     private FireworkEffect effect;
+ 
+-    CraftMetaCharge(CraftMetaItem meta) {
++    public CraftMetaCharge(CraftMetaItem meta) {
+         super(meta);
+ 
+         if (meta instanceof final CraftMetaCharge chargeMeta) {

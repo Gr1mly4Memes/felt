@@ -1,0 +1,33 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftArmorStand.java b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftArmorStand.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftArmorStand.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftArmorStand.java
+@@ -228,12 +228,12 @@
+ 
+     @Override
+     public boolean canMove() {
+-        return this.getHandle().canMove;
++        throw new UnsupportedOperationException("Independent armor stand movement control is not supported by Felt yet");
+     }
+ 
+     @Override
+     public void setCanMove(boolean move) {
+-        this.getHandle().canMove = move;
++        throw new UnsupportedOperationException("Independent armor stand movement control is not supported by Felt yet");
+     }
+ 
+     @Override
+@@ -361,12 +361,11 @@
+ 
+     @Override
+     public boolean canTick() {
+-        return this.getHandle().canTick;
++        throw new UnsupportedOperationException("Independent armor stand ticking control is not supported by Felt yet");
+     }
+ 
+     @Override
+     public void setCanTick(final boolean tick) {
+-        this.getHandle().canTick = tick;
+-        this.getHandle().canTickSetByAPI = true;
++        throw new UnsupportedOperationException("Independent armor stand ticking control is not supported by Felt yet");
+     }
+ }

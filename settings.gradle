@@ -9,7 +9,6 @@ pluginManagement {
 
 rootProject.name = 'felt'
 
-include 'config'
 include 'felt-paper-api'
 include 'felt-fabric'
 include 'bootstrap'

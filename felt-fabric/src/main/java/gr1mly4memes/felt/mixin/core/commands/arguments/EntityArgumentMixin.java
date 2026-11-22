@@ -1,0 +1,56 @@
+package gr1mly4memes.felt.mixin.core.commands.arguments;
+
+import com.mojang.brigadier.StringReader;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import gr1mly4memes.felt.bridge.core.commands.arguments.EntityArgumentBridge;
+import gr1mly4memes.felt.bridge.core.commands.arguments.selector.EntitySelectorParserBridge;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.selector.EntitySelector;
+import net.minecraft.commands.arguments.selector.EntitySelectorParser;
+import org.spongepowered.asm.mixin.Final;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Overwrite;
+import org.spongepowered.asm.mixin.Shadow;
+
+import static net.minecraft.commands.arguments.EntityArgument.ERROR_NOT_SINGLE_ENTITY;
+import static net.minecraft.commands.arguments.EntityArgument.ERROR_NOT_SINGLE_PLAYER;
+import static net.minecraft.commands.arguments.EntityArgument.ERROR_ONLY_PLAYERS_ALLOWED;
+
+@Mixin(EntityArgument.class)
+public class EntityArgumentMixin implements EntityArgumentBridge {
+
+    // @formatter:off
+    @Shadow @Final boolean single;
+    @Shadow @Final boolean playersOnly;
+    // @formatter:on
+
+    @Override
+    public EntitySelector bridge$parse(StringReader reader, boolean overridePermissions) throws CommandSyntaxException {
+        return this.parse(reader, true, overridePermissions);
+    }
+
+    @Overwrite
+    private EntitySelector parse(StringReader reader, boolean allowSelectors) throws CommandSyntaxException {
+        return this.parse(reader, allowSelectors, false);
+    }
+
+    // CraftServer.selectEntities links this exact public CraftBukkit overload.
+    public EntitySelector parse(StringReader reader, boolean allowSelectors, boolean overridePermissions) throws CommandSyntaxException {
+        EntitySelectorParser entityselectorparser = new EntitySelectorParser(reader, allowSelectors);
+        EntitySelector entityselector = ((EntitySelectorParserBridge) entityselectorparser).bridge$parse(overridePermissions);
+        if (entityselector.getMaxResults() > 1 && this.single) {
+            if (this.playersOnly) {
+                reader.setCursor(0);
+                throw ERROR_NOT_SINGLE_PLAYER.createWithContext(reader);
+            } else {
+                reader.setCursor(0);
+                throw ERROR_NOT_SINGLE_ENTITY.createWithContext(reader);
+            }
+        } else if (entityselector.includesEntities() && this.playersOnly && !entityselector.isSelfSelector()) {
+            reader.setCursor(0);
+            throw ERROR_ONLY_PLAYERS_ALLOWED.createWithContext(reader);
+        } else {
+            return entityselector;
+        }
+    }
+}

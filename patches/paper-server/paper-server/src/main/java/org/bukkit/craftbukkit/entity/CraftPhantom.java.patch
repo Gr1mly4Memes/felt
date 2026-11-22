@@ -1,0 +1,24 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftPhantom.java b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftPhantom.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftPhantom.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftPhantom.java
+@@ -30,17 +30,17 @@
+ 
+     @Override
+     public UUID getSpawningEntity() {
+-        return this.getHandle().spawningEntity;
++        throw new UnsupportedOperationException("Phantom spawning entity tracking is not supported by Felt yet");
+     }
+ 
+     @Override
+     public boolean shouldBurnInDay() {
+-        return this.getHandle().shouldBurnInDay;
++        throw new UnsupportedOperationException("Independent phantom daylight burning control is not supported by Felt yet");
+     }
+ 
+     @Override
+     public void setShouldBurnInDay(boolean shouldBurnInDay) {
+-        this.getHandle().shouldBurnInDay = shouldBurnInDay;
++        throw new UnsupportedOperationException("Independent phantom daylight burning control is not supported by Felt yet");
+     }
+ 
+     @Override

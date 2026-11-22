@@ -1,0 +1,44 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/block/CraftCampfire.java b/paper-server/src/main/java/org/bukkit/craftbukkit/block/CraftCampfire.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/block/CraftCampfire.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/block/CraftCampfire.java
+@@ -67,35 +67,29 @@
+ 
+     @Override
+     public void stopCooking() {
+-        for (int i = 0; i < this.getSnapshot().stopCooking.length; ++i)
+-            this.stopCooking(i);
++        throw new UnsupportedOperationException("Campfire cooking suspension is not supported");
+     }
+ 
+     @Override
+     public void startCooking() {
+-        for (int i = 0; i < this.getSnapshot().stopCooking.length; ++i)
+-            this.startCooking(i);
++        throw new UnsupportedOperationException("Campfire cooking suspension is not supported");
+     }
+ 
+     @Override
+     public boolean stopCooking(int index) {
+         requireRange(index, "index", 0, 3);
+-        boolean previous = this.isCookingDisabled(index);
+-        this.getSnapshot().stopCooking[index] = true;
+-        return previous;
++        throw new UnsupportedOperationException("Campfire cooking suspension is not supported");
+     }
+ 
+     @Override
+     public boolean startCooking(int index) {
+         requireRange(index, "index", 0, 3);
+-        boolean previous = this.isCookingDisabled(index);
+-        this.getSnapshot().stopCooking[index] = false;
+-        return previous;
++        throw new UnsupportedOperationException("Campfire cooking suspension is not supported");
+     }
+ 
+     @Override
+     public boolean isCookingDisabled(int index) {
+         requireRange(index, "index", 0, 3);
+-        return this.getSnapshot().stopCooking[index];
++        throw new UnsupportedOperationException("Campfire cooking suspension is not supported");
+     }
+ }

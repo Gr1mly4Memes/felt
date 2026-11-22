@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftTameableAnimal.java b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftTameableAnimal.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftTameableAnimal.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftTameableAnimal.java
+@@ -56,7 +56,7 @@
+     public void setOwner(AnimalTamer tamer) {
+         if (tamer != null) {
+             this.setTamed(true);
+-            this.getHandle().setTarget(null, null);
++            ((gr1mly4memes.felt.bridge.core.world.entity.MobBridge) this.getHandle()).bridge$setGoalTarget(null, null, false);
+             this.setOwnerUUID(tamer.getUniqueId());
+         } else {
+             this.setTamed(false);

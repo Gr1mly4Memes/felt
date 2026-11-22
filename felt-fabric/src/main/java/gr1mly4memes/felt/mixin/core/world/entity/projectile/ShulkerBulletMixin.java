@@ -1,0 +1,80 @@
+package gr1mly4memes.felt.mixin.core.world.entity.projectile;
+
+import gr1mly4memes.felt.bridge.core.world.entity.LivingEntityBridge;
+import gr1mly4memes.felt.bridge.core.world.entity.projectile.ShulkerBulletBridge;
+import gr1mly4memes.felt.mixin.core.world.entity.EntityMixin;
+import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityReference;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.ShulkerBullet;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import org.bukkit.craftbukkit.event.CraftEventFactory;
+import org.bukkit.event.entity.EntityPotionEffectEvent;
+import org.bukkit.event.entity.EntityRemoveEvent;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import javax.annotation.Nullable;
+
+@Mixin(ShulkerBullet.class)
+public abstract class ShulkerBulletMixin extends EntityMixin implements ShulkerBulletBridge {
+
+    // @formatter:off
+    @Shadow private EntityReference<Entity> finalTarget;
+    @Shadow @Nullable private Direction currentMoveDirection;
+    @Shadow protected abstract void selectNextMoveDirection(@Nullable Direction.Axis axis, @Nullable Entity target);
+    // @formatter:on
+
+    @Inject(method = "<init>(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/Entity;Lnet/minecraft/core/Direction$Axis;)V", at = @At("RETURN"))
+    private void felt$init(Level worldIn, LivingEntity ownerIn, Entity targetIn, Direction.Axis p_i46772_4_, CallbackInfo ci) {
+        this.projectileSource = ((LivingEntityBridge) ownerIn).bridge$getBukkitEntity();
+    }
+
+    @Inject(method = "onHitEntity", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;addEffect(Lnet/minecraft/world/effect/MobEffectInstance;Lnet/minecraft/world/entity/Entity;)Z"))
+    private void felt$reason(EntityHitResult result, CallbackInfo ci) {
+        ((LivingEntityBridge) result.getEntity()).bridge$pushEffectCause(EntityPotionEffectEvent.Cause.ATTACK);
+    }
+
+    @Inject(method = "onHit", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/projectile/ShulkerBullet;destroy()V"))
+    private void felt$hitCause(HitResult hitResult, CallbackInfo ci) {
+        this.bridge$pushEntityRemoveCause(EntityRemoveEvent.Cause.HIT);
+    }
+
+    @Inject(method = "checkDespawn", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/projectile/ShulkerBullet;discard()V"))
+    private void felt$despawn(CallbackInfo ci) {
+        this.bridge$pushEntityRemoveCause(EntityRemoveEvent.Cause.DESPAWN);
+    }
+
+    @Inject(method = "hurtServer", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/projectile/ShulkerBullet;destroy()V"))
+    private void felt$dead(ServerLevel level, DamageSource damageSource, float f, CallbackInfoReturnable<Boolean> cir) {
+        this.bridge$pushEntityRemoveCause(EntityRemoveEvent.Cause.DEATH);
+    }
+
+    @Inject(method = "hurtServer", cancellable = true, at = @At("HEAD"))
+    private void felt$damageBullet(ServerLevel level, DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
+        if (CraftEventFactory.handleNonLivingEntityDamageEvent((ShulkerBullet) (Object) this, source, amount, false)) {
+            cir.setReturnValue(false);
+        }
+    }
+
+    @Override
+    public Entity getTarget() {
+        return this.finalTarget == null ? null : EntityReference.get(this.finalTarget, this.level(), Entity.class);
+    }
+
+    @Override
+    public void setTarget(final Entity e) {
+        this.finalTarget = EntityReference.of(e);
+        this.currentMoveDirection = Direction.UP;
+        this.selectNextMoveDirection(Direction.Axis.X, e);
+    }
+}

@@ -1,0 +1,31 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/util/DelegatedLevelAccessor.java b/paper-server/src/main/java/org/bukkit/craftbukkit/util/DelegatedLevelAccessor.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/util/DelegatedLevelAccessor.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/util/DelegatedLevelAccessor.java
+@@ -572,9 +572,11 @@
+         return this.delegate.isBlockInLine(c);
+     }
+ 
+-    @Override
+     public BlockHitResult clip(ClipContext c, BlockPos pos) {
+-        return this.delegate.clip(c, pos);
++        if (this.delegate instanceof DelegatedLevelAccessor accessor) {
++            return accessor.clip(c, pos);
++        }
++        return ((gr1mly4memes.felt.bridge.core.world.level.BlockGetterBridge) this.delegate).bridge$rayTraceBlock(c, pos);
+     }
+ 
+     @Override
+@@ -672,9 +674,11 @@
+         return this.delegate.addFreshEntity(entity);
+     }
+ 
+-    @Override
+     public boolean addFreshEntity(Entity entity, CreatureSpawnEvent.@Nullable SpawnReason reason) {
+-        return this.delegate.addFreshEntity(entity, reason);
++        if (this.delegate instanceof DelegatedLevelAccessor accessor) {
++            return accessor.addFreshEntity(entity, reason);
++        }
++        return ((gr1mly4memes.felt.bridge.core.world.level.IWorldWriterBridge) this.delegate).bridge$addEntity(entity, reason);
+     }
+ 
+     @Override

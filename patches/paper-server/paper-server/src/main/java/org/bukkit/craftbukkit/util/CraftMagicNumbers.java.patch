@@ -1,0 +1,106 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java b/paper-server/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
+@@ -1,6 +1,5 @@
+ package org.bukkit.craftbukkit.util;
+ 
+-import ca.spottedleaf.moonrise.common.PlatformHooks;
+ import com.google.common.base.Preconditions;
+ import com.google.common.collect.ImmutableMap;
+ import com.google.gson.Gson;
+@@ -329,7 +328,7 @@
+         }
+         if (newEntries.isEmpty()) return List.of();
+ 
+-        manager.advancements = allAdvancements.build();
++        manager.advancements = new java.util.HashMap<>(allAdvancements.build());
+ 
+         final AdvancementTree tree = manager.tree();
+         tree.addAll(newEntries.stream().map(AdvancementEntry::advancement).toList());
+@@ -352,10 +351,10 @@
+                     LOGGER.error("Error saving advancement {}", entry.id(), ex);
+                 }
+             }
+-            deserializedAdvancements.add(entry.advancement().toBukkit());
++            deserializedAdvancements.add(((gr1mly4memes.felt.bridge.core.advancements.AdvancementHolderBridge)(Object) entry.advancement()).bridge$getBukkit());
+         }
+ 
+-        MinecraftServer.getServer().getPlayerList().reloadAdvancementData();
++        ((gr1mly4memes.felt.bridge.core.server.players.PlayerListBridge) MinecraftServer.getServer().getPlayerList()).bridge$reloadAdvancementData();
+         return deserializedAdvancements;
+     }
+ 
+@@ -371,7 +370,7 @@
+     @Override
+     public void checkSupported(PluginDescriptionFile descriptionFile) throws InvalidPluginException {
+         ApiVersion toCheck = ApiVersion.getOrCreateVersion(descriptionFile.getAPIVersion());
+-        ApiVersion minimumVersion = MinecraftServer.getServer().server.minimumAPI;
++        ApiVersion minimumVersion = ((CraftServer) Bukkit.getServer()).minimumAPI;
+ 
+         if (toCheck.isNewerThan(ApiVersion.CURRENT)) {
+             // Newer than supported
+@@ -416,7 +415,7 @@
+     public boolean isSupportedApiVersion(String apiVersion) {
+         if (apiVersion == null) return false;
+         final ApiVersion toCheck = ApiVersion.getOrCreateVersion(apiVersion);
+-        final ApiVersion minimumVersion = MinecraftServer.getServer().server.minimumAPI;
++        final ApiVersion minimumVersion = ((CraftServer) Bukkit.getServer()).minimumAPI;
+ 
+         return !toCheck.isNewerThan(ApiVersion.CURRENT) && !toCheck.isOlderThan(minimumVersion);
+     }
+@@ -506,15 +505,11 @@
+         Preconditions.checkArgument(!itemStack.isEmpty(), "Cannot serialize empty ItemStack");
+ 
+         net.minecraft.core.RegistryAccess registryAccess = CraftRegistry.getMinecraftRegistry();
+-        com.mojang.serialization.DynamicOps<com.google.gson.JsonElement> ops = registryAccess.createSerializationContext(com.mojang.serialization.JsonOps.INSTANCE);
+         com.google.gson.JsonObject item;
+         // Serialize as SNBT to preserve exact NBT types; vanilla codecs already can handle such deserialization.
+-        net.minecraft.world.item.component.CustomData.SERIALIZE_CUSTOM_AS_SNBT.set(true);
+-        try {
+-            item = net.minecraft.world.item.ItemStack.CODEC.encodeStart(ops, CraftItemStack.unwrap(itemStack)).getOrThrow().getAsJsonObject();
+-        } finally {
+-            net.minecraft.world.item.component.CustomData.SERIALIZE_CUSTOM_AS_SNBT.set(false);
+-        }
++        item = net.minecraft.world.item.ItemStack.CODEC.encodeStart(
++            registryAccess.createSerializationContext(gr1mly4memes.felt.bridge.core.world.item.ItemStackBridge.Serialization.SNBT_JSON_OPS),
++            CraftItemStack.unwrap(itemStack)).getOrThrow().getAsJsonObject();
+         item.addProperty(SharedConstants.DATA_VERSION_TAG, this.getDataVersion());
+         return item;
+     }
+@@ -562,7 +557,7 @@
+             } else {
+                 // Ensure misc flag is not needed
+                 Preconditions.checkArgument(
+-                    nmsEntity.getType().canSerialize() || allowMiscSerialization,
++                    e.getType().canSerialize() || allowMiscSerialization,
+                     "Cannot serialize misc non-saveable entity %s(%s) without the MISC flag",
+                     e.getType().toShortString(),
+                     e.getStringUUID()
+@@ -579,10 +574,14 @@
+                     throw new IllegalArgumentException("Couldn't serialize entity");
+                 }
+             } else {
+-                List<net.minecraft.world.entity.Entity> pass = new ArrayList<>(nmsEntity.getPassengers());
+-                nmsEntity.passengers = com.google.common.collect.ImmutableList.of();
+-                boolean serialized = nmsEntity.saveAsPassenger(output, true, includeNonSaveable, forceSerialization);
+-                nmsEntity.passengers = com.google.common.collect.ImmutableList.copyOf(pass);
++                var previousPassengers = nmsEntity.passengers;
++                boolean serialized;
++                try {
++                    nmsEntity.passengers = com.google.common.collect.ImmutableList.of();
++                    serialized = ((gr1mly4memes.felt.bridge.core.entity.EntityBridge) nmsEntity).bridge$saveEntity(output, true, includeNonSaveable, forceSerialization);
++                } finally {
++                    nmsEntity.passengers = previousPassengers;
++                }
+                 if (!serialized) {
+                     throw new IllegalArgumentException("Couldn't serialize entity");
+                 }
+@@ -599,7 +598,7 @@
+         CompoundTag tag = MCUtil.deserializeTagFromBytes(data);
+         int dataVersion = NbtUtils.getDataVersion(tag, 0);
+         Preconditions.checkArgument(dataVersion <= Bukkit.getUnsafe().getDataVersion(), "Newer version! Server downgrades are not supported!");
+-        tag = PlatformHooks.get().convertNBT(References.ENTITY, MinecraftServer.getServer().getFixerUpper(), tag, dataVersion, this.getDataVersion()); // Paper - possibly use dataconverter
++        tag = (CompoundTag) ((CraftWorld) world).getHandle().getServer().getFixerUpper().update(References.ENTITY, new Dynamic<Tag>(NbtOps.INSTANCE, tag), dataVersion, this.getDataVersion()).getValue();
+         if (!preservePassengers) {
+             tag.remove(Entity.TAG_PASSENGERS);
+         }

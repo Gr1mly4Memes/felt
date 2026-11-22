@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftFirework.java b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftFirework.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftFirework.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftFirework.java
+@@ -104,7 +104,7 @@
+ 
+     @Override
+     public UUID getSpawningEntity() {
+-        return this.getHandle().spawningEntity;
++        throw new UnsupportedOperationException("Firework spawning entity tracking is not supported by Felt yet");
+     }
+ 
+     @Override

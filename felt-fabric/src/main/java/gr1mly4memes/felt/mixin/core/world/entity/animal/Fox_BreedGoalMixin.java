@@ -1,0 +1,87 @@
+package gr1mly4memes.felt.mixin.core.world.entity.animal;
+
+import gr1mly4memes.felt.bridge.core.server.level.ServerLevelBridge;
+import gr1mly4memes.felt.bridge.core.world.entity.MobBridge;
+import gr1mly4memes.felt.bridge.core.world.entity.animal.AnimalBridge;
+import gr1mly4memes.felt.bridge.core.world.entity.animal.FoxBridge;
+import net.minecraft.advancements.triggers.CriteriaTriggers;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.stats.Stats;
+import net.minecraft.world.entity.ExperienceOrb;
+import net.minecraft.world.entity.ai.goal.BreedGoal;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.animal.fox.Fox;
+import net.minecraft.world.level.gamerules.GameRules;
+import org.bukkit.craftbukkit.event.CraftEventFactory;
+import org.bukkit.event.entity.CreatureSpawnEvent;
+import org.bukkit.event.entity.EntityBreedEvent;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Overwrite;
+
+@Mixin(targets = "net.minecraft.world.entity.animal.fox.Fox$FoxBreedGoal")
+public abstract class Fox_BreedGoalMixin extends BreedGoal {
+
+    public Fox_BreedGoalMixin(Animal animal, double speedIn) {
+        super(animal, speedIn);
+    }
+
+    /**
+     * @author IzzekAkuz
+     * @reason
+     */
+    @Overwrite
+    protected void breed() {
+        ServerLevel serverworld = (ServerLevel) this.level;
+        Fox foxentity = (Fox) this.animal.getBreedOffspring(serverworld, this.partner);
+        foxentity = (Fox) ((MobBridge) animal).bridge$mod$onBabyEntitySpawn(partner, foxentity);
+        if (foxentity == null) {
+            //Reset the "inLove" state for the animals
+            this.animal.setAge(6000);
+            this.partner.setAge(6000);
+            this.animal.resetLove();
+            this.partner.resetLove();
+            return;
+        }
+        if (foxentity != null) {
+            ServerPlayer serverplayerentity = this.animal.getLoveCause();
+            ServerPlayer serverplayerentity1 = this.partner.getLoveCause();
+            ServerPlayer serverplayerentity2 = serverplayerentity;
+            if (serverplayerentity != null) {
+                ((FoxBridge) foxentity).bridge$addTrustedEntity(serverplayerentity);
+            } else {
+                serverplayerentity2 = serverplayerentity1;
+            }
+
+            if (serverplayerentity1 != null && serverplayerentity != serverplayerentity1) {
+                ((FoxBridge) foxentity).bridge$addTrustedEntity(serverplayerentity1);
+            }
+            foxentity.setAge(-24000);
+            foxentity.snapTo(this.animal.getX(), this.animal.getY(), this.animal.getZ(), 0.0F, 0.0F);
+            int experience = this.animal.getRandom().nextInt(7) + 1;
+            final EntityBreedEvent entityBreedEvent = CraftEventFactory.callEntityBreedEvent(foxentity, this.animal, this.partner, serverplayerentity, ((AnimalBridge) this.animal).bridge$getBreedItem(), experience);
+            if (entityBreedEvent.isCancelled()) {
+                return;
+            }
+            experience = entityBreedEvent.getExperience();
+            if (serverplayerentity2 != null) {
+                serverplayerentity2.awardStat(Stats.ANIMALS_BRED);
+                CriteriaTriggers.BRED_ANIMALS.trigger(serverplayerentity2, this.animal, this.partner, foxentity);
+            }
+
+            this.animal.setAge(6000);
+            this.partner.setAge(6000);
+            this.animal.resetLove();
+            this.partner.resetLove();
+            ((ServerLevelBridge) serverworld).bridge$pushAddEntityReason(CreatureSpawnEvent.SpawnReason.BREEDING);
+            serverworld.addFreshEntityWithPassengers(foxentity);
+            this.level.broadcastEntityEvent(this.animal, (byte) 18);
+            if (this.level.getGameRules().get(GameRules.MOB_DROPS)) {
+                if (experience > 0) {
+                    this.level.addFreshEntity(new ExperienceOrb(this.level, this.animal.getX(), this.animal.getY(), this.animal.getZ(), experience));
+                }
+            }
+
+        }
+    }
+}

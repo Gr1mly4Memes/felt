@@ -41,11 +41,6 @@ dependencies {
     implementation "me.lucko:fabric-permissions-api:${fabric_permissions_api_version}"
     include "me.lucko:fabric-permissions-api:${fabric_permissions_api_version}"
 
-    // XXX: for compiling (arclight-api): FabricArclightServer#registerForgeEvent
-    compileOnly("net.minecraftforge:eventbus:4.0.0") { transitive = false }
-
-    implementation(project(':config')) { transitive = false }
-
     common(project(':bootstrap')) { transitive = false }
     shadowBundle(project(':bootstrap')) { transitive = false }
 
@@ -62,12 +57,26 @@ dependencies {
     mixinProcessorSupport "org.ow2.asm:asm-util:${asm_version}"
     mixinProcessorSupport "org.ow2.asm:asm-tree:${asm_version}"
 
+    implementation platform("ca.spottedleaf.leafpile:bom:${leafpile_version}")
+    implementation "ca.spottedleaf.leafpile:common"
+    implementation "ca.spottedleaf.leafpile:concurrentutil"
+    implementation "ca.spottedleaf.leafpile:converter"
+    implementation "ca.spottedleaf.leafpile:ioutil"
+    implementation "org.jline:jline-terminal-ffm:${jline_terminal_ffm_version}"
+
     implementation "net.minecrell:terminalconsoleappender:${terminal_console_appender_version}"
     implementation "org.apache.commons:commons-lang3:${commons_lang3_version}"
+    implementation "com.google.code.findbugs:jsr305:${jsr305_version}"
     implementation "net.md-5:SpecialSource:${special_source_version}"
     implementation "org.apache.logging.log4j:log4j-jul:${log4j_version}"
     implementation "com.mysql:mysql-connector-j:${mysql_connector_j_version}"
     implementation "org.yaml:snakeyaml:${snakeyaml_version}"
+
+    implementation "me.lucko:spark-api:${spark_api_version}"
+    implementation "me.lucko:spark-paper:${spark_paper_version}"
+    // Paper's CraftServer constructor instantiates io.papermc.paper.SparksFly, which needs the
+    // bundled spark implementation at runtime (Paper shades it into the server jar as well).
+    shadowBundle("me.lucko:spark-paper:${spark_paper_version}") { transitive = false }
 }
 
 compileJava {
@@ -106,8 +115,15 @@ loom.nestJars(tasks.named('shadowJar'), configurations.named('include'))
 
 tasks.register('srgJar', Jar) {
     from(tasks.shadowJar.outputs.files.collect { it.isDirectory() ? it : zipTree(it) }) {
-        include 'io/izzel/**'
-        exclude 'gr1mly4memes/felt/common/mixin/**'
+        include 'gr1mly4memes/felt/**'
+        eachFile { file ->
+            def path = file.path.replace('\\', '/')
+            if (path.startsWith('gr1mly4memes/felt/mixin/')
+                && !path.startsWith('gr1mly4memes/felt/mixin/fabric/')
+                && !path.contains('_Fabric.class')) {
+                file.exclude()
+            }
+        }
     }
     archiveClassifier.set('srg')
     dependsOn shadowJar

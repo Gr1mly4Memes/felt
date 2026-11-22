@@ -1,0 +1,29 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryLectern.java b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryLectern.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryLectern.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryLectern.java
+@@ -2,7 +2,7 @@
+ 
+ import net.minecraft.world.Container;
+ import net.minecraft.world.MenuProvider;
+-import net.minecraft.world.level.block.entity.LecternBlockEntity;
++import gr1mly4memes.felt.bridge.core.world.inventory.LecternInventoryBridge;
+ import org.bukkit.block.Lectern;
+ import org.bukkit.inventory.LecternInventory;
+ 
+@@ -12,13 +12,13 @@
+ 
+     public CraftInventoryLectern(Container inventory) {
+         super(inventory);
+-        if (inventory instanceof LecternBlockEntity.LecternInventory) {
+-            this.provider = ((LecternBlockEntity.LecternInventory) inventory).getLectern();
++        if (inventory instanceof LecternInventoryBridge lecternInventory) {
++            this.provider = lecternInventory.bridge$getLectern();
+         }
+     }
+ 
+     @Override
+     public Lectern getHolder() {
+-        return (Lectern) this.inventory.getOwner();
++        return (Lectern) super.getHolder();
+     }
+ }

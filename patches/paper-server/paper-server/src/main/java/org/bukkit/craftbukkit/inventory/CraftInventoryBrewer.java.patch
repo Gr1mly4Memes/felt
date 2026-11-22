@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryBrewer.java b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryBrewer.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryBrewer.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryBrewer.java
+@@ -22,7 +22,7 @@
+ 
+     @Override
+     public BrewingStand getHolder() {
+-        return (BrewingStand) this.inventory.getOwner();
++        return (BrewingStand) super.getHolder();
+     }
+ 
+     @Override

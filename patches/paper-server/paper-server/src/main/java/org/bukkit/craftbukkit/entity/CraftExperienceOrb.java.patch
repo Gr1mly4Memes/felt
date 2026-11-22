@@ -1,0 +1,23 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftExperienceOrb.java b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftExperienceOrb.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftExperienceOrb.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftExperienceOrb.java
+@@ -37,16 +37,16 @@
+ 
+     @Override
+     public UUID getTriggerEntityId() {
+-        return this.getHandle().triggerEntityId;
++        throw new UnsupportedOperationException("Experience orb source tracking is not supported by Felt yet");
+     }
+ 
+     @Override
+     public UUID getSourceEntityId() {
+-        return this.getHandle().sourceEntityId;
++        throw new UnsupportedOperationException("Experience orb source tracking is not supported by Felt yet");
+     }
+ 
+     @Override
+     public SpawnReason getSpawnReason() {
+-        return this.getHandle().spawnReason;
++        throw new UnsupportedOperationException("Experience orb source tracking is not supported by Felt yet");
+     }
+ }

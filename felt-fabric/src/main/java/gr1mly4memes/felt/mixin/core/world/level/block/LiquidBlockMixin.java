@@ -1,0 +1,47 @@
+package gr1mly4memes.felt.mixin.core.world.level.block;
+
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Share;
+import com.llamalad7.mixinextras.sugar.ref.LocalBooleanRef;
+import gr1mly4memes.felt.bridge.core.world.level.LevelAccessorBridge;
+import gr1mly4memes.felt.mod.server.event.FeltEventFactory;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.block.LiquidBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import org.bukkit.craftbukkit.block.CraftBlockState;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+
+@Mixin(LiquidBlock.class)
+public class LiquidBlockMixin {
+
+    @WrapOperation(method = "shouldSpreadLiquid", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;setBlockAndUpdate(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;)Z"))
+    public boolean felt$blockForm(Level world, BlockPos pos, BlockState newState, Operation<Boolean> original,
+                                     @Share("felt$fizz") LocalBooleanRef fizz) {
+        if (LevelAccessorBridge.from(world) instanceof LevelAccessorBridge bridge) {
+            final var event = FeltEventFactory.callBlockFormEvent(bridge.bridge$getMinecraftWorld(), pos, newState, 3, null);
+            if (event != null) {
+                if (event.isCancelled()) {
+                    fizz.set(false);
+                    return false;
+                }
+                newState = ((CraftBlockState) event.getNewState()).getHandle();
+            }
+        }
+        // Keep the existing setter-result gate; event acceptance is a separate policy.
+        boolean result = original.call(world, pos, newState);
+        fizz.set(result);
+        return result;
+    }
+
+    @WrapOperation(method = "shouldSpreadLiquid", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/LiquidBlock;fizz(Lnet/minecraft/world/level/LevelAccessor;Lnet/minecraft/core/BlockPos;)V"))
+    public void felt$fizz(LiquidBlock block, LevelAccessor world, BlockPos pos, Operation<Void> original,
+                              @Share("felt$fizz") LocalBooleanRef fizz) {
+        if (fizz.get()) {
+            original.call(block, world, pos);
+        }
+    }
+}

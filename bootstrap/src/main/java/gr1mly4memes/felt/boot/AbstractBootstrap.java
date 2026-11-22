@@ -26,20 +26,6 @@ import java.util.stream.Collectors;
 
 public interface AbstractBootstrap {
 
-    String LOGO = String.join("\n",
-        "",
-        "",
-        "   §1    ___ §9     §3     §6___§e  §6   __   /\\",
-        "   §1   /   |§9 ____§3____§6/ §e(_)§6__ / /  / /",
-        "   §1  / /| |§9/ __§3/ __§6/ §e/ /§6 _ / _ \\/__/",
-        "   §1 / ___ §9/ / §3/ /_§6/ §e/ /§6 / / // / /",
-        "   §1/_/  |§9/_/  §3\\__§6/_§e/_/§6\\_ /_//_/ /",
-        "   §1      §9     §3    §6  §e §6/__/     \\/",
-        "",
-        "    §aVersion {} / {}",
-        "    §aBuild Date {}",
-        "");
-
     /**
      * This runs the CommandNode hook hack and Gson enum hack.
      * A friendly version for CommandNode hook hack can be found in Sinytra Connector support,
@@ -57,7 +43,7 @@ public interface AbstractBootstrap {
             new ClassReader(in).accept(node, 0);
             // Brigadier lives in the library layer, so these slots cannot name Paper types.
             // Keep their names and descriptors identical to Connector's CommandNodeMixin.
-            for (var name : new String[]{"arclight$apiCommandMeta", "arclight$wrappedCached", "arclight$unwrappedCached"}) {
+            for (var name : new String[]{"felt$apiCommandMeta", "felt$wrappedCached", "felt$unwrappedCached"}) {
                 var fields = node.fields.stream().filter(it -> it.name.equals(name)).toList();
                 if (fields.isEmpty()) {
                     node.fields.add(new FieldNode(Opcodes.ACC_PRIVATE, name, "Ljava/lang/Object;", null, null));
@@ -119,7 +105,7 @@ public interface AbstractBootstrap {
     }
 
     default void setupMod(FeltPlatform platform, boolean extract) throws Exception {
-        FeltVersion.setVersion(new FeltVersion("26.1.2", 26102, "", "Dipper"));
+        FeltVersion.setVersion(FeltVersion.V26_3);
         FeltPlatform.setPlatform(platform);
         try (InputStream stream = ownArchiveResource(getClass(), "META-INF/MANIFEST.MF")) {
             Manifest manifest = new Manifest(stream);
@@ -131,7 +117,7 @@ public interface AbstractBootstrap {
                 }
             }
             String buildTime = attributes.getValue("Implementation-Timestamp");
-            LogManager.getLogger("Felt").info(LOGO, FeltVersion.current().getReleaseName(), version, buildTime);
+            LogManager.getLogger("Felt").info("Version {} / Build Date {}", version, buildTime);
         }
     }
 
@@ -166,13 +152,13 @@ public interface AbstractBootstrap {
     }
 
     private void extract(InputStream path, String version) throws Exception {
-        System.setProperty("arclight.version", version);
-        var dir = Paths.get(".arclight", "mod_file");
+        System.setProperty("felt.version", version);
+        var dir = Paths.get(".felt", "mod_file");
         if (!Files.exists(dir)) {
             Files.createDirectories(dir);
         }
         var mod = dir.resolve(version + ".jar");
-        if (!Files.exists(mod) || Boolean.getBoolean("arclight.alwaysExtract")) {
+        if (!Files.exists(mod) || Boolean.getBoolean("felt.alwaysExtract")) {
             for (Path old : Files.list(dir).collect(Collectors.toList())) {
                 Files.delete(old);
             }

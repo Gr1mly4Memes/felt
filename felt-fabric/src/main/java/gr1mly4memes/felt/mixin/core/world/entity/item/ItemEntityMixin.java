@@ -1,0 +1,186 @@
+package gr1mly4memes.felt.mixin.core.world.entity.item;
+
+import gr1mly4memes.felt.bridge.core.world.entity.LivingEntityBridge;
+import gr1mly4memes.felt.bridge.core.world.entity.player.PlayerBridge;
+import gr1mly4memes.felt.bridge.core.world.entity.player.InventoryBridge;
+import gr1mly4memes.felt.bridge.core.server.level.ServerPlayerBridge;
+import gr1mly4memes.felt.bridge.core.network.syncher.SynchedEntityDataBridge;
+import gr1mly4memes.felt.bridge.core.world.level.WorldBridge;
+import gr1mly4memes.felt.mixin.core.world.entity.EntityMixin;
+import gr1mly4memes.felttools.mixin.Decorate;
+import gr1mly4memes.felttools.mixin.DecorationOps;
+import gr1mly4memes.felttools.mixin.Local;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.AABB;
+import org.bukkit.Bukkit;
+import org.bukkit.craftbukkit.event.CraftEventFactory;
+import org.bukkit.entity.Item;
+import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.entity.EntityRemoveEvent;
+import org.bukkit.event.player.PlayerAttemptPickupItemEvent;
+import org.bukkit.event.player.PlayerPickupItemEvent;
+import org.spongepowered.asm.mixin.Final;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.Slice;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.UUID;
+
+@Mixin(ItemEntity.class)
+public abstract class ItemEntityMixin extends EntityMixin {
+
+    @Override
+    public void bridge$inactiveTick() {
+        super.bridge$inactiveTick();
+        if (this.pickupDelay > 0 && this.pickupDelay != 32767) --this.pickupDelay;
+        if (this.age != -32768) ++this.age;
+        if (!this.level().isClientSide() && this.felt$inactiveItemExpired()) {
+            if (CraftEventFactory.callItemDespawnEvent((ItemEntity) (Object) this).isCancelled()) {
+                this.age = 0;
+                return;
+            }
+            this.discard(EntityRemoveEvent.Cause.DESPAWN);
+        }
+    }
+
+    protected boolean felt$inactiveItemExpired() {
+        return this.age >= ((WorldBridge) this.level()).bridge$spigotConfig().itemDespawnRate;
+    }
+
+
+    // @formatter:off
+    @Shadow @Final private static EntityDataAccessor<ItemStack> DATA_ITEM;
+    @Shadow public int pickupDelay;
+    @Shadow public abstract ItemStack getItem();
+    @Shadow public UUID target;
+    @Shadow public int age;
+    // @formatter:on
+
+    @Inject(method = "merge(Lnet/minecraft/world/entity/item/ItemEntity;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/entity/item/ItemEntity;Lnet/minecraft/world/item/ItemStack;)V", cancellable = true, at = @At("HEAD"))
+    private static void felt$itemMerge(ItemEntity from, ItemStack stack1, ItemEntity to, ItemStack stack2, CallbackInfo ci) {
+        if (!CraftEventFactory.callItemMergeEvent(to, from)) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "merge(Lnet/minecraft/world/entity/item/ItemEntity;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/entity/item/ItemEntity;Lnet/minecraft/world/item/ItemStack;)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/item/ItemEntity;discard()V"))
+    private static void felt$itemMergeCause(ItemEntity from, ItemStack stack1, ItemEntity to, ItemStack stack2, CallbackInfo ci) {
+        to.bridge().bridge$pushEntityRemoveCause(EntityRemoveEvent.Cause.MERGE);
+    }
+
+    @Inject(method = "hurtServer", cancellable = true, at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/item/ItemEntity;markHurt()V"))
+    private void felt$damageNonLiving(ServerLevel serverLevel, DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
+        if (CraftEventFactory.handleNonLivingEntityDamageEvent((ItemEntity) (Object) this, source, amount)) {
+            cir.setReturnValue(false);
+        }
+    }
+
+    @Inject(method = "hurtServer", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/item/ItemEntity;discard()V"))
+    private void felt$dead(ServerLevel serverLevel, DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
+        this.bridge$pushEntityRemoveCause(EntityRemoveEvent.Cause.DEATH);
+    }
+
+    @Decorate(method = "playerTouch", at = @At(value = "INVOKE", ordinal = 0, target = "Lnet/minecraft/world/item/ItemStack;getCount()I"))
+    private int felt$playerPickup(ItemStack instance, Player entity, @Local(ordinal = -1) ItemStack itemstack,
+                                     @Local(allocate = "pickupFlyAtPlayer") boolean flyAtPlayer) throws Throwable {
+        var count = (int) DecorationOps.callsite().invoke(instance);
+
+        final int canHold = ((InventoryBridge) entity.getInventory()).bridge$canHold(itemstack);
+        final int remaining = count - canHold;
+        // Preserve native animation if a loader admits pickup without either Bukkit event.
+        flyAtPlayer = true;
+        // Attempt also fires for a full inventory, before the legacy event shrinks the stack.
+        if (this.pickupDelay <= 0) {
+            final PlayerAttemptPickupItemEvent attemptEvent = new PlayerAttemptPickupItemEvent(((ServerPlayerBridge) entity).bridge$getBukkitEntity(), (Item) this.getBukkitEntity(), remaining);
+            Bukkit.getPluginManager().callEvent(attemptEvent);
+            flyAtPlayer = attemptEvent.getFlyAtPlayer();
+            if (attemptEvent.isCancelled()) {
+                if (flyAtPlayer) {
+                    entity.take((ItemEntity) (Object) this, count);
+                }
+                return (int) DecorationOps.cancel().invoke();
+            }
+        }
+        if (this.pickupDelay <= 0 && canHold > 0) {
+            itemstack.setCount(canHold);
+            final PlayerPickupItemEvent playerEvent = new PlayerPickupItemEvent(((ServerPlayerBridge) entity).bridge$getBukkitEntity(), (Item) this.getBukkitEntity(), remaining);
+            playerEvent.setCancelled(!((PlayerBridge) entity).bridge$canPickUpLoot());
+            Bukkit.getPluginManager().callEvent(playerEvent);
+            // Paper lets the legacy event override the attempt's animation decision.
+            flyAtPlayer = playerEvent.getFlyAtPlayer();
+            if (playerEvent.isCancelled()) {
+                itemstack.setCount(canHold + remaining);
+                if (flyAtPlayer) {
+                    entity.take((ItemEntity) (Object) this, count);
+                }
+                return (int) DecorationOps.cancel().invoke();
+            }
+            final EntityPickupItemEvent entityEvent = new EntityPickupItemEvent(((LivingEntityBridge) entity).bridge$getBukkitEntity(), (Item) this.getBukkitEntity(), remaining);
+            entityEvent.setCancelled(!((PlayerBridge) entity).bridge$canPickUpLoot());
+            Bukkit.getPluginManager().callEvent(entityEvent);
+            if (entityEvent.isCancelled()) {
+                itemstack.setCount(canHold + remaining);
+                return (int) DecorationOps.cancel().invoke();
+            }
+            ItemStack current = this.getItem();
+            if (!itemstack.equals(current)) {
+                itemstack = current;
+            } else {
+                itemstack.setCount(canHold + remaining);
+            }
+            this.pickupDelay = 0;
+        } else if (this.pickupDelay == 0) {
+            this.pickupDelay = -1;
+        }
+        DecorationOps.blackhole().invoke(itemstack, flyAtPlayer);
+        return count;
+    }
+
+    // Only gate the native success animation, not the earlier cancellation animations.
+    @Decorate(method = "playerTouch", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Player;take(Lnet/minecraft/world/entity/Entity;I)V"),
+        slice = @Slice(from = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/player/Inventory;add(Lnet/minecraft/world/item/ItemStack;)Z")))
+    private void felt$pickupAnimation(Player player, Entity item, int count,
+                                         @Local(allocate = "pickupFlyAtPlayer") boolean flyAtPlayer) throws Throwable {
+        if (flyAtPlayer) {
+            DecorationOps.callsite().invoke(player, item, count);
+        }
+    }
+
+    @Inject(method = "playerTouch", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/item/ItemEntity;discard()V"))
+    private void felt$discardReason(Player player, CallbackInfo ci) {
+        this.bridge$pushEntityRemoveCause(EntityRemoveEvent.Cause.PICKUP);
+    }
+
+    @Decorate(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/item/ItemEntity;discard()V"),
+        slice = @Slice(from = @At(value = "FIELD", target = "Lnet/minecraft/world/entity/item/ItemEntity;age:I")))
+    private void felt$itemDespawn(ItemEntity instance) throws Throwable {
+        if (CraftEventFactory.callItemDespawnEvent((ItemEntity) (Object) this).isCancelled()) {
+            this.age = 0;
+            DecorationOps.cancel().invoke();
+            return;
+        }
+        DecorationOps.callsite().invoke(instance);
+    }
+
+    @Inject(method = "setItem", at = @At("RETURN"))
+    private void felt$markDirty(ItemStack stack, CallbackInfo ci) {
+        ((SynchedEntityDataBridge) this.getEntityData()).bridge$markDirty(DATA_ITEM);
+    }
+
+    @Redirect(method = "mergeWithNeighbours", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/phys/AABB;inflate(DDD)Lnet/minecraft/world/phys/AABB;"))
+    private AABB felt$mergeRadius(AABB instance, double pX, double pY, double pZ) {
+        double radius = ((WorldBridge) level()).bridge$spigotConfig().itemMerge;
+        return instance.inflate(radius);
+    }
+}

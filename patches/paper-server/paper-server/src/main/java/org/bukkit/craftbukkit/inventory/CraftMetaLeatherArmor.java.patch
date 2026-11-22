@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaLeatherArmor.java b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaLeatherArmor.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaLeatherArmor.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaLeatherArmor.java
+@@ -21,7 +21,7 @@
+ 
+     private Integer color; // Paper - keep color component consistent with vanilla (top byte is ignored)
+ 
+-    CraftMetaLeatherArmor(CraftMetaItem meta) {
++    public CraftMetaLeatherArmor(CraftMetaItem meta) {
+         super(meta);
+         if (!(meta instanceof CraftMetaLeatherArmor leatherMeta)) {
+             return;

@@ -1,0 +1,14 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/datacomponent/PaperDataComponentType.java b/paper-server/src/main/java/io/papermc/paper/datacomponent/PaperDataComponentType.java
+--- a/paper-server/src/main/java/io/papermc/paper/datacomponent/PaperDataComponentType.java
++++ b/paper-server/src/main/java/io/papermc/paper/datacomponent/PaperDataComponentType.java
+@@ -121,8 +121,8 @@
+                 DataComponents.POTION_DURATION_SCALE,
+                 DataComponents.MINIMUM_ATTACK_CHARGE,
+                 DataComponents.REPAIR_COST,
+-                DataComponents.ENCHANTMENT_GLINT_OVERRIDE
+-                // DataComponents.ADDITIONAL_TRADE_COST
++                DataComponents.ENCHANTMENT_GLINT_OVERRIDE,
++                DataComponents.ADDITIONAL_TRADE_COST
+             );
+             collector.register(DataComponents.USE_EFFECTS, wrapper(PaperUseEffects::new));
+             register(collector, DataComponents.CUSTOM_NAME, PaperAdventure::asAdventure, PaperAdventure::asVanilla);

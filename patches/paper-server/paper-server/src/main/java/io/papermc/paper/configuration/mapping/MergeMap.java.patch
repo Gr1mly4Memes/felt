@@ -1,0 +1,20 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/configuration/mapping/MergeMap.java b/paper-server/src/main/java/io/papermc/paper/configuration/mapping/MergeMap.java
+--- a/paper-server/src/main/java/io/papermc/paper/configuration/mapping/MergeMap.java
++++ b/paper-server/src/main/java/io/papermc/paper/configuration/mapping/MergeMap.java
+@@ -1,7 +1,6 @@
+ package io.papermc.paper.configuration.mapping;
+ 
+ import com.google.common.collect.Sets;
+-import com.mojang.logging.LogUtils;
+ import io.papermc.paper.configuration.ConfigurationPart;
+ import io.papermc.paper.configuration.serializer.collection.map.MapSerializer;
+ import java.lang.annotation.Documented;
+@@ -27,7 +26,7 @@
+ @Retention(RetentionPolicy.RUNTIME)
+ public @interface MergeMap {
+ 
+-    Logger LOGGER = LogUtils.getClassLogger();
++    Logger LOGGER = org.slf4j.LoggerFactory.getLogger(MergeMap.class.getSimpleName());
+     Definition<MergeMap, Map<?, ?>, Factory> DEFINITION = new Definition<>(MergeMap.class, MapSerializer.TYPE, new Factory());
+ 
+     /**

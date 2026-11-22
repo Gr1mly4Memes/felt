@@ -1,8 +1,8 @@
 package gr1mly4memes.felt.gradle.extension;
 
-import gr1mly4memes.felt.gradle.api.extension.IArclightSpigotExtension;
+import gr1mly4memes.felt.gradle.api.extension.IFeltSpigotExtension;
 
-public class FeltSpigotExtension implements IArclightSpigotExtension {
+public class FeltSpigotExtension implements IFeltSpigotExtension {
     private String bukkitRef;
     private String craftBukkitRef;
     private String spigotRef;

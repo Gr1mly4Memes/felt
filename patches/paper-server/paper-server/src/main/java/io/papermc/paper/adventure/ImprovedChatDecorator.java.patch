@@ -1,0 +1,44 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/adventure/ImprovedChatDecorator.java b/paper-server/src/main/java/io/papermc/paper/adventure/ImprovedChatDecorator.java
+--- a/paper-server/src/main/java/io/papermc/paper/adventure/ImprovedChatDecorator.java
++++ b/paper-server/src/main/java/io/papermc/paper/adventure/ImprovedChatDecorator.java
+@@ -1,10 +1,10 @@
+ package io.papermc.paper.adventure;
+ 
++import gr1mly4memes.felt.mod.server.FeltServer;
+ import io.papermc.paper.event.player.AsyncChatCommandDecorateEvent;
+ import io.papermc.paper.event.player.AsyncChatDecorateEvent;
+ import java.util.concurrent.CompletableFuture;
+ import net.minecraft.commands.CommandSourceStack;
+-import net.minecraft.network.chat.ChatDecorator;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.level.ServerPlayer;
+@@ -14,19 +14,17 @@
+ import org.checkerframework.framework.qual.DefaultQualifier;
+ 
+ @DefaultQualifier(NonNull.class)
+-public final class ImprovedChatDecorator implements ChatDecorator {
++public final class ImprovedChatDecorator {
+     private final MinecraftServer server;
+ 
+     public ImprovedChatDecorator(final MinecraftServer server) {
+         this.server = server;
+     }
+ 
+-    @Override
+     public CompletableFuture<Component> decorate(final @Nullable ServerPlayer sender, final Component message) {
+         return decorate(this.server, sender, null, message);
+     }
+ 
+-    @Override
+     public CompletableFuture<Component> decorate(final @Nullable ServerPlayer sender, final @Nullable CommandSourceStack commandSourceStack, final Component message) {
+         return decorate(this.server, sender, commandSourceStack, message);
+     }
+@@ -50,6 +48,6 @@
+             }
+ 
+             return originalMessage;
+-        }, server.chatExecutor);
++        }, FeltServer.getChatExecutor());
+     }
+ }

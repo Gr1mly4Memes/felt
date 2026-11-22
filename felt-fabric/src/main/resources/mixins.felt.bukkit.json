@@ -1,10 +1,10 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "gr1mly4memes.felt.common.mixin.bukkit",
+  "package": "gr1mly4memes.felt.mixin.bukkit",
   "target": "@env(DEFAULT)",
   "setSourceFile": true,
-  "plugin": "gr1mly4memes.felt.common.mod.FeltMixinPlugin",
+  "plugin": "gr1mly4memes.felt.mod.FeltMixinPlugin",
   "injectors": {
     "defaultRequire": 1
   },

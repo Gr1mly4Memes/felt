@@ -1,0 +1,33 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/registry/data/util/Conversions.java b/paper-server/src/main/java/io/papermc/paper/registry/data/util/Conversions.java
+--- a/paper-server/src/main/java/io/papermc/paper/registry/data/util/Conversions.java
++++ b/paper-server/src/main/java/io/papermc/paper/registry/data/util/Conversions.java
+@@ -29,7 +29,12 @@
+         if (globalInstance == null) {
+             final RegistryAccess globalAccess = CraftRegistry.getMinecraftRegistry();
+             Preconditions.checkState(globalAccess != null, "Global registry access is not available");
+-            globalInstance = new Conversions(new RegistryOps.HolderLookupAdapter(globalAccess));
++            globalInstance = new Conversions(new RegistryOps.RegistryInfoLookup() {
++                @Override
++                public <T> java.util.Optional<net.minecraft.core.HolderGetter<T>> lookup(final ResourceKey<? extends Registry<? extends T>> registryKey) {
++                    return globalAccess.lookup(registryKey).map(registry -> registry);
++                }
++            });
+         }
+         return globalInstance;
+     }
+@@ -95,8 +100,13 @@
+         final RegistryEntryMeta.Buildable<M, A, B> buildableMeta
+     ) {
+         final ResourceKey<? extends Registry<M>> resourceRegistryKey = PaperRegistries.registryToNms(registryKey);
+-        final HolderLookup.RegistryLookup<M> lookupForBuilders = this.lookup.lookupForValueCopyViaBuilders().lookupOrThrow(resourceRegistryKey);
+-        return new PaperRegistryBuilderFactory<>(resourceRegistryKey, this, buildableMeta.builderFiller(), lookupForBuilders::getValueForCopying);
++        final net.minecraft.core.HolderGetter<M> lookupForBuilders = this.lookup.lookup(resourceRegistryKey).orElseThrow();
++        return new PaperRegistryBuilderFactory<>(resourceRegistryKey, this, buildableMeta.builderFiller(), key -> lookupForBuilders.get(key).map(holder -> {
++            if (!holder.isBound()) {
++                throw new UnsupportedOperationException("Copying unbound registry entries is not supported: " + key);
++            }
++            return holder.value();
++        }));
+     }
+ 
+ }

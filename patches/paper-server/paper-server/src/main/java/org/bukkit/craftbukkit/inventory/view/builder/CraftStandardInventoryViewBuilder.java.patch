@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/view/builder/CraftStandardInventoryViewBuilder.java b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/view/builder/CraftStandardInventoryViewBuilder.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/view/builder/CraftStandardInventoryViewBuilder.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/view/builder/CraftStandardInventoryViewBuilder.java
+@@ -16,7 +16,7 @@
+ 
+     @Override
+     protected AbstractContainerMenu buildContainer(final ServerPlayer player) {
+-        return super.handle.create(player.nextContainerCounter(), player.getInventory());
++        return super.handle.create(((gr1mly4memes.felt.bridge.core.server.level.ServerPlayerBridge) player).bridge$nextContainerCounter(), player.getInventory());
+     }
+ 
+     @Override

@@ -1,0 +1,11 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftWitch.java b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftWitch.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftWitch.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftWitch.java
+@@ -38,6 +38,6 @@
+ 
+     public void setDrinkingPotion(ItemStack potion) {
+         Preconditions.checkArgument(potion == null || potion.getType().isEmpty() || potion.getType() == Material.POTION, "must be potion, air, or null");
+-        this.getHandle().setDrinkingPotion(CraftItemStack.asNMSCopy(potion));
++        throw new UnsupportedOperationException("Starting witch potion drinking through the API is not supported by Felt yet");
+     }
+ }

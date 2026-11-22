@@ -21,7 +21,7 @@ import java.lang.reflect.Modifier;
 public class InventoryImplementer implements Implementer {
 
     private static final Marker MARKER = MarkerManager.getMarker("INVENTORY");
-    private static final String BRIDGE_TYPE = "gr1mly4memes/felt/common/bridge/core/world/IInventoryBridge";
+    private static final String BRIDGE_TYPE = "gr1mly4memes/felt/bridge/core/world/IInventoryBridge";
 
     private static final String MAX_STACK_SIZE_METHOD_NAME = "getMaxStackSize";
 
@@ -52,7 +52,7 @@ public class InventoryImplementer implements Implementer {
             }
 
             Implementer.LOGGER.debug(MARKER, "Implementing inventory for class {}", node.name);
-            FieldNode maxStack = new FieldNode(Opcodes.ACC_PRIVATE, "arclight$maxStack", Type.getType(Integer.class).getDescriptor(), null, null);
+            FieldNode maxStack = new FieldNode(Opcodes.ACC_PRIVATE, "felt$maxStack", Type.getType(Integer.class).getDescriptor(), null, null);
             node.fields.add(maxStack);
             node.interfaces.add(BRIDGE_TYPE);
             InsnList list = new InsnList();

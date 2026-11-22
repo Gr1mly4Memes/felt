@@ -1,0 +1,42 @@
+package gr1mly4memes.felt.mixin.core.server.commands;
+
+import gr1mly4memes.felt.bridge.core.server.level.ServerLevelBridge;
+import gr1mly4memes.felt.bridge.core.world.level.storage.DerivedLevelDataBridge;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.commands.DifficultyCommand;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.Difficulty;
+import net.minecraft.world.level.storage.LevelData;
+import net.minecraft.world.level.storage.WorldData;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Redirect;
+
+/** Retain the native query/feedback/duplicate guard; route only its set read and write to the source world's owner. */
+@Mixin(DifficultyCommand.class)
+public abstract class DifficultyCommandMixin {
+
+    @Redirect(method = "setDifficulty", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;getWorldData()Lnet/minecraft/world/level/storage/WorldData;"))
+    private static WorldData felt$sourceDifficultyRead(MinecraftServer server, CommandSourceStack source, Difficulty difficulty) {
+        return felt$owner(source.getLevel());
+    }
+
+    @Redirect(method = "setDifficulty", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;setDifficulty(Lnet/minecraft/world/Difficulty;Z)V"))
+    private static void felt$sourceDifficultyWrite(MinecraftServer server, Difficulty difficulty, boolean ignoreLock, CommandSourceStack source, Difficulty requested) {
+        ((gr1mly4memes.felt.bridge.core.server.MinecraftServerBridge) server)
+            .bridge$setDifficulty(source.getLevel(), difficulty, source, ignoreLock);
+    }
+
+    private static WorldData felt$owner(ServerLevel level) {
+        LevelData data = level.getLevelData();
+        if (data instanceof WorldData worldData) {
+            return worldData;
+        }
+        if (data instanceof DerivedLevelDataBridge derived) {
+            return derived.bridge$getWorldData();
+        }
+        // Match CraftWorld's unknown-adapter fallback instead of writing the global data.
+        return ((ServerLevelBridge) level).bridge$getPrimaryLevelData();
+    }
+}

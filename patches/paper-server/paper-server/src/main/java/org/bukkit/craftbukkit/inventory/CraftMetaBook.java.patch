@@ -1,0 +1,98 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaBook.java b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaBook.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaBook.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaBook.java
+@@ -3,7 +3,6 @@
+ import com.google.common.base.Preconditions;
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.ImmutableMap;
+-import com.google.common.collect.Lists;
+ import java.util.AbstractList;
+ import java.util.ArrayList;
+ import java.util.Arrays;
+@@ -40,9 +39,10 @@
+     // For writable books (CraftMetaBook) the pages are stored as plain Strings.
+     protected List<String> pages; // null and empty are two different states internally
+ 
+-    CraftMetaBook(CraftMetaItem meta) {
++    public CraftMetaBook(CraftMetaItem meta) {
+         super(meta);
+ 
++        this.promoteUnhandledContent();
+         if (meta instanceof CraftMetaBook) {
+             CraftMetaBook bookMeta = (CraftMetaBook) meta;
+ 
+@@ -55,10 +55,12 @@
+             CraftMetaBookSigned bookMeta = (CraftMetaBookSigned) meta;
+ 
+             if (bookMeta.pages != null) {
+-                this.pages = new ArrayList<>(bookMeta.pages.size());
++                this.pages = new ArrayList<>(Math.min(bookMeta.pages.size(), CraftMetaBook.MAX_PAGES));
+ 
+-                // Convert from JSON to plain Strings:
+-                this.pages.addAll(Lists.transform(bookMeta.pages, CraftChatMessage::fromComponent));
++                // Writable book content can only store bounded Strings, not rich pages.
++                for (int i = 0; i < Math.min(bookMeta.pages.size(), CraftMetaBook.MAX_PAGES); i++) {
++                    this.pages.add(this.validatePage(CraftChatMessage.fromComponent(bookMeta.pages.get(i))));
++                }
+             }
+         }
+     }
+@@ -66,24 +68,30 @@
+     CraftMetaBook(DataComponentPatch patch, java.util.Set<net.minecraft.core.component.DataComponentType<?>> extraHandledComponents) {
+         super(patch, extraHandledComponents);
+ 
+-        getOrEmpty(patch, CraftMetaBook.BOOK_CONTENT).ifPresent((bookContent) -> {
+-            List<Filterable<String>> pages = bookContent.pages();
+-            this.pages = new ArrayList<>(pages.size());
++        getOrEmpty(patch, CraftMetaBook.BOOK_CONTENT).ifPresent(this::readContent);
++    }
+ 
+-            // Note: We explicitly check for and truncate oversized books and pages,
+-            // because they can come directly from clients when handling book edits.
+-            for (int i = 0; i < Math.min(pages.size(), CraftMetaBook.MAX_PAGES); i++) {
+-                String page = pages.get(i).raw();
+-                page = this.validatePage(page);
++    private void readContent(WritableBookContent bookContent) {
++        List<Filterable<String>> pages = bookContent.pages();
++        this.pages = new ArrayList<>(Math.min(pages.size(), CraftMetaBook.MAX_PAGES));
+ 
+-                this.pages.add(page);
+-            }
++        // Content can come directly from clients when handling book edits.
++        for (int i = 0; i < Math.min(pages.size(), CraftMetaBook.MAX_PAGES); i++) {
++            this.pages.add(this.validatePage(pages.get(i).raw()));
++        }
++    }
++
++    private void promoteUnhandledContent() {
++        getOrEmpty(this.unhandledTags.build(), CraftMetaBook.BOOK_CONTENT).ifPresent(bookContent -> {
++            this.readContent(bookContent);
++            this.unhandledTags.map.remove(CraftMetaBook.BOOK_CONTENT.TYPE);
+         });
+     }
+ 
+     CraftMetaBook(Map<String, Object> map) {
+         super(map);
+ 
++        this.promoteUnhandledContent();
+         Iterable<?> pages = SerializableMeta.getObject(Iterable.class, map, CraftMetaBook.BOOK_PAGES.BUKKIT, true);
+         if (pages != null) {
+             this.pages = new ArrayList<>();
+@@ -202,7 +210,7 @@
+         if (data == null) {
+             data = net.kyori.adventure.text.Component.empty();
+         }
+-        this.pages.set(page - 1, net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().serialize(data));
++        this.pages.set(page - 1, this.validatePage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().serialize(data)));
+     }
+ 
+     @Override
+@@ -239,7 +247,7 @@
+                 page = net.kyori.adventure.text.Component.empty();
+             }
+ 
+-            this.pages.add(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().serialize(page));
++            this.pages.add(this.validatePage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().serialize(page)));
+         }
+     }
+ 

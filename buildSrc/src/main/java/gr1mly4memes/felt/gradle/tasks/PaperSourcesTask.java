@@ -20,10 +20,10 @@ import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.TaskAction;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -33,7 +33,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -123,13 +122,12 @@ public abstract class PaperSourcesTask extends DefaultTask {
         }
     }
 
+    // Non-POSIX file systems (NTFS on Windows) have no execute bit: File#setExecutable(false, ...) always fails there
+    // and Files#isExecutable reports every file as executable, so execute bits are neither written nor recorded.
+    private static final boolean POSIX = FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
     private static void executable(Path path, boolean value) {
-        boolean windows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win");
-        if (value) {
-            if (!path.toFile().setExecutable(true, false)) throw new GradleException("Cannot set source permissions: " + path);
-        } else if (!windows && !path.toFile().setExecutable(false, false)) {
-            throw new GradleException("Cannot set source permissions: " + path);
-        }
+        if (!POSIX) return;
+        if (!path.toFile().setExecutable(value, false)) throw new GradleException("Cannot set source permissions: " + path);
     }
 
     private static Map<String, Content> snapshot(Path directory, Group group) throws Exception {
@@ -141,7 +139,7 @@ public abstract class PaperSourcesTask extends DefaultTask {
                 if (Files.isSymbolicLink(path)) throw new GradleException("Source symlink: " + path);
                 if (!Files.isRegularFile(path)) continue;
                 allowed(name, group);
-                result.put(name, new Content(HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path))), Files.isExecutable(path)));
+                result.put(name, new Content(HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path))), POSIX && Files.isExecutable(path)));
             }
         }
         return result;
@@ -158,8 +156,7 @@ public abstract class PaperSourcesTask extends DefaultTask {
                 name = name.substring(0, name.length() - 6);
                 allowed(name, group);
                 Patch parsed = new Patch();
-                String rawPatch = Files.readString(file).replace("\r\n", "\n");
-                try (var in = new ByteArrayInputStream(rawPatch.getBytes(StandardCharsets.UTF_8))) { parsed.parse(in); }
+                try (var in = Files.newInputStream(file)) { parsed.parse(in); }
                 if (!parsed.getErrors().isEmpty() || parsed.getFiles().size() != 1) throw new GradleException("Invalid single-file patch: " + file);
                 FileHeader header = parsed.getFiles().getFirst();
                 for (String target : List.of(header.getOldPath(), header.getNewPath())) {
@@ -185,7 +182,7 @@ public abstract class PaperSourcesTask extends DefaultTask {
             Path content = tmp.resolve("content");
             Files.write(content, add ? new byte[0] : Files.readAllBytes(target));
             if (!patch.header.getHunks().isEmpty()) {
-                String raw = Files.readString(patch.file).replace("\r\n", "\n");
+                String raw = Files.readString(patch.file);
                 int begin = raw.indexOf("--- ");
                 if (begin < 0) throw new GradleException("Missing unified headers: " + patch.file);
                 Path normalized = tmp.resolve("change.patch");
@@ -193,6 +190,10 @@ public abstract class PaperSourcesTask extends DefaultTask {
                 var reports = ContextualPatch.create(normalized.toFile(), content.toFile()).patch(false);
                 if (reports.size() != 1 || reports.getFirst().getStatus() != ContextualPatch.PatchStatus.Patched || !reports.getFirst().getFile().equals(content.toFile())) {
                     throw new GradleException("Cannot apply " + patch.file, reports.isEmpty() ? null : reports.getFirst().getFailure());
+                }
+                // diff4j writes patched files with the platform line.separator; keep LF so Windows matches other platforms.
+                if (!"\n".equals(System.lineSeparator()) && Files.exists(content)) {
+                    Files.writeString(content, Files.readString(content, StandardCharsets.ISO_8859_1).replace(System.lineSeparator(), "\n"), StandardCharsets.ISO_8859_1);
                 }
             }
             if (delete) Files.delete(target);
@@ -283,7 +284,9 @@ public abstract class PaperSourcesTask extends DefaultTask {
                 if (added) header += "new file mode " + newMode + "\n";
                 else if (deleted) header += "deleted file mode " + oldMode + "\n";
                 else if (!oldMode.equals(newMode)) header += "old mode " + oldMode + "\nnew mode " + newMode + "\n";
-                String unified = diff.toUnifiedDiff(added ? "/dev/null" : "a/" + name, deleted ? "/dev/null" : "b/" + name, new StringReader(before), new StringReader(after), 3);
+                // diff4j ends lines with the platform line.separator (CRLF on Windows); patch files always use LF.
+                String unified = diff.toUnifiedDiff(added ? "/dev/null" : "a/" + name, deleted ? "/dev/null" : "b/" + name, new StringReader(before), new StringReader(after), 3)
+                        .replace(System.lineSeparator(), "\n");
                 Files.writeString(patch, header + unified, StandardCharsets.UTF_8);
             }
             check(upstream, manifest, group, generated, work);

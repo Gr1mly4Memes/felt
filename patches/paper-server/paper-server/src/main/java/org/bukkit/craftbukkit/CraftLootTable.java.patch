@@ -1,0 +1,14 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftLootTable.java b/paper-server/src/main/java/org/bukkit/craftbukkit/CraftLootTable.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftLootTable.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/CraftLootTable.java
+@@ -91,8 +91,8 @@
+         CraftInventory craftInventory = (CraftInventory) inventory;
+         Container handle = craftInventory.getInventory();
+ 
+-        // TODO: When events are added, call event here w/ custom reason?
+-        this.getHandle().fill(handle, nmsContext, random == null ? null : new RandomSourceWrapper(random), true);
++        gr1mly4memes.felt.bridge.core.world.level.storage.loot.LootTableBridge bridge = this.getHandle();
++        bridge.bridge$fillInventory(handle, nmsContext, random == null ? null : new RandomSourceWrapper(random), true);
+     }
+ 
+     @Override

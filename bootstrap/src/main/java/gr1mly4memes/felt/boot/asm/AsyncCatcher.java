@@ -3,8 +3,6 @@ package gr1mly4memes.felt.boot.asm;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import gr1mly4memes.felt.i18n.FeltConfig;
-import gr1mly4memes.felt.i18n.conf.AsyncCatcherSpec;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
 import org.objectweb.asm.Handle;
@@ -34,6 +32,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Modifier;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -54,9 +53,11 @@ public class AsyncCatcher implements Implementer {
     private static final String LAMBDA_METAFACTORY_METHOD = Type.getMethodDescriptor(Type.getType(CallSite.class), Type.getType(MethodHandles.Lookup.class), Type.getType(String.class), Type.getType(MethodType.class), Type.getType(MethodType.class), getType(MethodHandle.class), Type.getType(MethodType.class));
     private static final Handle LAMBDA_BOOTSTRAP_HANDLE = new Handle(Opcodes.H_INVOKESTATIC, Type.getInternalName(LambdaMetafactory.class), "metafactory", LAMBDA_METAFACTORY_METHOD, false);
 
-    private final boolean dump;
-    private final boolean warn;
-    private final AsyncCatcherSpec.Operation defaultOp;
+    private static String defaultOperation = "BLOCK";
+    private static boolean dump = true;
+    private static boolean warn = true;
+    private static Map<String, String> overrides = Map.of();
+
     private final Map<String, Map<String, String>> reasons;
 
     public AsyncCatcher() {
@@ -66,9 +67,13 @@ public class AsyncCatcher implements Implementer {
             new TypeToken<Map<String, Map<String, String>>>() {
             }.getType()
         );
-        this.defaultOp = FeltConfig.spec().getAsyncCatcher().getDefaultOp();
-        this.dump = FeltConfig.spec().getAsyncCatcher().isDump();
-        this.warn = FeltConfig.spec().getAsyncCatcher().isWarn();
+    }
+
+    public static void configure(String defaultOperation, boolean dump, boolean warn, Map<String, String> overrides) {
+        AsyncCatcher.defaultOperation = defaultOperation;
+        AsyncCatcher.dump = dump;
+        AsyncCatcher.warn = warn;
+        AsyncCatcher.overrides = overrides;
     }
 
     @Override
@@ -93,17 +98,17 @@ public class AsyncCatcher implements Implementer {
 
     private void injectCheck(ClassNode node, MethodNode methodNode, String reason) {
         Implementer.LOGGER.debug(MARKER, "Injecting {}/{}{} for reason {}", node.name, methodNode.name, methodNode.desc, reason);
-        AsyncCatcherSpec.Operation operation = FeltConfig.spec().getAsyncCatcher().getOverrides().getOrDefault(reason, defaultOp);
+        String operation = overrides.getOrDefault(reason, defaultOperation);
         InsnList insnList = new InsnList();
         LabelNode labelNode = new LabelNode(new Label());
         LabelNode labelNode1 = new LabelNode(new Label());
-        insnList.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "gr1mly4memes/felt/common/mod/server/FeltServer", "isPrimaryThread", "()Z"));
+        insnList.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "gr1mly4memes/felt/mod/server/FeltServer", "isPrimaryThread", "()Z"));
         insnList.add(new JumpInsnNode(Opcodes.IFNE, labelNode));
         instantiateCallback(node, methodNode, insnList);
-        insnList.add(new FieldInsnNode(Opcodes.GETSTATIC, Type.getType(AsyncCatcherSpec.Operation.class).getInternalName(), operation.name(), Type.getType(AsyncCatcherSpec.Operation.class).getDescriptor()));
+        insnList.add(new LdcInsnNode(operation));
         insnList.add(new LdcInsnNode(reason));
-        insnList.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "gr1mly4memes/felt/common/mod/server/FeltServer", "getMainThreadExecutor", "()Ljava/util/concurrent/Executor;", false));
-        insnList.add(new MethodInsnNode(Opcodes.INVOKESTATIC, Type.getType(AsyncCatcher.class).getInternalName(), "checkOp", "(Ljava/util/function/Supplier;Lgr1mly4memes/felt/i18n/conf/AsyncCatcherSpec$Operation;Ljava/lang/String;Ljava/util/concurrent/Executor;)Lorg/spongepowered/asm/mixin/injection/callback/CallbackInfoReturnable;"));
+        insnList.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "gr1mly4memes/felt/mod/server/FeltServer", "getMainThreadExecutor", "()Ljava/util/concurrent/Executor;", false));
+        insnList.add(new MethodInsnNode(Opcodes.INVOKESTATIC, Type.getType(AsyncCatcher.class).getInternalName(), "checkOp", "(Ljava/util/function/Supplier;Ljava/lang/String;Ljava/lang/String;Ljava/util/concurrent/Executor;)Lorg/spongepowered/asm/mixin/injection/callback/CallbackInfoReturnable;"));
         Type returnType = Type.getMethodType(methodNode.desc).getReturnType();
         boolean hasReturn = !returnType.equals(Type.VOID_TYPE);
         if (hasReturn) {
@@ -194,20 +199,20 @@ public class AsyncCatcher implements Implementer {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> CallbackInfoReturnable<T> checkOp(Supplier<T> method, AsyncCatcherSpec.Operation operation, String reason, Executor executor) throws Throwable {
-        if (INSTANCE.warn) {
+    public static <T> CallbackInfoReturnable<T> checkOp(Supplier<T> method, String operation, String reason, Executor executor) throws Throwable {
+        if (warn) {
             Implementer.LOGGER.warn(MARKER, "Async " + reason);
         }
         IllegalStateException exception = new IllegalStateException("Asynchronous " + reason + "!");
-        if (INSTANCE.dump) {
+        if (dump) {
             Implementer.LOGGER.debug(MARKER, "Async " + reason, exception);
         }
-        switch (operation) {
-            case NONE:
+        switch (operation.toUpperCase(Locale.ROOT)) {
+            case "NONE":
                 return (CallbackInfoReturnable<T>) NOOP;
-            case EXCEPTION:
+            case "EXCEPTION":
                 throw exception;
-            case BLOCK: {
+            case "BLOCK": {
                 CallbackInfoReturnable<T> cir = new CallbackInfoReturnable<>(reason, true);
                 CompletableFuture<T> future = CompletableFuture.supplyAsync(method, executor);
                 try {
@@ -221,7 +226,7 @@ public class AsyncCatcher implements Implementer {
                 }
                 return cir;
             }
-            case DISPATCH: {
+            case "DISPATCH": {
                 executor.execute(method::get);
                 CallbackInfoReturnable<T> cir = new CallbackInfoReturnable<>(reason, true);
                 cir.cancel();

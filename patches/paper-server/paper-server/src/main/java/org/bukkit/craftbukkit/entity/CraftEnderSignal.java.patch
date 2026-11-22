@@ -1,0 +1,24 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftEnderSignal.java b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftEnderSignal.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftEnderSignal.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftEnderSignal.java
+@@ -36,7 +36,19 @@
+     public void setTargetLocation(Location location, boolean update) {
+         // Paper end - Change EnderEye target without changing other things
+         Preconditions.checkArgument(this.getWorld().equals(location.getWorld()), "Cannot target EnderSignal across worlds");
+-        this.getHandle().signalTo(CraftLocation.toVec3(location), update); // Paper - Change EnderEye target without changing other things
++        EyeOfEnder handle = this.getHandle();
++        net.minecraft.world.phys.Vec3 target = CraftLocation.toVec3(location);
++        if (update) {
++            handle.signalTo(target);
++            return;
++        }
++        net.minecraft.world.phys.Vec3 delta = target.subtract(handle.position());
++        double horizontalDistance = delta.horizontalDistance();
++        if (horizontalDistance > 12.0) {
++            handle.target = handle.position().add(delta.x / horizontalDistance * 12.0, 8.0, delta.z / horizontalDistance * 12.0);
++        } else {
++            handle.target = target;
++        }
+     }
+ 
+     @Override

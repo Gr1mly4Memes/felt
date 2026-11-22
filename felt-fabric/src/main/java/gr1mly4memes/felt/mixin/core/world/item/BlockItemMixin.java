@@ -1,0 +1,93 @@
+package gr1mly4memes.felt.mixin.core.world.item;
+
+import gr1mly4memes.felt.bridge.core.server.level.ServerPlayerBridge;
+import gr1mly4memes.felt.bridge.core.world.level.LevelAccessorBridge;
+import gr1mly4memes.felt.mod.util.DistValidate;
+import gr1mly4memes.felt.mod.server.event.FeltEventFactory;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import net.minecraft.world.level.Level;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.PlaceOnWaterBlockItem;
+import net.minecraft.world.item.SolidBucketItem;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.block.state.BlockState;
+import org.bukkit.Bukkit;
+import org.bukkit.craftbukkit.block.CraftBlock;
+import org.bukkit.craftbukkit.block.CraftBlockStates;
+import org.bukkit.craftbukkit.block.data.CraftBlockData;
+import org.bukkit.craftbukkit.event.CraftEventFactory;
+import org.bukkit.entity.Player;
+import org.bukkit.event.block.BlockCanBuildEvent;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
+
+@Mixin(BlockItem.class)
+public abstract class BlockItemMixin {
+
+    // @formatter:off
+    @Shadow protected abstract boolean mustSurvive();
+    // @formatter:on
+
+    private transient org.bukkit.block.BlockState felt$state;
+
+    @WrapMethod(method = "place(Lnet/minecraft/world/item/context/BlockPlaceContext;)Lnet/minecraft/world/InteractionResult;")
+    private InteractionResult felt$signPlacement(BlockPlaceContext context, Operation<InteractionResult> original) {
+        return FeltEventFactory.placeSign(context, original);
+    }
+
+    @WrapOperation(method = "place(Lnet/minecraft/world/item/context/BlockPlaceContext;)Lnet/minecraft/world/InteractionResult;",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;setPlacedBy(Lnet/minecraft/world/level/Level;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/item/ItemStack;)V"))
+    private void felt$signTag(net.minecraft.world.level.block.Block block, Level level, BlockPos pos,
+                                     BlockState state, net.minecraft.world.entity.LivingEntity placer,
+                                     net.minecraft.world.item.ItemStack stack, Operation<Void> original) {
+        FeltEventFactory.tagSign(block, level, pos, state, placer, stack, original);
+    }
+
+    @Inject(method = "place", locals = LocalCapture.CAPTURE_FAILHARD,
+        at = @At(value = "INVOKE", shift = At.Shift.AFTER, target = "Lnet/minecraft/world/item/BlockItem;getPlacementState(Lnet/minecraft/world/item/context/BlockPlaceContext;)Lnet/minecraft/world/level/block/state/BlockState;"))
+    private void felt$prePlaceLilypad(BlockPlaceContext context, CallbackInfoReturnable<InteractionResult> cir, BlockPlaceContext context1) {
+        if ((Object) this instanceof PlaceOnWaterBlockItem || (Object) this instanceof SolidBucketItem) {
+            this.felt$state = CraftBlockStates.getBlockState(context1.getLevel(), context1.getClickedPos());
+        }
+    }
+
+    @Inject(method = "place", locals = LocalCapture.CAPTURE_FAILHARD, cancellable = true,
+        at = @At(value = "INVOKE", shift = At.Shift.AFTER, target = "Lnet/minecraft/world/level/block/Block;setPlacedBy(Lnet/minecraft/world/level/Level;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/item/ItemStack;)V"))
+    private void felt$postPlaceLilypad(BlockPlaceContext context, CallbackInfoReturnable<InteractionResult> cir, BlockPlaceContext context1) {
+        org.bukkit.block.BlockState state = felt$state;
+        felt$state = null;
+        BlockPos pos = context1.getClickedPos();
+        if (LevelAccessorBridge.from(context1.getLevel()) instanceof LevelAccessorBridge bridge && state != null) {
+            org.bukkit.event.block.BlockPlaceEvent placeEvent = CraftEventFactory.callBlockPlaceEvent(bridge.bridge$getMinecraftWorld(), context1.getPlayer(), context1.getHand(), state, pos);
+            if (placeEvent != null && (placeEvent.isCancelled() || !placeEvent.canBuild())) {
+                state.update(true, false);
+                if ((Object) this instanceof SolidBucketItem) {
+                    ((ServerPlayerBridge) context1.getPlayer()).bridge$getBukkitEntity().updateInventory();
+                }
+                cir.setReturnValue(InteractionResult.FAIL);
+            }
+        }
+    }
+
+    @Inject(method = "place", at = @At("RETURN"))
+    private void felt$cleanup(BlockPlaceContext context, CallbackInfoReturnable<InteractionResult> cir) {
+        this.felt$state = null;
+    }
+
+    @Inject(method = "canPlace", cancellable = true, at = @At("RETURN"))
+    private void felt$blockCanBuild(BlockPlaceContext context, BlockState state, CallbackInfoReturnable<Boolean> cir) {
+        Player player = (context.getPlayer() instanceof ServerPlayerBridge) ? ((ServerPlayerBridge) context.getPlayer()).bridge$getBukkitEntity() : null;
+        BlockCanBuildEvent event = new BlockCanBuildEvent(CraftBlock.at(context.getLevel(), context.getClickedPos()), player, CraftBlockData.createData(state), cir.getReturnValue());
+        if (DistValidate.isValid(context)) Bukkit.getPluginManager().callEvent(event);
+        cir.setReturnValue(event.isBuildable());
+    }
+}

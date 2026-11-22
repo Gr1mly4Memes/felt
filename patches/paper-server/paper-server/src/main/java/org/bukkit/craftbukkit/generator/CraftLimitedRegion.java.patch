@@ -1,0 +1,15 @@
+diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/generator/CraftLimitedRegion.java b/paper-server/src/main/java/org/bukkit/craftbukkit/generator/CraftLimitedRegion.java
+--- a/paper-server/src/main/java/org/bukkit/craftbukkit/generator/CraftLimitedRegion.java
++++ b/paper-server/src/main/java/org/bukkit/craftbukkit/generator/CraftLimitedRegion.java
+@@ -285,8 +285,9 @@
+         }
+ 
+         BlockPos pos = new BlockPos(x, y, z);
+-        if (!state.getBlockData().matches(this.getHandle().getBlockState(pos).asBlockData())) {
+-            throw new IllegalArgumentException("BlockData does not match! Expected " + state.getBlockData().getAsString(false) + ", got " + getHandle().getBlockState(pos).asBlockData().getAsString(false));
++        org.bukkit.block.data.BlockData actual = org.bukkit.craftbukkit.block.data.CraftBlockData.createData(this.getHandle().getBlockState(pos));
++        if (!state.getBlockData().matches(actual)) {
++            throw new IllegalArgumentException("BlockData does not match! Expected " + state.getBlockData().getAsString(false) + ", got " + actual.getAsString(false));
+         }
+ 
+         BlockEntity entity = this.getHandle().getBlockEntity(pos);

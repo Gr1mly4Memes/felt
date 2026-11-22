@@ -1,14 +1,15 @@
 package io.papermc.paper.entity.activation;
 
 import net.minecraft.core.BlockPos;
-import gr1mly4memes.felt.common.bridge.core.entity.EntityBridge;
-import gr1mly4memes.felt.common.bridge.core.world.level.WorldBridge;
-import gr1mly4memes.felt.common.bridge.core.world.entity.MobBridge;
-import gr1mly4memes.felt.common.bridge.core.world.entity.ai.goal.GoalSelectorBridge;
-import gr1mly4memes.felt.common.bridge.core.server.MinecraftServerBridge;
+import gr1mly4memes.felt.bridge.core.entity.EntityBridge;
+import gr1mly4memes.felt.bridge.core.world.level.WorldBridge;
+import gr1mly4memes.felt.bridge.core.world.entity.MobBridge;
+import gr1mly4memes.felt.bridge.core.world.entity.ai.goal.GoalSelectorBridge;
+import gr1mly4memes.felt.bridge.core.server.MinecraftServerBridge;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.LightningBolt;
 import net.minecraft.world.entity.LivingEntity;
@@ -55,10 +56,10 @@ public final class ActivationRange {
     }
 
     static Activity[] VILLAGER_PANIC_IMMUNITIES = {
-        Activity.HIDE,
-        Activity.PRE_RAID,
-        Activity.RAID,
-        Activity.PANIC
+            Activity.HIDE,
+            Activity.PRE_RAID,
+            Activity.RAID,
+            Activity.PANIC
     };
 
     private static int checkInactiveWakeup(final Entity entity) {
@@ -100,27 +101,27 @@ public final class ActivationRange {
      */
     public static boolean initializeEntityActivationState(final Entity entity, final SpigotWorldConfig config) {
         return (((EntityBridge) entity).bridge$getActivationType() == ActivationType.MISC && config.miscActivationRange <= 0)
-            || (((EntityBridge) entity).bridge$getActivationType() == ActivationType.RAIDER && config.raiderActivationRange <= 0)
-            || (((EntityBridge) entity).bridge$getActivationType() == ActivationType.ANIMAL && config.animalActivationRange <= 0)
-            || (((EntityBridge) entity).bridge$getActivationType() == ActivationType.MONSTER && config.monsterActivationRange <= 0)
-            || (((EntityBridge) entity).bridge$getActivationType() == ActivationType.VILLAGER && config.villagerActivationRange <= 0)
-            || (((EntityBridge) entity).bridge$getActivationType() == ActivationType.WATER && config.waterActivationRange <= 0)
-            || (((EntityBridge) entity).bridge$getActivationType() == ActivationType.FLYING_MONSTER && config.flyingMonsterActivationRange <= 0)
-            || entity instanceof EyeOfEnder
-            || entity instanceof Player
-            || entity instanceof ThrowableProjectile
-            || entity instanceof EnderDragon
-            || entity instanceof EnderDragonPart
-            || entity instanceof WitherBoss
-            || entity instanceof AbstractHurtingProjectile
-            || entity instanceof LightningBolt
-            || entity instanceof PrimedTnt
-            || entity instanceof FallingBlockEntity
-            || entity instanceof AbstractMinecart
-            || entity instanceof AbstractBoat
-            || entity instanceof EndCrystal
-            || entity instanceof FireworkRocketEntity
-            || entity instanceof ThrownTrident;
+                || (((EntityBridge) entity).bridge$getActivationType() == ActivationType.RAIDER && config.raiderActivationRange <= 0)
+                || (((EntityBridge) entity).bridge$getActivationType() == ActivationType.ANIMAL && config.animalActivationRange <= 0)
+                || (((EntityBridge) entity).bridge$getActivationType() == ActivationType.MONSTER && config.monsterActivationRange <= 0)
+                || (((EntityBridge) entity).bridge$getActivationType() == ActivationType.VILLAGER && config.villagerActivationRange <= 0)
+                || (((EntityBridge) entity).bridge$getActivationType() == ActivationType.WATER && config.waterActivationRange <= 0)
+                || (((EntityBridge) entity).bridge$getActivationType() == ActivationType.FLYING_MONSTER && config.flyingMonsterActivationRange <= 0)
+                || entity instanceof EyeOfEnder
+                || entity instanceof Player
+                || entity instanceof ThrowableProjectile
+                || entity instanceof EnderDragon
+                || entity instanceof EnderDragonPart
+                || entity instanceof WitherBoss
+                || entity instanceof AbstractHurtingProjectile
+                || entity instanceof LightningBolt
+                || entity instanceof PrimedTnt
+                || entity instanceof FallingBlockEntity
+                || entity instanceof AbstractMinecart
+                || entity instanceof AbstractBoat
+                || entity instanceof EndCrystal
+                || entity instanceof FireworkRocketEntity
+                || entity instanceof ThrownTrident;
     }
 
     /**
@@ -237,10 +238,10 @@ public final class ActivationRange {
                 return 20;
             }
             if (entity instanceof final Bee bee) {
-                final BlockPos movingTarget = ((gr1mly4memes.felt.common.bridge.core.world.entity.PathfinderMobBridge) bee).bridge$getMovingTarget();
+                final BlockPos movingTarget = ((gr1mly4memes.felt.bridge.core.world.entity.PathfinderMobBridge) bee).bridge$getMovingTarget();
                 if (bee.isAngry() ||
-                    (bee.getHivePos() != null && bee.getHivePos().equals(movingTarget)) ||
-                    (bee.getSavedFlowerPos() != null && bee.getSavedFlowerPos().equals(movingTarget))
+                        (bee.getHivePos() != null && bee.getHivePos().equals(movingTarget)) ||
+                        (bee.getSavedFlowerPos() != null && bee.getSavedFlowerPos().equals(movingTarget))
                 ) {
                     return 20;
                 }
@@ -332,9 +333,9 @@ public final class ActivationRange {
     }
 
     private static Set<EntityType<?>> ENTITIES_THAT_FLY = Set.of(
-        EntityType.GHAST,
-        EntityType.HAPPY_GHAST,
-        EntityType.PHANTOM
+            EntityTypes.GHAST,
+            EntityTypes.HAPPY_GHAST,
+            EntityTypes.PHANTOM
     );
 
     private static boolean isEntityThatFlies(final Entity entity) {

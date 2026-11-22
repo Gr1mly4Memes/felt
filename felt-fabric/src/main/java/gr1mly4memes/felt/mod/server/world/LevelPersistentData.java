@@ -1,0 +1,44 @@
+package gr1mly4memes.felt.mod.server.world;
+
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import gr1mly4memes.felt.mod.FeltConstants;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.saveddata.SavedDataType;
+import org.bukkit.craftbukkit.CraftWorld;
+
+public class LevelPersistentData extends SavedData {
+
+    public static final Codec<LevelPersistentData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+        CompoundTag.CODEC.optionalFieldOf("BukkitValues", new CompoundTag()).forGetter(LevelPersistentData::getBukkitValues)
+    ).apply(instance, LevelPersistentData::new));
+
+    public static final SavedDataType<LevelPersistentData> TYPE = new SavedDataType<>(Identifier.withDefaultNamespace("bukkit_pdc"), LevelPersistentData::new, CODEC, FeltConstants.BUKKIT_PDC);
+
+    private CompoundTag tag;
+
+    public LevelPersistentData() {
+        this(new CompoundTag());
+    }
+
+    public LevelPersistentData(CompoundTag tag) {
+        this.tag = tag == null ? new CompoundTag() : tag;
+    }
+
+    public CompoundTag getTag() {
+        return tag;
+    }
+
+    private CompoundTag getBukkitValues() {
+        return this.tag;
+    }
+
+    public void save(CraftWorld world) {
+        var root = new CompoundTag();
+        world.storeBukkitValues(root);
+        this.tag = root.getCompound("BukkitValues").orElseGet(CompoundTag::new);
+        this.setDirty();
+    }
+}

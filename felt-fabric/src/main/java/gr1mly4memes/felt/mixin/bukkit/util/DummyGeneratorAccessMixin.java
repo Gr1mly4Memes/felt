@@ -10,16 +10,17 @@ import org.spongepowered.asm.mixin.Mixin;
 public class DummyGeneratorAccessMixin implements IWorldWriterBridge {
     @Override
     public boolean bridge$addEntity(Entity entity, CreatureSpawnEvent.SpawnReason reason) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        // DummyLevelAccessor has no real world to add entities to; report failure so callers handle it.
+        return false;
     }
 
     @Override
     public void bridge$pushAddEntityReason(CreatureSpawnEvent.SpawnReason reason) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        // No-op: there is no spawn-reason tracking on the dummy accessor.
     }
 
     @Override
     public CreatureSpawnEvent.SpawnReason bridge$getAddEntityReason() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return null;
     }
 }

@@ -238,11 +238,11 @@ public final class FeatureHooks {
     }
 
     public static io.papermc.paper.world.chunk.ChunkGenerationState getChunkGenerationState(final net.minecraft.server.level.ServerLevel level, final int chunkX, final int chunkZ) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        return ((gr1mly4memes.felt.bridge.core.server.level.ChunkMapBridge) level.getChunkSource().chunkMap).bridge$getChunkGenerationState(chunkX, chunkZ);
     }
 
     public static java.util.concurrent.CompletableFuture<io.papermc.paper.world.chunk.ChunkGenerationState> getChunkGenerationStateAsync(final net.minecraft.server.level.ServerLevel level, final int chunkX, final int chunkZ) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        return ((gr1mly4memes.felt.bridge.core.server.level.ChunkMapBridge) level.getChunkSource().chunkMap).bridge$getChunkGenerationStateAsync(chunkX, chunkZ);
     }
 
     public static void flushAsyncAppenders() {

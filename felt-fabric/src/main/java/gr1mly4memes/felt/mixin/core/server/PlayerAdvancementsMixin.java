@@ -6,6 +6,8 @@ import gr1mly4memes.felt.bridge.core.entity.EntityBridge;
 import gr1mly4memes.felttools.mixin.Decorate;
 import gr1mly4memes.felttools.mixin.DecorationOps;
 import gr1mly4memes.felttools.mixin.Local;
+import io.papermc.paper.event.player.PlayerAdvancementCriterionRevokeEvent;
+import io.papermc.paper.event.player.PlayerAdvancementRevokeEvent;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementProgress;
 import net.minecraft.server.PlayerAdvancements;
@@ -41,5 +43,28 @@ public class PlayerAdvancementsMixin {
         at = @At(value = "INVOKE", target = "Lnet/minecraft/advancements/AdvancementRewards;grant(Lnet/minecraft/server/level/ServerPlayer;)V"))
     public void felt$callEvent(AdvancementHolder advancementHolder, String criterionKey, CallbackInfoReturnable<Boolean> cir) {
         Bukkit.getPluginManager().callEvent(new org.bukkit.event.player.PlayerAdvancementDoneEvent((Player) this.player.bridge$getBukkitEntity(), ((AdvancementHolderBridge) (Object) advancementHolder).bridge$getBukkit()));
+    }
+
+    @Decorate(method = "revoke(Lnet/minecraft/advancements/AdvancementHolder;Ljava/lang/String;)Z", require = 1, allow = 1,
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/advancements/AdvancementProgress;revokeProgress(Ljava/lang/String;)Z"))
+    private boolean felt$criterionRevoke(AdvancementProgress progress, String criterion,
+                                          @Local(ordinal = 0) AdvancementHolder holder) throws Throwable {
+        boolean revoked = (boolean) DecorationOps.callsite().invoke(progress, criterion);
+        if (revoked && !new PlayerAdvancementCriterionRevokeEvent((Player) this.player.bridge$getBukkitEntity(),
+            ((AdvancementHolderBridge) (Object) holder).bridge$getBukkit(), criterion).callEvent()) {
+            // Match Paper: undo the raw revoke before listener registration, dirty tracking and visibility side effects.
+            progress.grantProgress(criterion);
+            return (boolean) DecorationOps.cancel().invoke(false);
+        }
+        return revoked;
+    }
+
+    @Decorate(method = "revoke(Lnet/minecraft/advancements/AdvancementHolder;Ljava/lang/String;)Z", require = 1, allow = 1,
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/server/PlayerAdvancements;markForVisibilityUpdate(Lnet/minecraft/advancements/AdvancementHolder;)V"))
+    private void felt$advancementRevoke(PlayerAdvancements self, AdvancementHolder advancement) throws Throwable {
+        // markForVisibilityUpdate is only reached when the advancement transitioned from done to not-done.
+        new PlayerAdvancementRevokeEvent((Player) this.player.bridge$getBukkitEntity(),
+            ((AdvancementHolderBridge) (Object) advancement).bridge$getBukkit()).callEvent();
+        DecorationOps.callsite().invoke(self, advancement);
     }
 }

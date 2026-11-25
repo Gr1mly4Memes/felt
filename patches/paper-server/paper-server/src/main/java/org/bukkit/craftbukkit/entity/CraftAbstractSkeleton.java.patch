@@ -6,12 +6,12 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftAbstr
      @Override
      public boolean shouldBurnInDay() {
 -        return getHandle().shouldBurnInDay();
-+        throw new UnsupportedOperationException("Independent skeleton daylight burning control is not supported by Felt yet");
++        return ((gr1mly4memes.felt.bridge.core.entity.PaperEntityStateBridge)this.getHandle()).bridge$burnInDay();
      }
  
      @Override
      public void setShouldBurnInDay(boolean shouldBurnInDay) {
 -        getHandle().setShouldBurnInDay(shouldBurnInDay);
-+        throw new UnsupportedOperationException("Independent skeleton daylight burning control is not supported by Felt yet");
++        ((gr1mly4memes.felt.bridge.core.entity.PaperEntityStateBridge)this.getHandle()).bridge$setBurnInDay(shouldBurnInDay);
      }
  }

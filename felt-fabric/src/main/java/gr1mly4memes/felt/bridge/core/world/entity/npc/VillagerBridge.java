@@ -9,6 +9,7 @@ import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.jetbrains.annotations.Nullable;
 
 public interface VillagerBridge {
+    boolean bridge$addTrades(int amount);
 
     @Nullable
     ZombieVillager bridge$zombify(ServerLevel level, BlockPos blockPosition, boolean silent, CreatureSpawnEvent.SpawnReason spawnReason);

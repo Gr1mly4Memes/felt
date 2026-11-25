@@ -27,39 +27,36 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftEntit
      }
  
      public static net.minecraft.world.entity.Relative deltaRelativeToNMS(TeleportFlag.Relative apiFlag) {
-@@ -438,7 +440,10 @@
+@@ -438,7 +440,7 @@
      @Override
      public void setVisualFire(final TriState fire) {
          Preconditions.checkArgument(fire != null, "TriState cannot be null");
 -        this.getHandle().visualFire = fire;
-+        if (fire == TriState.FALSE) {
-+            throw new UnsupportedOperationException("Forced visual fire suppression is not supported by Felt yet");
-+        }
-+        this.getHandle().hasVisualFire = fire == TriState.TRUE;
++        ((gr1mly4memes.felt.bridge.core.entity.PaperEntityStateBridge)this.getHandle()).bridge$setVisualFire(fire);
      }
  
      @Override
-@@ -448,7 +453,7 @@
+@@ -448,7 +450,7 @@
  
      @Override
      public TriState getVisualFire() {
 -        return this.getHandle().visualFire;
-+        return this.getHandle().hasVisualFire ? TriState.TRUE : TriState.NOT_SET;
++        return ((gr1mly4memes.felt.bridge.core.entity.PaperEntityStateBridge)this.getHandle()).bridge$visualFire();
      }
  
      @Override
-@@ -475,23 +480,23 @@
+@@ -475,23 +477,23 @@
  
      @Override
      public boolean isFreezeTickingLocked() {
 -        return this.entity.freezeLocked;
-+        throw new UnsupportedOperationException("Freeze ticking locks are not supported by Felt yet");
++        return ((gr1mly4memes.felt.bridge.core.entity.PaperEntityStateBridge)this.getHandle()).bridge$freezeLocked();
      }
  
      @Override
      public void lockFreezeTicks(boolean locked) {
 -        this.entity.freezeLocked = locked;
-+        throw new UnsupportedOperationException("Freeze ticking locks are not supported by Felt yet");
++        ((gr1mly4memes.felt.bridge.core.entity.PaperEntityStateBridge)this.getHandle()).bridge$setFreezeLocked(locked);
      }
  
      @Override
@@ -77,7 +74,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftEntit
      }
  
      @Override
-@@ -1135,7 +1140,7 @@
+@@ -1135,7 +1137,7 @@
                  this.getHandle().registryAccess()
              );
  
@@ -86,7 +83,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftEntit
              this.getHandle().saveWithoutId(tagValueOutput);
  
              return tagValueOutput.buildResult();
-@@ -1144,35 +1149,17 @@
+@@ -1144,35 +1146,17 @@
  
      // re-sends the spawn entity packet to updated values which cannot be updated otherwise
      protected void update() {
@@ -128,7 +125,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftEntit
      }
  
      private static PermissibleBase getPermissibleBase() {
-@@ -1200,28 +1187,7 @@
+@@ -1200,28 +1184,30 @@
          Preconditions.checkArgument(location.getWorld() != null, "Target world cannot be null");
          Preconditions.checkState(!this.entity.generation, "Cannot teleport entity to an other world during world generation");
          location.checkFinite();
@@ -150,15 +147,37 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftEntit
 -                        MinecraftServer.LOGGER.error("Failed to teleport entity {}", CraftEntity.this, throwable);
 -                        ret.completeExceptionally(throwable);
 -                    }
--                });
++        Location destination = location.clone();
++        ServerLevel world = ((CraftWorld)destination.getWorld()).getHandle();
++        CompletableFuture<Boolean> result = new CompletableFuture<>();
++        var box = ((gr1mly4memes.felt.bridge.core.entity.EntityBridge)this.getHandle()).bridge$getBoundingBoxAt(destination.getX(), destination.getY(), destination.getZ());
++        int minX = (net.minecraft.util.Mth.floor(box.minX - 1.0E-7) - 3) >> 4;
++        int minZ = (net.minecraft.util.Mth.floor(box.minZ - 1.0E-7) - 3) >> 4;
++        int maxX = (net.minecraft.util.Mth.floor(box.maxX + 1.0E-7) + 3) >> 4;
++        int maxZ = (net.minecraft.util.Mth.floor(box.maxZ + 1.0E-7) + 3) >> 4;
++        try {
++            ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)world).moonrise$loadChunksAsync(
++                minX, maxX, minZ, maxZ,
++                this instanceof CraftPlayer ? ca.spottedleaf.concurrentutil.util.Priority.HIGHER : ca.spottedleaf.concurrentutil.util.Priority.NORMAL,
++                chunks -> {
++                    for (var chunk : chunks) world.getChunkSource().addTicket(
++                        new net.minecraft.server.level.Ticket(gr1mly4memes.felt.mod.server.world.FeltChunkTickets.POST_TELEPORT, net.minecraft.server.level.ChunkLevel.FULL_CHUNK_LEVEL), chunk.getPos());
++                    ((gr1mly4memes.felt.bridge.core.server.MinecraftServerBridge)world.getServer()).scheduleOnMain(() -> {
++                        try { result.complete(CraftEntity.this.teleport0(destination, cause, teleportFlags)); }
++                        catch (Throwable failure) { result.completeExceptionally(failure); }
++                    });
+                 });
 -            });
 -
 -        return ret;
-+        throw new UnsupportedOperationException("Asynchronous teleportation is not supported by Felt yet");
++        } catch (Throwable failure) {
++            result.completeExceptionally(failure);
++        }
++        return result;
      }
      // Paper end - more teleport API / async chunk API
  
-@@ -1250,26 +1216,17 @@
+@@ -1250,26 +1236,17 @@
  
      @Override
      public Location getOrigin() {
@@ -172,23 +191,23 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftEntit
 -        }
 -
 -        return CraftVector.toBukkit(this.getHandle().origin).toLocation(world);
-+        throw new UnsupportedOperationException("Entity origin tracking is not supported");
++        return ((gr1mly4memes.felt.bridge.core.entity.PaperEntityStateBridge)this.getHandle()).bridge$origin();
      }
  
      @Override
      public boolean fromMobSpawner() {
 -        return this.getHandle().spawnedViaMobSpawner;
-+        throw new UnsupportedOperationException("Persistent mob spawner origin tracking is not supported");
++        return ((gr1mly4memes.felt.bridge.core.entity.PaperEntityStateBridge)this.getHandle()).bridge$fromSpawner();
      }
  
      @Override
      public org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason getEntitySpawnReason() {
 -        return this.getHandle().spawnReason;
-+        throw new UnsupportedOperationException("Initial entity spawn reason tracking is not supported");
++        return ((gr1mly4memes.felt.bridge.core.entity.InitialSpawnReasonBridge)this.getHandle()).bridge$initialSpawnReason();
      }
  
      @Override
-@@ -1289,7 +1246,8 @@
+@@ -1289,7 +1266,8 @@
  
      @Override
      public boolean isTicking() {
@@ -198,7 +217,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftEntit
      }
  
      @Override
-@@ -1314,10 +1272,10 @@
+@@ -1314,10 +1292,10 @@
          this.entity.setLevel(((CraftWorld) location.getWorld()).getHandle());
          this.entity.setPos(location.getX(), location.getY(), location.getZ());
          this.entity.setRot(location.getYaw(), location.getPitch());

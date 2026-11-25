@@ -7,6 +7,7 @@ import com.llamalad7.mixinextras.sugar.Cancellable;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import gr1mly4memes.felt.mod.server.event.FeltEventFactory;
+import gr1mly4memes.felt.bridge.core.world.entity.SpawningEntityBridge;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -33,6 +34,7 @@ public abstract class FireworkRocketItemPlayerLaunchEventMixin {
             // Native non-player context has no PlayerEvent. Preserve that path without inventing a shooter.
             return original.call(projectile, level, stack);
         }
+        ((SpawningEntityBridge) projectile).bridge$setSpawningEntity(player.getUUID());
         FeltEventFactory.prepareProjectileLaunch(projectile, player, stack, event::set);
         Projectile spawned;
         try {

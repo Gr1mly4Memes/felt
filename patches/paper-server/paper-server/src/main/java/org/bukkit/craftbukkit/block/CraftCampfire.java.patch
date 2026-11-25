@@ -1,44 +1,44 @@
 diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/block/CraftCampfire.java b/paper-server/src/main/java/org/bukkit/craftbukkit/block/CraftCampfire.java
 --- a/paper-server/src/main/java/org/bukkit/craftbukkit/block/CraftCampfire.java
 +++ b/paper-server/src/main/java/org/bukkit/craftbukkit/block/CraftCampfire.java
-@@ -67,35 +67,29 @@
+@@ -67,21 +67,19 @@
  
      @Override
      public void stopCooking() {
 -        for (int i = 0; i < this.getSnapshot().stopCooking.length; ++i)
 -            this.stopCooking(i);
-+        throw new UnsupportedOperationException("Campfire cooking suspension is not supported");
++        java.util.Arrays.fill(((gr1mly4memes.felt.bridge.core.world.level.block.entity.CampfireControlBridge)this.getSnapshot()).bridge$stoppedCooking(), true);
      }
  
      @Override
      public void startCooking() {
 -        for (int i = 0; i < this.getSnapshot().stopCooking.length; ++i)
 -            this.startCooking(i);
-+        throw new UnsupportedOperationException("Campfire cooking suspension is not supported");
++        java.util.Arrays.fill(((gr1mly4memes.felt.bridge.core.world.level.block.entity.CampfireControlBridge)this.getSnapshot()).bridge$stoppedCooking(), false);
      }
  
      @Override
      public boolean stopCooking(int index) {
          requireRange(index, "index", 0, 3);
--        boolean previous = this.isCookingDisabled(index);
+         boolean previous = this.isCookingDisabled(index);
 -        this.getSnapshot().stopCooking[index] = true;
--        return previous;
-+        throw new UnsupportedOperationException("Campfire cooking suspension is not supported");
++        ((gr1mly4memes.felt.bridge.core.world.level.block.entity.CampfireControlBridge)this.getSnapshot()).bridge$stoppedCooking()[index] = true;
+         return previous;
      }
  
-     @Override
+@@ -89,13 +87,13 @@
      public boolean startCooking(int index) {
          requireRange(index, "index", 0, 3);
--        boolean previous = this.isCookingDisabled(index);
+         boolean previous = this.isCookingDisabled(index);
 -        this.getSnapshot().stopCooking[index] = false;
--        return previous;
-+        throw new UnsupportedOperationException("Campfire cooking suspension is not supported");
++        ((gr1mly4memes.felt.bridge.core.world.level.block.entity.CampfireControlBridge)this.getSnapshot()).bridge$stoppedCooking()[index] = false;
+         return previous;
      }
  
      @Override
      public boolean isCookingDisabled(int index) {
          requireRange(index, "index", 0, 3);
 -        return this.getSnapshot().stopCooking[index];
-+        throw new UnsupportedOperationException("Campfire cooking suspension is not supported");
++        return ((gr1mly4memes.felt.bridge.core.world.level.block.entity.CampfireControlBridge)this.getSnapshot()).bridge$stoppedCooking()[index];
      }
  }

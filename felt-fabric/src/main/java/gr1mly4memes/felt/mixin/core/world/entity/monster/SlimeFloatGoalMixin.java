@@ -18,6 +18,7 @@ public abstract class SlimeFloatGoalMixin {
 
     @Decorate(method = "canUse()Z", at = @At("RETURN"), require = 1, expect = 1, allow = 1)
     private void felt$swimEvent(boolean canUse) throws Throwable {
+        canUse &= ((gr1mly4memes.felt.bridge.core.world.entity.monster.CubeMobControlBridge)this.cubeMob).bridge$canWander();
         // Goal.canContinueToUse() delegates to this same canUse().
         if (canUse) {
             SlimeSwimEvent event = new SlimeSwimEvent(

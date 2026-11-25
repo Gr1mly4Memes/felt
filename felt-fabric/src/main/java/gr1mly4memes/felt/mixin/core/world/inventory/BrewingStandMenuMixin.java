@@ -19,7 +19,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(BrewingStandMenu.class)
-public abstract class BrewingStandMenuMixin extends AbstractContainerMenuMixin {
+public abstract class BrewingStandMenuMixin extends AbstractContainerMenuMixin implements gr1mly4memes.felt.bridge.core.world.inventory.BrewingStandMenuBridge {
+    @org.spongepowered.asm.mixin.gen.Accessor("brewingStandData")
+    public abstract ContainerData bridge$brewingData();
 
     // @formatter:off
     @Shadow @Final private Container brewingStand;

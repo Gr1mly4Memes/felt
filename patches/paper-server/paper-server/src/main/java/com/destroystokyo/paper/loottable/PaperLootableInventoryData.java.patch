@@ -6,7 +6,7 @@ diff --git a/paper-server/src/main/java/com/destroystokyo/paper/loottable/PaperL
          @Override
          public WorldConfiguration paperConfig(final RandomizableContainer holder) {
 -            return Objects.requireNonNull(holder.getLevel(), "Can only manager loot replenishment on block entities in a world").paperConfig();
-+            throw new UnsupportedOperationException("Loot replenishment is not supported by Felt yet");
++            return ((gr1mly4memes.felt.bridge.core.world.level.WorldBridge)holder.getLevel()).bridge$paperConfig();
          }
  
          @Override
@@ -15,7 +15,7 @@ diff --git a/paper-server/src/main/java/com/destroystokyo/paper/loottable/PaperL
          @Override
          public LootableInventory getInventoryForEvent(final RandomizableContainer holder) {
 -            return holder.getLootableInventory();
-+            throw new UnsupportedOperationException("Loot replenishment is not supported by Felt yet");
++            return (LootableInventory)org.bukkit.craftbukkit.block.CraftBlock.at(holder.getLevel(), holder.getBlockPos()).getState(false);
          }
      };
  
@@ -23,7 +23,7 @@ diff --git a/paper-server/src/main/java/com/destroystokyo/paper/loottable/PaperL
          @Override
          public WorldConfiguration paperConfig(final ContainerEntity holder) {
 -            return holder.level().paperConfig();
-+            throw new UnsupportedOperationException("Loot replenishment is not supported by Felt yet");
++            return ((gr1mly4memes.felt.bridge.core.world.level.WorldBridge)holder.level()).bridge$paperConfig();
          }
  
          @Override
@@ -32,7 +32,7 @@ diff --git a/paper-server/src/main/java/com/destroystokyo/paper/loottable/PaperL
          @Override
          public LootableInventory getInventoryForEvent(final ContainerEntity holder) {
 -            return holder.getLootableInventory();
-+            throw new UnsupportedOperationException("Loot replenishment is not supported by Felt yet");
++            return (LootableInventory)((net.minecraft.world.entity.Entity)holder).getBukkitEntity();
          }
      };
  

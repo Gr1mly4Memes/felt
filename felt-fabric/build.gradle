@@ -7,18 +7,25 @@ loom {
 }
 
 sourceSets.main {
-    java.srcDir rootProject.layout.buildDirectory.dir('paper-patched/paper-server/paper-server/src/main/java')
-    java.srcDir rootProject.layout.buildDirectory.dir('paper-patched/paper-server/paper-server/src/generated/java')
+    java.srcDir rootProject.file('upstream/Paper/paper-server/src/main/java')
+    java.srcDir rootProject.file('upstream/Paper/paper-server/src/generated/java')
+    // Minecraft itself remains supplied by Loom; every Paper-owned server class is
+    // compiled from the editable upstream checkout.
+    java.exclude 'net/minecraft/**'
     resources {
-        srcDir rootProject.layout.buildDirectory.dir('paper-patched/paper-server/paper-server/src/main/resources')
+        srcDir rootProject.file('upstream/Paper/paper-server/src/main/resources')
         // The pinned upstream retains these obsolete descriptors without their service types/providers.
         // Keep the actual plugin, lifecycle, registry and Adventure providers from the patched server tree.
         exclude 'META-INF/services/io.papermc.paper.command.brigadier.CommandBuilderProvider'
         exclude 'META-INF/services/io.papermc.paper.world.flag.FeatureFlags$FeatureFlagProvider'
     }
 }
-tasks.named('compileJava') { dependsOn rootProject.tasks.named('applyPaperPatches') }
-tasks.named('processResources') { dependsOn rootProject.tasks.named('applyPaperPatches') }
+tasks.named('compileJava') { dependsOn rootProject.tasks.named('verifyPaperUpstream') }
+tasks.named('processResources') { dependsOn rootProject.tasks.named('verifyPaperUpstream') }
+tasks.named('processResources') {
+    dependsOn project(':bootstrap').tasks.named('fabricAsyncCatcher')
+    from(project(':bootstrap').layout.buildDirectory.dir('fabric_async_catcher'))
+}
 
 configurations {
     mixinProcessorSupport
@@ -62,6 +69,12 @@ dependencies {
     implementation "ca.spottedleaf.leafpile:concurrentutil"
     implementation "ca.spottedleaf.leafpile:converter"
     implementation "ca.spottedleaf.leafpile:ioutil"
+    // Native Moonrise needs these at runtime; development's implementation classpath
+    // does not make them part of the common.jar embedded by the server launcher.
+    shadowBundle platform("ca.spottedleaf.leafpile:bom:${leafpile_version}")
+    ['common', 'concurrentutil', 'converter', 'ioutil'].each { module ->
+        shadowBundle("ca.spottedleaf.leafpile:${module}") { transitive = false }
+    }
     implementation "org.jline:jline-terminal-ffm:${jline_terminal_ffm_version}"
 
     implementation "net.minecrell:terminalconsoleappender:${terminal_console_appender_version}"
@@ -70,6 +83,7 @@ dependencies {
     implementation "net.md-5:SpecialSource:${special_source_version}"
     implementation "org.apache.logging.log4j:log4j-jul:${log4j_version}"
     implementation "com.mysql:mysql-connector-j:${mysql_connector_j_version}"
+    runtimeOnly "org.xerial:sqlite-jdbc:${sqlite_jdbc_version}"
     implementation "org.yaml:snakeyaml:${snakeyaml_version}"
 
     implementation "me.lucko:spark-api:${spark_api_version}"
@@ -94,11 +108,11 @@ processResources {
     filesMatching('fabric.mod.json') {
         expand 'version': ver
     }
-    from(rootProject.layout.buildDirectory.dir('paper-patched/paper-server')) {
+    from(rootProject.file('upstream/Paper')) {
         include 'LICENSE.md', 'licenses/**'
         into 'META-INF/paper-server'
     }
-    from(rootProject.layout.buildDirectory.dir('paper-patched/paper-server/paper-server/src/main/resources/data/minecraft/datapacks/paper')) {
+    from(rootProject.file('upstream/Paper/paper-server/src/main/resources/data/minecraft/datapacks/paper')) {
         include 'data/paper/chat_type/raw.json'
     }
 }
@@ -112,6 +126,35 @@ shadowJar {
 
 // The bootstrap embeds the shadow JAR, not Loom's standard jar output.
 loom.nestJars(tasks.named('shadowJar'), configurations.named('include'))
+
+def verifyMoonriseDistribution = tasks.register('verifyMoonriseDistribution') {
+    group = 'verification'
+    description = 'Verify every Leafpile runtime class is included in the distributed common jar.'
+    dependsOn tasks.named('shadowJar')
+    inputs.file(tasks.named('shadowJar').flatMap { it.archiveFile })
+    doLast {
+        def artifacts = configurations.shadowBundle.resolvedConfiguration.resolvedArtifacts.findAll {
+            it.moduleVersion.id.group == 'ca.spottedleaf.leafpile'
+        }
+        def expectedModules = ['common', 'concurrentutil', 'converter', 'ioutil'] as Set
+        if (artifacts.collect { it.name }.toSet() != expectedModules) {
+            throw new GradleException('The Moonrise distribution must include all four Leafpile runtime modules')
+        }
+        new java.util.zip.ZipFile(tasks.named('shadowJar').get().archiveFile.get().asFile).withCloseable { distribution ->
+            artifacts.each { artifact ->
+                new java.util.zip.ZipFile(artifact.file).withCloseable { library ->
+                    library.entries().each { entry ->
+                        if (entry.name.endsWith('.class') && !entry.name.endsWith('module-info.class')
+                            && distribution.getEntry(entry.name) == null) {
+                            throw new GradleException("Missing packaged Moonrise runtime class: ${entry.name}")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+tasks.named('check') { dependsOn verifyMoonriseDistribution }
 
 tasks.register('srgJar', Jar) {
     from(tasks.shadowJar.outputs.files.collect { it.isDirectory() ? it : zipTree(it) }) {
@@ -130,5 +173,151 @@ tasks.register('srgJar', Jar) {
 }
 
 sourcesJar {
-    dependsOn rootProject.tasks.named('applyPaperPatches')
+    dependsOn rootProject.tasks.named('verifyPaperUpstream')
 }
+
+// Official-name Loom builds use ordinary dependency configurations. Explicitly
+// expose runtime mod jars to Fabric's development launcher as mod candidates.
+tasks.matching { it.name == 'runServer' || it.name == 'runClient' }.configureEach {
+    doFirst {
+        def modJars = configurations.runtimeClasspath.files.findAll { dependency ->
+            if (!dependency.name.endsWith('.jar')) return false
+            new java.util.zip.ZipFile(dependency).withCloseable { zip -> zip.getEntry('fabric.mod.json') != null }
+        }
+        systemProperty 'fabric.addMods', modJars.collect { it.absolutePath }.join(File.pathSeparator)
+    }
+}
+
+sourceSets {
+    antiXrayVerification {
+        java.srcDir 'src/verification/java'
+        compileClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
+        runtimeClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
+    }
+}
+
+tasks.register('testAntiXraySerialization', JavaExec) {
+    group = 'verification'
+    description = 'Verify anti-xray packet storage round-trips all section positions.'
+    dependsOn tasks.named('antiXrayVerificationClasses')
+    classpath = sourceSets.antiXrayVerification.runtimeClasspath
+    mainClass = 'gr1mly4memes.felt.AntiXraySerializationTest'
+}
+
+def testAsyncPacketGate = tasks.register('testAsyncPacketGate', JavaExec) {
+    group = 'verification'
+    description = 'Verify asynchronous chunk packets preserve network ordering and release failed writes.'
+    dependsOn tasks.named('antiXrayVerificationClasses')
+    classpath = sourceSets.antiXrayVerification.runtimeClasspath
+    mainClass = 'gr1mly4memes.felt.AsyncPacketSendGateTest'
+}
+tasks.named('check') { dependsOn testAsyncPacketGate }
+
+def testPaperPlatformService = tasks.register('testPaperPlatformService', JavaExec) {
+    group = 'verification'
+    description = 'Verify the Paper Moonrise platform service descriptor resolves to its compiled provider.'
+    dependsOn tasks.named('antiXrayVerificationClasses')
+    classpath = sourceSets.antiXrayVerification.runtimeClasspath
+    mainClass = 'gr1mly4memes.felt.PaperPlatformServiceTest'
+}
+tasks.named('check') { dependsOn testPaperPlatformService }
+
+def testMoonriseSchedulingPrimitives = tasks.register('testMoonriseSchedulingPrimitives', JavaExec) {
+    group = 'verification'
+    description = 'Verify native Moonrise priorities, execution ownership and unload ordering.'
+    dependsOn tasks.named('antiXrayVerificationClasses')
+    classpath = sourceSets.antiXrayVerification.runtimeClasspath
+    mainClass = 'gr1mly4memes.felt.MoonriseSchedulingPrimitivesTest'
+}
+tasks.named('check') { dependsOn testMoonriseSchedulingPrimitives }
+
+def testMoonriseTicketPropagation = tasks.register('testMoonriseTicketPropagation', JavaExec) {
+    group = 'verification'
+    description = 'Verify native Moonrise ticket propagation against a distance oracle and concurrent updates.'
+    dependsOn tasks.named('antiXrayVerificationClasses')
+    classpath = sourceSets.antiXrayVerification.runtimeClasspath
+    mainClass = 'gr1mly4memes.felt.MoonriseTicketPropagationTest'
+    timeout = Duration.ofMinutes(2)
+}
+tasks.named('check') { dependsOn testMoonriseTicketPropagation }
+
+def testMoonriseRegionFileIO = tasks.register('testMoonriseRegionFileIO', JavaExec) {
+    group = 'verification'
+    description = 'Verify native Moonrise storage ordering, cancellation, failure retention and concurrent compression.'
+    dependsOn tasks.named('antiXrayVerificationClasses')
+    classpath = sourceSets.antiXrayVerification.runtimeClasspath
+    mainClass = 'gr1mly4memes.felt.MoonriseRegionFileIOTest'
+    timeout = Duration.ofMinutes(2)
+}
+tasks.named('check') { dependsOn testMoonriseRegionFileIO }
+
+def testMoonriseRegionFiles = tasks.register('testMoonriseRegionFiles', JavaExec) {
+    group = 'verification'
+    description = 'Verify native Moonrise operations against real region files, including cache eviction and header recovery.'
+    dependsOn tasks.named('antiXrayVerificationClasses')
+    classpath = sourceSets.antiXrayVerification.runtimeClasspath
+    mainClass = 'gr1mly4memes.felt.MoonriseRegionFilesTest'
+    timeout = Duration.ofMinutes(2)
+}
+tasks.named('check') { dependsOn testMoonriseRegionFiles }
+
+def moonriseStorageVerificationMod = tasks.register('moonriseStorageVerificationMod', Jar) {
+    dependsOn tasks.named('antiXrayVerificationClasses')
+    archiveClassifier = 'moonrise-storage-verification'
+    from sourceSets.antiXrayVerification.output
+    from 'src/verification/moonrise-mod'
+}
+
+loom.runs {
+    moonriseStorageVerification {
+        server()
+        configName = 'Moonrise storage verification'
+        runDir = 'build/run_moonrise_storage_verification'
+        programArgs '--help'
+    }
+    moonriseTicketVerification {
+        server()
+        configName = 'Moonrise ticket verification'
+        runDir = 'build/run_moonrise_ticket_verification'
+        programArgs '--help'
+    }
+    moonriseWorldVerification {
+        server()
+        configName = 'Moonrise live world verification'
+        runDir = 'build/run_moonrise_world_verification'
+        programArgs '--help'
+    }
+    moonriseTerrainVerification {
+        server()
+        configName = 'Moonrise normal terrain verification'
+        runDir = 'build/run_moonrise_terrain_verification'
+        programArgs '--help'
+    }
+}
+
+def nativeMixinVerification = tasks.matching { it.name in ['runMoonriseStorageVerification', 'runMoonriseTicketVerification', 'runMoonriseWorldVerification', 'runMoonriseTerrainVerification'] }
+nativeMixinVerification.configureEach {
+    group = 'verification'
+    description = 'Verify native Moonrise operations inside Fabric with the actual mixins applied.'
+    dependsOn moonriseStorageVerificationMod
+    timeout = Duration.ofMinutes(2)
+    doFirst {
+        def modJars = configurations.runtimeClasspath.files.findAll { dependency ->
+            if (!dependency.name.endsWith('.jar')) return false
+            new java.util.zip.ZipFile(dependency).withCloseable { zip -> zip.getEntry('fabric.mod.json') != null }
+        }
+        modJars += moonriseStorageVerificationMod.get().archiveFile.get().asFile
+        systemProperty 'fabric.addMods', modJars.collect { it.absolutePath }.join(File.pathSeparator)
+    }
+}
+tasks.named('runMoonriseTicketVerification') { systemProperty 'felt.verify.tickets', 'true' }
+tasks.named('runMoonriseWorldVerification') {
+    systemProperty 'felt.verify.world', 'true'
+    timeout = Duration.ofMinutes(4)
+}
+tasks.named('runMoonriseTerrainVerification') {
+    systemProperty 'felt.verify.world', 'true'
+    systemProperty 'felt.verify.noise', 'true'
+    timeout = Duration.ofMinutes(4)
+}
+tasks.named('check') { dependsOn nativeMixinVerification }

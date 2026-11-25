@@ -1,5 +1,6 @@
 package gr1mly4memes.felt.mixin.core.server.level;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import gr1mly4memes.felt.bridge.core.server.level.ServerEntityBridge;
 import gr1mly4memes.felt.bridge.core.server.level.ServerPlayerBridge;
 import gr1mly4memes.felt.mod.FeltConstants;
@@ -49,6 +50,7 @@ public abstract class ServerEntityMixin implements ServerEntityBridge {
 
     @Unique private Set<ServerPlayerConnection> trackedPlayers;
     @Unique private int lastTick;
+    @Unique private boolean felt$forceStateResync;
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void felt$init(ServerLevel level, Entity entity, UpdateInterval updateInterval, boolean trackDelta, ServerEntity.Synchronizer synchronizer, CallbackInfo ci) {
@@ -70,6 +72,29 @@ public abstract class ServerEntityMixin implements ServerEntityBridge {
     @Override
     public void bridge$setTrackedPlayers(Set<ServerPlayerConnection> trackedPlayers) {
         this.trackedPlayers = trackedPlayers;
+    }
+
+    @Inject(method = "addPairing", at = @At("RETURN"))
+    private void felt$resyncAfterPairing(CallbackInfo ci) {
+        this.felt$forceStateResync = true;
+    }
+
+    @ModifyExpressionValue(method = "sendChanges", at = @At(value = "FIELD", opcode = Opcodes.GETFIELD,
+        target = "Lnet/minecraft/world/entity/Entity;needsSync:Z", ordinal = 0))
+    private boolean felt$updateAfterPairing(boolean needsSync) {
+        return this.felt$forceStateResync || needsSync;
+    }
+
+    @ModifyExpressionValue(method = "createMovePacket", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/world/entity/Entity;getRequiresPrecisePosition()Z"))
+    private boolean felt$syncAbsolutePosition(boolean precise) {
+        return this.felt$forceStateResync || precise;
+    }
+
+    @Inject(method = "sendChanges", at = @At(value = "FIELD", opcode = Opcodes.PUTFIELD,
+        target = "Lnet/minecraft/world/entity/Entity;needsSync:Z", shift = At.Shift.AFTER))
+    private void felt$finishPairingSync(CallbackInfo ci) {
+        this.felt$forceStateResync = false;
     }
 
     /**

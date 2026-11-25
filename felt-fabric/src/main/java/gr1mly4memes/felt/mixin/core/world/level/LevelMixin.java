@@ -121,6 +121,18 @@ public abstract class LevelMixin implements WorldBridge, gr1mly4memes.felt.bridg
     public Map<BlockPos, BlockEntity> capturedTileEntities = new HashMap<>();
 
     @Unique private boolean felt$isActual;
+    @Unique private io.papermc.paper.antixray.ChunkPacketBlockController felt$chunkPacketController;
+
+    @Override
+    public io.papermc.paper.antixray.ChunkPacketBlockController bridge$chunkPacketBlockController() {
+        if (this.bridge$paperConfig() == null || !this.bridge$paperConfig().anticheat.antiXray.enabled) {
+            return io.papermc.paper.antixray.ChunkPacketBlockController.NO_OPERATION_INSTANCE;
+        }
+        if (this.felt$chunkPacketController == null) {
+            this.felt$chunkPacketController = gr1mly4memes.felt.mod.server.world.FeltAntiXray.createController((Level) (Object) this);
+        }
+        return this.felt$chunkPacketController;
+    }
     @Unique private final gr1mly4memes.felt.mod.util.TreeCapture felt$treeCapture = new gr1mly4memes.felt.mod.util.TreeCapture();
 
     @Override

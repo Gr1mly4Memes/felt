@@ -1,0 +1,18 @@
+diff --git a/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/starlight/storage/StarlightSectionData.java b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/starlight/storage/StarlightSectionData.java
+new file mode 100644
+--- /dev/null
++++ b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/starlight/storage/StarlightSectionData.java
+@@ -0,0 +1,13 @@
++package ca.spottedleaf.moonrise.patches.starlight.storage;
++
++public interface StarlightSectionData {
++
++    public int starlight$getBlockLightState();
++
++    public void starlight$setBlockLightState(final int state);
++
++    public int starlight$getSkyLightState();
++
++    public void starlight$setSkyLightState(final int state);
++
++}

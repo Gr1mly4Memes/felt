@@ -17,6 +17,12 @@ import org.spongepowered.asm.mixin.Shadow;
 
 @Mixin(NaturalSpawner.SpawnState.class)
 public abstract class NaturalSpawner_SpawnStateMixin implements WorldEntitySpawnerBridge.EntityDensityManagerBridge {
+    @com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation(method = "afterSpawn",
+        at = @org.spongepowered.asm.mixin.injection.At(value = "INVOKE", target = "Lnet/minecraft/world/level/LocalMobCapCalculator;addMob(Lnet/minecraft/world/level/ChunkPos;Lnet/minecraft/world/entity/MobCategory;)V"))
+    private void felt$optionalLocalCaps(LocalMobCapCalculator caps, ChunkPos pos, MobCategory category,
+            com.llamalad7.mixinextras.injector.wrapoperation.Operation<Void> original) {
+        if (caps != null) original.call(caps, pos, category);
+    }
 
     // @formatter:off
     @Shadow protected abstract void afterSpawn(Mob p_234990_1_, ChunkAccess p_234990_2_);

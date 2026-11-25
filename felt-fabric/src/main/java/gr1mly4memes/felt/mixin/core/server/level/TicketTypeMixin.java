@@ -14,10 +14,19 @@ public abstract class TicketTypeMixin implements TicketTypeBridge {
 
     @TransformAccess(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC)
     private static long pluginTimeout = 0L;
+    private static final TicketType FELT_CHUNK_LOAD = felt$register("chunk_load", TicketType.NO_TIMEOUT, TicketType.FLAG_LOADING);
     @TransformAccess(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC | Opcodes.ACC_FINAL)
     private static final TicketType PLUGIN = felt$register("plugin", TicketType.NO_TIMEOUT, TicketType.FLAG_LOADING | TicketType.FLAG_SIMULATION | TicketType.FLAG_KEEP_DIMENSION_ACTIVE);
     @TransformAccess(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC | Opcodes.ACC_FINAL)
     private static final TicketType PLUGIN_TICKET = felt$register("plugin_ticket", TicketType.NO_TIMEOUT, TicketType.FLAG_LOADING | TicketType.FLAG_SIMULATION | TicketType.FLAG_KEEP_DIMENSION_ACTIVE);
+
+    static {
+        if ((Object) PLUGIN_TICKET instanceof ca.spottedleaf.moonrise.patches.chunk_system.ticket.ChunkSystemTicketType<?> type) {
+            @SuppressWarnings("unchecked")
+            var pluginType = (ca.spottedleaf.moonrise.patches.chunk_system.ticket.ChunkSystemTicketType<org.bukkit.plugin.Plugin>) type;
+            pluginType.moonrise$setIdentifierComparator(java.util.Comparator.comparing(org.bukkit.plugin.Plugin::getName));
+        }
+    }
 
     @Invoker("register")
     private static TicketType felt$register(String name, long timeout, int flags) {

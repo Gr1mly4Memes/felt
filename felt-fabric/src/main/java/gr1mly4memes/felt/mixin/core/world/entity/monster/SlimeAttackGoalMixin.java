@@ -30,6 +30,7 @@ public abstract class SlimeAttackGoalMixin extends Goal {
 
     @Decorate(method = {"canUse()Z", "canContinueToUse()Z"}, at = @At("RETURN"))
     private void felt$targetEvent(boolean canUse, @Local(ordinal = 0) LivingEntity target) throws Throwable {
+        canUse &= ((gr1mly4memes.felt.bridge.core.world.entity.monster.CubeMobControlBridge)this.cubeMob).bridge$canWander();
         // Keep the native move-control/tired-timer gates before dispatch.
         if (canUse) {
             SlimeTargetLivingEntityEvent event = new SlimeTargetLivingEntityEvent(

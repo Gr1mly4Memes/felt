@@ -15,7 +15,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftRaid.java b/
      @Override
      public int getId() {
 -        return this.handle.idOrNegativeOne;
-+        throw new UnsupportedOperationException("Stable raid IDs are not supported in this initial Paper compatibility release");
++        return ((gr1mly4memes.felt.bridge.core.world.entity.raid.RaidBridge) this.handle).bridge$getId();
      }
  
      @Override
@@ -24,7 +24,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftRaid.java b/
      @Override
      public PersistentDataContainer getPersistentDataContainer() {
 -        return this.handle.persistentDataContainer;
-+        throw new UnsupportedOperationException("Raid persistent data is not supported in this initial Paper compatibility release");
++        return ((gr1mly4memes.felt.bridge.core.world.entity.raid.RaidBridge) this.handle).bridge$getPersistentData();
      }
  
      @Override

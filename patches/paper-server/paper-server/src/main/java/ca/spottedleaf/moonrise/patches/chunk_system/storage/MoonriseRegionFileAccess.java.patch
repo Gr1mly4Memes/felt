@@ -1,0 +1,507 @@
+diff --git a/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/storage/MoonriseRegionFileAccess.java b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/storage/MoonriseRegionFileAccess.java
+new file mode 100644
+--- /dev/null
++++ b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/storage/MoonriseRegionFileAccess.java
+@@ -0,0 +1,502 @@
++package ca.spottedleaf.moonrise.patches.chunk_system.storage;
++
++import ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.WriteData;
++import java.io.ByteArrayInputStream;
++import java.io.ByteArrayOutputStream;
++import java.io.DataInputStream;
++import java.io.DataOutputStream;
++import java.io.IOException;
++import java.nio.ByteBuffer;
++import java.nio.channels.FileChannel;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.nio.file.StandardCopyOption;
++import java.nio.file.StandardOpenOption;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.world.level.ChunkPos;
++import net.minecraft.world.level.chunk.storage.RegionFile;
++import net.minecraft.world.level.chunk.storage.RegionFileVersion;
++import org.jspecify.annotations.Nullable;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++
++/** Paper's region recovery and detached write operations, shared by Felt mixins and file verification. */
++public final class MoonriseRegionFileAccess implements ChunkSystemRegionFile {
++    private static final int EXTERNAL_STREAM_FLAG = 128;
++    private static final Logger LOGGER = LoggerFactory.getLogger(MoonriseRegionFileAccess.class);
++    private final RegionFile region;
++    private final java.util.concurrent.locks.ReentrantReadWriteLock lifetime = new java.util.concurrent.locks.ReentrantReadWriteLock();
++
++    public MoonriseRegionFileAccess(RegionFile region) {
++        this.region = java.util.Objects.requireNonNull(region);
++    }
++
++    public interface Owner {
++        MoonriseRegionFileAccess moonrise$getRegionFileAccess();
++    }
++
++    public void acquireIO() { this.lifetime.readLock().lock(); }
++    public void releaseIO() { this.lifetime.readLock().unlock(); }
++
++    public void closeFile() throws IOException { this.runClose(RegionFile::close); }
++
++    public void runClose(ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.IORunnable close) throws IOException {
++        this.lifetime.writeLock().lock();
++        try {
++            synchronized (this.region) {
++                if (this.region.file.isOpen()) close.run(this.region);
++            }
++        } finally {
++            this.lifetime.writeLock().unlock();
++        }
++    }
++
++    // the header can only store sector counts up to this value, larger chunks must be stored externally
++    private static final int MAX_INTERNAL_SECTORS = 255;
++
++    private static final net.minecraft.nbt.CompoundTag EXTERNAL_STUB_COMPOUND = new net.minecraft.nbt.CompoundTag();
++
++    private final java.util.concurrent.atomic.AtomicInteger recalculateCount = new java.util.concurrent.atomic.AtomicInteger();
++
++    private static long roundToSectors(final long bytes) {
++        return (bytes + 4095L) >>> 12;
++    }
++
++    private boolean canRecalcHeader() {
++        // only chunk data has an embedded position and timestamp we can use to locate data
++        return ca.spottedleaf.moonrise.patches.chunk_system.storage.RegionFileRecovery.isChunkStorage(this.region.info) && ca.spottedleaf.moonrise.patches.chunk_system.storage.RegionFileRecovery.getRegionFileCoordinates(this.region.path) != null;
++    }
++
++    private int readFully(final ByteBuffer buffer, long position) throws IOException {
++        int total = 0;
++        while (buffer.hasRemaining()) {
++            final int read = this.region.file.read(buffer, position);
++            if (read < 0) {
++                break;
++            }
++            if (read == 0) throw new IOException("Region file read made no progress");
++            total += read;
++            position += read;
++        }
++        return total;
++    }
++
++    private int readLength(final long sector) throws IOException {
++        final ByteBuffer length = ByteBuffer.allocate(4);
++        if (4 != this.readFully(length, sector * 4096L)) {
++            return -1;
++        }
++
++        return length.getInt(0);
++    }
++
++    // returns null if the data is not valid, or EXTERNAL_STUB_COMPOUND if the data is a stub for an external chunk
++    private net.minecraft.nbt.@Nullable CompoundTag attemptRead(final long sector, final int chunkDataLength, final long fileLength) {
++        try {
++            if (chunkDataLength <= 0) {
++                return null;
++            }
++
++            final long offset = sector * 4096L + 4L; // skip length field
++
++            if ((offset + chunkDataLength) > fileLength) {
++                return null;
++            }
++
++            final ByteBuffer chunkData = ByteBuffer.allocate(chunkDataLength);
++            if (chunkDataLength != this.readFully(chunkData, offset)) {
++                return null;
++            }
++
++            chunkData.flip();
++
++            final byte compressionType = chunkData.get();
++            if (RegionFile.isExternalStreamChunk(compressionType)) {
++                return EXTERNAL_STUB_COMPOUND;
++            }
++
++            final RegionFileVersion compression = RegionFileVersion.fromId(compressionType);
++            if (compression == null) {
++                return null;
++            }
++
++            try (final DataInputStream input = new DataInputStream(compression.wrap(RegionFile.createStream(chunkData, chunkData.remaining())))) {
++                return net.minecraft.nbt.NbtIo.read(input);
++            }
++        } catch (final Exception ex) {
++            return null;
++        }
++    }
++
++    // moves internal chunk data which is too large to be referenced by the header to its external file,
++    // returns the compression type of the data or null if the move failed
++    private @Nullable RegionFileVersion moveToExternalFile(final ChunkPos pos, final int sectorOffset, final int rawLength) {
++        final Path externalFile = this.region.getExternalChunkPath(pos);
++        try {
++            // skip length field
++            final ByteBuffer chunkData = ByteBuffer.allocate(rawLength - 4);
++            if (chunkData.remaining() != this.readFully(chunkData, sectorOffset * 4096L + 4L)) {
++                throw new IOException("Unexpected end of file");
++            }
++            chunkData.flip();
++
++            final RegionFileVersion compression = RegionFileVersion.fromId(chunkData.get());
++
++            final Path tmp = Files.createTempFile(this.region.externalFileDir, "tmp", null);
++            try {
++                try (final FileChannel out = FileChannel.open(tmp, StandardOpenOption.WRITE)) {
++                    while (chunkData.hasRemaining()) {
++                        out.write(chunkData);
++                    }
++                    out.force(true);
++                }
++                Files.move(tmp, externalFile, StandardCopyOption.REPLACE_EXISTING);
++            } finally {
++                Files.deleteIfExists(tmp);
++            }
++
++            return compression;
++        } catch (final IOException ex) {
++            LOGGER.error("Failed to move oversized chunk data for local chunk ({},{}) in regionfile {} to external file {}", pos.x() & 31, pos.z() & 31, this.region.path.toAbsolutePath(), externalFile.toAbsolutePath(), ex);
++            return null;
++        }
++    }
++
++    private void backupRegionFile() {
++        final Path backup = this.region.path.resolveSibling(this.region.path.getFileName() + "." + Long.toUnsignedString(java.util.concurrent.ThreadLocalRandom.current().nextLong()) + ".backup");
++        try {
++            this.region.file.force(true);
++            LOGGER.warn("Backing up regionfile \"{}\" to {}", this.region.path.toAbsolutePath(), backup.toAbsolutePath());
++            Files.copy(this.region.path, backup, StandardCopyOption.COPY_ATTRIBUTES);
++            LOGGER.warn("Backed up the regionfile to {}", backup.toAbsolutePath());
++        } catch (final IOException ex) {
++            LOGGER.error("Failed to backup to {}", backup.toAbsolutePath(), ex);
++        }
++    }
++
++    private void setUsedSectors(final java.util.BitSet allocated) {
++        this.region.usedSectors.free(0, Integer.MAX_VALUE);
++        for (int start = allocated.nextSetBit(0); start >= 0;) {
++            final int end = allocated.nextClearBit(start);
++            this.region.usedSectors.force(start, end - start);
++            start = allocated.nextSetBit(end);
++        }
++    }
++
++    @Override
++    public final int moonrise$getRecalculateCount() {
++        return this.recalculateCount.get();
++    }
++
++    @Override
++    public final @Nullable Boolean moonrise$tryRecalcHeader(final int expectedRecalcCount) throws IOException {
++        if (!this.canRecalcHeader()) {
++            return Boolean.FALSE;
++        }
++
++        synchronized (this.region) {
++            if (this.recalculateCount.get() != expectedRecalcCount) {
++                return null;
++            }
++
++            return Boolean.valueOf(this.moonrise$recalculateHeader());
++        }
++    }
++
++    /*
++     * Instead of trying to relocate the chunk, which seems to never
++     * be the correct choice, so we end up duplicating or swapping chunks,
++     * we instead drop the current regionfile header and recalculate -
++     * hoping that at least then we don't swap chunks, and maybe recover
++     * them all.
++     */
++    @Override
++    public final boolean moonrise$recalculateHeader() throws IOException {
++        if (!this.canRecalcHeader()) {
++            return false;
++        }
++
++        final ChunkPos regionPos = ca.spottedleaf.moonrise.patches.chunk_system.storage.RegionFileRecovery.getRegionFileCoordinates(this.region.path);
++
++        synchronized (this.region) {
++            this.recalculateCount.getAndIncrement();
++
++            LOGGER.warn("Corrupt regionfile header detected! Attempting to re-calculate header offsets for regionfile {}", this.region.path.toAbsolutePath(), new Throwable());
++
++            // try to backup file so maybe it could be sent to us for further investigation
++            this.backupRegionFile();
++
++            final boolean[] hasInternal = new boolean[32 * 32];
++            final long[] saveTimes = new long[32 * 32];
++            final int[] rawLengths = new int[32 * 32]; // length of chunk data including 4 byte length field, bytes
++            final int[] sectorOffsets = new int[32 * 32]; // in sectors
++
++            final long fileLength = this.region.file.size();
++            final long totalSectors = roundToSectors(fileLength);
++
++            // search the regionfile from start to finish for the most up-to-date chunk data
++            for (long i = 2, maxSector = Math.min((long)(Integer.MAX_VALUE >>> 8), totalSectors); i < maxSector; ++i) { // first two sectors are header, skip
++                final int chunkDataLength = this.readLength(i);
++                final net.minecraft.nbt.CompoundTag compound = this.attemptRead(i, chunkDataLength, fileLength);
++                if (compound == null || compound == EXTERNAL_STUB_COMPOUND) {
++                    continue;
++                }
++
++                // the data is valid, so skip over it for the next iteration
++                final int rawLength = chunkDataLength + 4;
++                final long sector = i;
++                i += roundToSectors(rawLength) - 1L;
++
++                final ChunkPos chunkPos = ca.spottedleaf.moonrise.patches.chunk_system.storage.RegionFileRecovery.getChunkCoordinate(compound);
++                if (!ca.spottedleaf.moonrise.patches.chunk_system.storage.RegionFileRecovery.inSameRegionFile(regionPos, chunkPos)) {
++                    LOGGER.error("Ignoring absolute chunk {} in regionfile as it is not contained in the bounds of the regionfile '{}'. It should be in regionfile ({},{})", chunkPos, this.region.path.toAbsolutePath(), chunkPos.x() >> 5, chunkPos.z() >> 5);
++                    continue;
++                }
++
++                final int location = (chunkPos.x() & 31) | ((chunkPos.z() & 31) << 5);
++                final long saveTime = ca.spottedleaf.moonrise.patches.chunk_system.storage.RegionFileRecovery.getLastWorldSaveTime(compound);
++
++                if (hasInternal[location] && saveTimes[location] > saveTime) {
++                    continue; // don't overwrite newer data
++                }
++
++                hasInternal[location] = true;
++                saveTimes[location] = saveTime;
++                rawLengths[location] = rawLength;
++                sectorOffsets[location] = (int)sector;
++            }
++
++            // now search external chunk data, which is newer if its save time is greater than the internal data
++            final boolean[] useExternal = new boolean[32 * 32];
++            final RegionFileVersion[] externalCompressionTypes = new RegionFileVersion[32 * 32];
++
++            // only check the external files that could belong to this regionfile, so that the work is bounded
++            // regardless of how many files are in the directory
++            for (int location = 0; location < 32 * 32; ++location) {
++                final ChunkPos externalPos = new ChunkPos(regionPos.x() | (location & 31), regionPos.z() | (location >>> 5));
++                final Path externalFile = this.region.getExternalChunkPath(externalPos);
++                if (!Files.isRegularFile(externalFile)) {
++                    continue;
++                }
++
++                final byte[] chunkData;
++                try {
++                    chunkData = Files.readAllBytes(externalFile);
++                } catch (final Exception ex) {
++                    LOGGER.error("Failed to read external chunk data in file {}, data will be lost", externalFile.toAbsolutePath(), ex);
++                    continue;
++                }
++
++                // the compression type is stored in the regionfile, so we need to try all of them
++                net.minecraft.nbt.CompoundTag compound = null;
++                RegionFileVersion compression = null;
++                for (final RegionFileVersion compressionType : RegionFileVersion.VERSIONS.values()) {
++                    final net.minecraft.nbt.CompoundTag read;
++                    try (final DataInputStream input = new DataInputStream(compressionType.wrap(new ByteArrayInputStream(chunkData)))) {
++                        read = net.minecraft.nbt.NbtIo.read(input);
++                    } catch (final Exception ex) {
++                        continue;
++                    }
++                    compound = read;
++                    compression = compressionType;
++                    break;
++                }
++
++                if (compound == null) {
++                    LOGGER.error("Failed to read external chunk data in file {}, it's corrupt. Its data will be lost", externalFile.toAbsolutePath());
++                    continue;
++                }
++
++                final ChunkPos storedPos = ca.spottedleaf.moonrise.patches.chunk_system.storage.RegionFileRecovery.getChunkCoordinate(compound);
++                if (!storedPos.equals(externalPos)) {
++                    LOGGER.error("Can't use external chunk stored in {}, got absolute chunkpos: {}, expected {}", externalFile.toAbsolutePath(), storedPos, externalPos);
++                    continue;
++                }
++
++                if (!hasInternal[location] || ca.spottedleaf.moonrise.patches.chunk_system.storage.RegionFileRecovery.getLastWorldSaveTime(compound) > saveTimes[location]) {
++                    useExternal[location] = true;
++                    externalCompressionTypes[location] = compression;
++                }
++            }
++
++            // now we need to calculate a new offset header
++
++            final int[] calculatedOffsets = new int[32 * 32];
++            final java.util.BitSet newSectorAllocations = new java.util.BitSet();
++            newSectorAllocations.set(0, 2); // make space for header
++
++            // allocate sectors for internal chunks
++            for (int location = 0; location < 32 * 32; ++location) {
++                if (useExternal[location] || !hasInternal[location]) {
++                    continue;
++                }
++
++                final int sectorOffset = sectorOffsets[location];
++                final int sectorLength = (int)roundToSectors(rawLengths[location]);
++
++                if (sectorLength > MAX_INTERNAL_SECTORS) {
++                    // cannot be referenced by the header, so store it externally like Vanilla would
++                    final ChunkPos pos = new ChunkPos(regionPos.x() | (location & 31), regionPos.z() | (location >>> 5));
++                    final RegionFileVersion compression = this.moveToExternalFile(pos, sectorOffset, rawLengths[location]);
++                    if (compression != null) {
++                        LOGGER.warn("Moved oversized data for local chunk ({},{}) in regionfile {} to external file", location & 31, location >>> 5, this.region.path.toAbsolutePath());
++                        useExternal[location] = true;
++                        externalCompressionTypes[location] = compression;
++                    } // else: chunk will be regenerated
++                    continue;
++                }
++
++                if (ca.spottedleaf.moonrise.patches.chunk_system.storage.RegionFileRecovery.tryAllocate(newSectorAllocations, sectorOffset, sectorLength)) {
++                    calculatedOffsets[location] = this.region.packSectorOffset(sectorOffset, sectorLength);
++                } else {
++                    LOGGER.error("Failed to allocate space for local chunk (overlapping data??) at ({},{}) in regionfile {}, chunk will be regenerated", location & 31, location >>> 5, this.region.path.toAbsolutePath());
++                }
++            }
++
++            // allocate sectors for external chunk stubs
++            for (int location = 0; location < 32 * 32; ++location) {
++                if (!useExternal[location]) {
++                    continue;
++                }
++
++                final int sectorOffset = ca.spottedleaf.moonrise.patches.chunk_system.storage.RegionFileRecovery.allocate(newSectorAllocations, 1);
++
++                final ByteBuffer stub = ByteBuffer.allocate(5);
++                stub.putInt(1);
++                stub.put((byte)(externalCompressionTypes[location].getId() | EXTERNAL_STREAM_FLAG));
++                stub.flip();
++
++                try {
++                    writeFully(this.region.file, stub, sectorOffset * 4096L);
++                    // only allocate in the new offsets if the write succeeds
++                    calculatedOffsets[location] = this.region.packSectorOffset(sectorOffset, 1);
++                } catch (final IOException ex) {
++                    newSectorAllocations.clear(sectorOffset);
++                    LOGGER.error("Failed to write new external chunk stub, local chunk at ({},{}) in regionfile {} will be regenerated", location & 31, location >>> 5, this.region.path.toAbsolutePath(), ex);
++                }
++            }
++
++            this.setUsedSectors(newSectorAllocations);
++
++            // print a summary of the chunks that got changed
++
++            LOGGER.info("Starting summary of changes for regionfile {}", this.region.path.toAbsolutePath());
++
++            for (int location = 0; location < 32 * 32; ++location) {
++                final int oldOffset = this.region.offsets.get(location);
++                final int newOffset = calculatedOffsets[location];
++
++                if (oldOffset == newOffset) {
++                    continue;
++                }
++
++                this.region.offsets.put(location, newOffset); // overwrite incorrect offset
++
++                if (oldOffset == 0) {
++                    LOGGER.info("Found missing data for local chunk ({},{}) in regionfile {}", location & 31, location >>> 5, this.region.path.toAbsolutePath());
++                } else if (newOffset == 0) {
++                    LOGGER.warn("Data for local chunk ({},{}) could not be recovered in regionfile {}, it will be regenerated", location & 31, location >>> 5, this.region.path.toAbsolutePath());
++                } else {
++                    LOGGER.info("Local chunk ({},{}) changed to point to newer data or correct chunk in regionfile {}", location & 31, location >>> 5, this.region.path.toAbsolutePath());
++                }
++            }
++
++            LOGGER.info("End of change summary for regionfile {}", this.region.path.toAbsolutePath());
++
++            // the timestamp header is not used, so simply write a valid timestamp for valid chunks
++            final int timestamp = RegionFile.getTimestamp();
++            for (int location = 0; location < 32 * 32; ++location) {
++                this.region.timestamps.put(location, calculatedOffsets[location] != 0 ? timestamp : 0);
++            }
++
++            // write new header
++            try {
++                this.region.writeHeader();
++                this.region.file.force(true);
++                LOGGER.info("Successfully wrote new header to disk for regionfile {}", this.region.path.toAbsolutePath());
++            } catch (final IOException ex) {
++                LOGGER.error("Failed to write new header to disk for regionfile {}", this.region.path.toAbsolutePath(), ex);
++            }
++        }
++
++        return true;
++    }
++
++
++    /** Detect constructor repairs by comparing the original on-disk header with its loaded offsets. */
++    public void recoverHeaderIfNeeded() throws IOException {
++        synchronized (this.region) {
++            if (!this.canRecalcHeader()) return;
++            ByteBuffer header = ByteBuffer.allocate(4096);
++            int read = this.readFully(header, 0L);
++            for (int i = 0; i < read / Integer.BYTES; i++) {
++                if (header.getInt(i * Integer.BYTES) != this.region.offsets.get(i)) {
++                    this.moonrise$recalculateHeader();
++                    return;
++                }
++            }
++        }
++    }
++
++    /** Retry malformed internal data once after recovery, preserving unsupported custom compression. */
++    public DataInputStream readInput(ChunkPos pos) throws IOException {
++        return this.readInput(pos, true);
++    }
++
++    private DataInputStream readInput(ChunkPos pos, boolean allowRecovery) throws IOException {
++        synchronized (this.region) {
++            DataInputStream input = this.region.getChunkDataInputStream(pos);
++            int offset = this.region.offsets.get((pos.x() & 31) | ((pos.z() & 31) << 5));
++            ByteBuffer compression = ByteBuffer.allocate(1);
++            final boolean hasCompression;
++            try {
++                hasCompression = offset != 0 && this.region.file.read(compression, ((long) (offset >>> 8) << 12) + 4L) == 1;
++            } catch (IOException | RuntimeException | Error failure) {
++                if (input != null) try { input.close(); } catch (IOException closeFailure) { failure.addSuppressed(closeFailure); }
++                throw failure;
++            }
++            if (input != null) {
++                return hasCompression && (compression.get(0) & 128) != 0
++                    ? new ca.spottedleaf.moonrise.patches.chunk_system.util.stream.ExternalChunkStreamMarker(input) : input;
++            }
++            if (offset == 0 || !allowRecovery || !this.canRecalcHeader()
++                || (hasCompression && (compression.get(0) & 127) == RegionFileVersion.VERSION_CUSTOM.getId())) return null;
++            return this.moonrise$recalculateHeader() ? this.readInput(pos, false) : null;
++        }
++    }
++
++    @Override
++    public WriteData moonrise$startWrite(CompoundTag data, ChunkPos pos) throws IOException {
++        return prepareWrite(this.region, data, pos);
++    }
++
++    public static WriteData prepareWrite(RegionFile region, CompoundTag data, ChunkPos pos) throws IOException {
++        // Like Paper's detached ChunkBuffer, closing the compressor only finishes the buffer.
++        // The region file passed at commit time may differ after cache eviction and reopening.
++        DetachedBuffer buffer = new DetachedBuffer(pos, region.version.getId());
++        DataOutputStream output = new DataOutputStream(region.version.wrap(buffer));
++        return new WriteData(data, WriteData.WriteResult.WRITE, output, buffer::commit);
++    }
++
++    private static final class DetachedBuffer extends ByteArrayOutputStream {
++        private final ChunkPos pos;
++        DetachedBuffer(ChunkPos pos, int compression) {
++            this.pos = pos;
++            this.writeBytes(new byte[] {0, 0, 0, 0, (byte) compression});
++        }
++        void commit(RegionFile file) throws IOException {
++            ByteBuffer data = ByteBuffer.wrap(this.buf, 0, this.count);
++            data.putInt(0, this.count - Integer.BYTES);
++            file.write(this.pos, data);
++        }
++    }
++
++    private static void writeFully(FileChannel file, ByteBuffer data, long position) throws IOException {
++        while (data.hasRemaining()) {
++            int written = file.write(data, position);
++            if (written <= 0) throw new IOException("Region file write made no progress");
++            position += written;
++        }
++    }
++}
++

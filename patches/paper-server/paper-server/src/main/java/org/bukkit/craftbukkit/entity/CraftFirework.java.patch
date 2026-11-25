@@ -6,7 +6,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftFirew
      @Override
      public UUID getSpawningEntity() {
 -        return this.getHandle().spawningEntity;
-+        throw new UnsupportedOperationException("Firework spawning entity tracking is not supported by Felt yet");
++        return ((gr1mly4memes.felt.bridge.core.world.entity.SpawningEntityBridge) this.getHandle()).bridge$getSpawningEntity();
      }
  
      @Override

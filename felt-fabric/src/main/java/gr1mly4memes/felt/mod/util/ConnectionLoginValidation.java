@@ -22,10 +22,19 @@ public final class ConnectionLoginValidation {
     public static final class State {
         private @Nullable PaperPlayerLoginConnection loginConnection;
         private @Nullable Optional<Component> legacyOverride;
+        private boolean usedLegacyLoginEvent;
     }
 
     private static State state(Connection connection) {
         return ((ConnectionLoginValidationBridge) connection).bridge$getLoginValidationState();
+    }
+
+    public static void markLegacyLoginEvent(Connection connection) {
+        state(connection).usedLegacyLoginEvent = true;
+    }
+
+    public static boolean usedLegacyLoginEvent(Connection connection) {
+        return state(connection).usedLegacyLoginEvent;
     }
 
     /** Call immediately before the retained PlayerLoginEvent dispatch. */

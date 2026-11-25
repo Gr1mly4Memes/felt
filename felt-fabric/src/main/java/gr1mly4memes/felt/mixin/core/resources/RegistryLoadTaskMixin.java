@@ -25,6 +25,11 @@ public abstract class RegistryLoadTaskMixin<T> implements RegistryLoadTaskBridge
     @Unique private Conversions felt$conversions;
 
     @Override
+    public WritableRegistry<T> bridge$registryForCopying() {
+        return this.registry;
+    }
+
+    @Override
     public void bridge$conversions(Conversions conversions) {
         this.felt$conversions = conversions;
     }

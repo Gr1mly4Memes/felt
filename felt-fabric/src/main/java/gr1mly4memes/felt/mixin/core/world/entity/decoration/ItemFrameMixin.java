@@ -40,6 +40,10 @@ public abstract class ItemFrameMixin extends BlockAttachedEntityMixin implements
     @Shadow public abstract net.minecraft.sounds.SoundEvent getAddItemSound();
     // @formatter:on
 
+    public boolean getRequiresPrecisePosition() {
+        return true;
+    }
+
     @Inject(method = "hurtServer", cancellable = true, at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/decoration/ItemFrame;dropItem(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/Entity;Z)V"))
     private void felt$damageNonLiving(ServerLevel level, DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
         if (CraftEventFactory.handleNonLivingEntityDamageEvent((ItemFrame) (Object) this, source, amount, false) || this.isRemoved()) {

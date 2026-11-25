@@ -34,6 +34,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(BeaconBlockEntity.class)
 public abstract class BeaconBlockEntityMixin implements BeaconBlockEntityBridge {
+    @org.spongepowered.asm.mixin.Unique private double felt$effectRange = -1;
+    @Override public double bridge$effectRange() { return this.felt$effectRange < 0 ? this.levels * 10 + 10 : this.felt$effectRange; }
+    @Override public void bridge$setEffectRange(double range) { this.felt$effectRange = range; }
+    @Inject(method = "saveAdditional", at = @At("RETURN"))
+    private void felt$saveRange(net.minecraft.world.level.storage.ValueOutput output, CallbackInfo ci) { output.putDouble("Paper.Range", this.felt$effectRange); }
+    @Inject(method = "loadAdditional", at = @At("RETURN"))
+    private void felt$loadRange(ValueInput input, CallbackInfo ci) { this.felt$effectRange = input.getDoubleOr("Paper.Range", -1); }
+    @org.spongepowered.asm.mixin.injection.ModifyArg(method = "applyEffects",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/phys/AABB;inflate(D)Lnet/minecraft/world/phys/AABB;"), index = 0)
+    private static double felt$effectBounds(double range, @com.llamalad7.mixinextras.sugar.Local(argsOnly = true) Level level,
+            @com.llamalad7.mixinextras.sugar.Local(argsOnly = true) BlockPos pos) {
+        return level.getBlockEntity(pos) instanceof BeaconBlockEntityBridge beacon ? beacon.bridge$effectRange() : range;
+    }
 
     // The fourth read is the final scan-completion check, after the periodic effect pass.
     // Paper reports level transitions here even when the beam scan has not completed.

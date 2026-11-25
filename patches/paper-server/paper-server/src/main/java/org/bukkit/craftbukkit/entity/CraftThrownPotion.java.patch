@@ -6,6 +6,6 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftThrow
      @Override
      public void splash() {
 -        this.getHandle().splash(null);
-+        throw new UnsupportedOperationException("Felt does not support active potion splashing yet");
++        ((gr1mly4memes.felt.bridge.core.world.entity.projectile.ThrownPotionBridge) this.getHandle()).bridge$splash();
      }
  }

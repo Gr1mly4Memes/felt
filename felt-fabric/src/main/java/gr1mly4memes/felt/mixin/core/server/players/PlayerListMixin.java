@@ -382,6 +382,9 @@ public abstract class PlayerListMixin implements PlayerListBridge {
         PlayerLoginEvent.Result validatedResult = null;
         if (handler != null) {
             validatedResult = gr1mly4memes.felt.mod.util.ConnectionLoginValidation.beforeLegacyLogin(handler.connection, handler, event);
+            if (PlayerLoginEvent.getHandlerList().hasListeners()) {
+                gr1mly4memes.felt.mod.util.ConnectionLoginValidation.markLegacyLoginEvent(handler.connection);
+            }
         }
         this.cserver.getPluginManager().callEvent(event);
         if (handler != null) {

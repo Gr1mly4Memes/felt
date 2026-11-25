@@ -11,6 +11,7 @@ public class FabricMixinPlugin extends FeltMixinPlugin implements AbstractBootst
 
     @Override
     public void onLoad(String mixinPackage) {
+        gr1mly4memes.felt.boot.DevelopmentStubFilter.install();
         FeltCommon.setInstance(new FabricCommonImpl());
         super.onLoad(mixinPackage);
         MixinTools.setup();

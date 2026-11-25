@@ -103,7 +103,7 @@ public abstract class NoiseBasedChunkGeneratorMixin implements NoiseBasedChunkGe
                 }
             };
         }
-        return (CompletableFuture<ChunkAccess>) DecorationOps.callsite().invoke(wrapped, executor);
+        return (CompletableFuture<ChunkAccess>) DecorationOps.callsite().invoke(wrapped, io.papermc.paper.FeatureHooks.getWorldgenExecutor());
     }
 
     @Decorate(method = "buildTerrain", at = @At(value = "INVOKE", target = "Ljava/util/concurrent/CompletableFuture;completedFuture(Ljava/lang/Object;)Ljava/util/concurrent/CompletableFuture;"), require = 1, allow = 1)
@@ -118,7 +118,7 @@ public abstract class NoiseBasedChunkGeneratorMixin implements NoiseBasedChunkGe
             generator.buildSurface(chunk);
             generator.applyCarvers(chunk);
             return chunk;
-        }, Util.backgroundExecutor());
+        }, io.papermc.paper.FeatureHooks.getWorldgenExecutor());
     }
 
     @Decorate(method = "lambda$buildTerrain$0", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/levelgen/NoiseBasedChunkGenerator;doFill(Lnet/minecraft/world/level/levelgen/NoiseChunk;Lnet/minecraft/world/level/chunk/ChunkAccess;)V"), require = 1, allow = 1)

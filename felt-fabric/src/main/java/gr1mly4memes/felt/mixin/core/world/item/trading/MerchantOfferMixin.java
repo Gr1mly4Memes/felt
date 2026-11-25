@@ -14,6 +14,20 @@ import java.util.Optional;
 
 @Mixin(MerchantOffer.class)
 public abstract class MerchantOfferMixin implements MerchantOfferBridge {
+    @org.spongepowered.asm.mixin.Shadow @org.spongepowered.asm.mixin.Final @org.spongepowered.asm.mixin.Mutable
+    public static com.mojang.serialization.Codec<MerchantOffer> CODEC;
+    @org.spongepowered.asm.mixin.Unique private boolean felt$ignoreDiscounts;
+    @Override public boolean bridge$ignoreDiscounts() { return this.felt$ignoreDiscounts; }
+    @Override public void bridge$setIgnoreDiscounts(boolean ignoreDiscounts) { this.felt$ignoreDiscounts = ignoreDiscounts; }
+
+    @org.spongepowered.asm.mixin.injection.Inject(method = "<clinit>", at = @org.spongepowered.asm.mixin.injection.At("RETURN"))
+    private static void felt$paperOfferCodec(org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        CODEC = new gr1mly4memes.felt.mod.util.MerchantOfferCodec(CODEC);
+    }
+    @org.spongepowered.asm.mixin.injection.Inject(method = "<init>(Lnet/minecraft/world/item/trading/MerchantOffer;)V", at = @org.spongepowered.asm.mixin.injection.At("RETURN"))
+    private void felt$copyDiscountFlag(MerchantOffer offer, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        this.felt$ignoreDiscounts = ((MerchantOfferBridge)offer).bridge$ignoreDiscounts();
+    }
 
     // @formatter:off
     @Shadow public ItemCost baseCostA;
@@ -21,6 +35,13 @@ public abstract class MerchantOfferMixin implements MerchantOfferBridge {
     // @formatter:on
 
     private CraftMerchantRecipe bukkitHandle;
+
+    @org.spongepowered.asm.mixin.injection.Inject(method = "updateDemand", at = @org.spongepowered.asm.mixin.injection.At("RETURN"))
+    private void felt$keepDemandNonnegative(org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        if (io.papermc.paper.configuration.GlobalConfiguration.get().misc.preventNegativeVillagerDemand) {
+            this.demand = Math.max(0, this.demand);
+        }
+    }
 
     @Override
     public void bridge$setBukkitHandle(CraftMerchantRecipe recipe) {

@@ -1,7 +1,19 @@
 diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/boss/CraftDragonBattle.java b/paper-server/src/main/java/org/bukkit/craftbukkit/boss/CraftDragonBattle.java
 --- a/paper-server/src/main/java/org/bukkit/craftbukkit/boss/CraftDragonBattle.java
 +++ b/paper-server/src/main/java/org/bukkit/craftbukkit/boss/CraftDragonBattle.java
-@@ -77,32 +77,29 @@
+@@ -67,42 +67,36 @@
+ 
+     @Override
+     public void setPreviouslyKilled(boolean previouslyKilled) {
+-        this.handle.hasPreviouslyKilledDragon = previouslyKilled;
++        ((gr1mly4memes.felt.bridge.core.world.level.dimension.end.EnderDragonFightBridge) this.handle).bridge$setPreviouslyKilled(previouslyKilled);
+     }
+ 
+     @Override
+     public void initiateRespawn() {
+-        this.handle.tryRespawn();
++        ((gr1mly4memes.felt.bridge.core.world.level.dimension.end.EnderDragonFightBridge) this.handle).bridge$tryRespawn();
+     }
  
      @Override
      public boolean initiateRespawn(Collection<EnderCrystal> crystals) {
@@ -15,9 +27,6 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/boss/CraftDragonB
 +                    filteredCrystals.add(handle);
 +                }
 +            }
-+        }
-+        if (filteredCrystals.isEmpty()) {
-+            throw new UnsupportedOperationException("Dragon respawn without usable crystals is not supported");
 +        }
          if (this.hasBeenPreviouslyKilled() && this.getRespawnPhase() == RespawnPhase.NONE) {
 -            // Copy from EnderDragonFight#tryRespawn for generate exit portal if not exists
@@ -50,7 +59,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/boss/CraftDragonB
          }
          return false;
      }
-@@ -154,7 +151,9 @@
+@@ -154,7 +148,9 @@
  
      @Override
      public boolean spawnNewGateway() {
@@ -61,7 +70,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/boss/CraftDragonB
      }
  
      @Override
-@@ -164,7 +163,7 @@
+@@ -164,7 +160,7 @@
  
      @Override
      public List<EnderCrystal> getRespawnCrystals() {
@@ -70,7 +79,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/boss/CraftDragonB
              return Collections.emptyList();
          }
  
-@@ -181,9 +180,11 @@
+@@ -181,9 +177,11 @@
      @Override
      public List<EnderCrystal> getHealingCrystals() {
          final List<EnderCrystal> enderCrystals = new ArrayList<>();

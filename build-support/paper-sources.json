@@ -18,10 +18,7 @@
         "licenses"
       ],
       "exclude": [
-        "**/net/minecraft/**",
-        "**/io/papermc/paper/antixray/**",
-        "**/io/papermc/paper/PaperBootstrap.java",
-        "**/META-INF/services/ca.spottedleaf.moonrise.*"
+        "**/net/minecraft/**"
       ]
     }
   }

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "felt_storage_verification",
+  "version": "1.0.0",
+  "name": "Felt storage verification",
+  "environment": "server",
+  "entrypoints": {
+    "preLaunch": ["gr1mly4memes.felt.MoonriseStoragePreLaunch"]
+  },
+  "depends": {
+    "felt": "*"
+  }
+}

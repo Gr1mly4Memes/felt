@@ -16,8 +16,10 @@ import java.util.UUID;
 @Mixin(TrialSpawner.class)
 public class TrialSpawnerMixin {
 
-    @Inject(method = "spawnMob", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;tryAddFreshEntityWithPassengers(Lnet/minecraft/world/entity/Entity;)Z"))
-    private void felt$cause(ServerLevel serverLevel, BlockPos blockPos, CallbackInfoReturnable<Optional<UUID>> cir) {
+    @com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation(method = "spawnMob", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;tryAddFreshEntityWithPassengers(Lnet/minecraft/world/entity/Entity;)Z"))
+    private boolean felt$cause(ServerLevel serverLevel, net.minecraft.world.entity.Entity entity, com.llamalad7.mixinextras.injector.wrapoperation.Operation<Boolean> original) {
+        ((gr1mly4memes.felt.bridge.core.entity.PaperEntityStateBridge)entity).bridge$markFromSpawner();
         ((WorldBridge) serverLevel).bridge$pushAddEntityReason(CreatureSpawnEvent.SpawnReason.TRIAL_SPAWNER);
+        return original.call(serverLevel, entity);
     }
 }

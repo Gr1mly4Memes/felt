@@ -17,7 +17,6 @@
     "CraftBlockStateMixin",
     "CraftBlockTypeMixin",
     "CraftBeeMixin",
-    "CraftDragonBattleMixin",
     "CraftConsoleCommandSenderMixin",
     "CraftEnderDragonMixin",
     "CraftEntityMixin",

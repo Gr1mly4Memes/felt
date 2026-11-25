@@ -210,7 +210,8 @@ public abstract class FishingHookMixin extends ProjectileMixin implements Fishin
             if (expToDrop <= 0) {
                 return false;
             }
-            entity = new ExperienceOrb(this.level(), orb.getX(), orb.getY(), orb.getZ(), expToDrop);
+            entity = gr1mly4memes.felt.mod.server.world.FeltExperience.withAttribution(new ExperienceOrb(this.level(), orb.getX(), orb.getY(), orb.getZ(), expToDrop),
+                org.bukkit.entity.ExperienceOrb.SpawnReason.FISHING, this.getPlayerOwner(), (FishingHook) (Object) this);
         }
         return (boolean) DecorationOps.callsite().invoke(instance, entity);
     }

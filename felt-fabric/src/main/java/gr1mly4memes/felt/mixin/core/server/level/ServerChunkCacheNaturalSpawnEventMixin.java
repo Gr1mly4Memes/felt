@@ -23,6 +23,24 @@ public abstract class ServerChunkCacheNaturalSpawnEventMixin {
     @Shadow @Final public ChunkMap chunkMap;
     @Shadow public boolean spawnEnemies;
 
+    @Shadow @Final public net.minecraft.server.level.ServerLevel level;
+
+    @com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation(method = "tickChunks(Lnet/minecraft/util/profiling/ProfilerFiller;)V",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/NaturalSpawner;createState(ILnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/NaturalSpawner$ChunkGetter;Lnet/minecraft/world/level/LocalMobCapCalculator;)Lnet/minecraft/world/level/NaturalSpawner$SpawnState;"))
+    private net.minecraft.world.level.NaturalSpawner.SpawnState felt$resetPlayerMobCounts(int chunks, net.minecraft.server.level.ServerLevel world,
+            net.minecraft.world.level.NaturalSpawner.ChunkGetter getter, net.minecraft.world.level.LocalMobCapCalculator localCaps,
+            Operation<net.minecraft.world.level.NaturalSpawner.SpawnState> original) {
+        if ((this.spawnEnemies || ((ServerChunkProviderBridge)this).bridge$getSpawnFriendlies())
+            && gr1mly4memes.felt.mod.server.world.FeltMobSpawning.perPlayer(world)) gr1mly4memes.felt.mod.server.world.FeltMobSpawning.reset(world);
+        return original.call(chunks, world, getter, gr1mly4memes.felt.mod.server.world.FeltMobSpawning.perPlayer(world) ? null : localCaps);
+    }
+
+    @com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation(method = "tickChunks(Lnet/minecraft/util/profiling/ProfilerFiller;)V",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/util/Util;shuffle(Ljava/util/List;Lnet/minecraft/util/RandomSource;)V"))
+    private void felt$perPlayerSpawnOrder(java.util.List<?> chunks, net.minecraft.util.RandomSource random, Operation<Void> original) {
+        if (!gr1mly4memes.felt.mod.server.world.FeltMobSpawning.perPlayer(this.level)) original.call(chunks, random);
+    }
+
     @WrapMethod(method = "tickChunks(Lnet/minecraft/util/profiling/ProfilerFiller;)V", require = 1, allow = 1)
     private void felt$naturalSpawnEventLifetime(ProfilerFiller profiler, Operation<Void> original) {
         var selection = (NaturalSpawnSelectionBridge) this.chunkMap;

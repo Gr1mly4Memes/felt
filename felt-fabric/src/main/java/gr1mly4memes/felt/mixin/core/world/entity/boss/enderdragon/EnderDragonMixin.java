@@ -43,6 +43,13 @@ import java.util.List;
 
 @Mixin(EnderDragon.class)
 public abstract class EnderDragonMixin extends MobMixin {
+    @com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation(method = "tickDeath", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/world/entity/ExperienceOrb;award(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/phys/Vec3;I)V"), require = 2, allow = 2)
+    private void felt$attributeDragonExperience(ServerLevel level, net.minecraft.world.phys.Vec3 position, int amount,
+            com.llamalad7.mixinextras.injector.wrapoperation.Operation<Void> original) {
+        gr1mly4memes.felt.mod.server.world.FeltExperience.withAwardAttribution(org.bukkit.entity.ExperienceOrb.SpawnReason.ENTITY_DEATH,
+            this.getLastHurtByPlayer(), (EnderDragon) (Object) this, () -> original.call(level, position, amount));
+    }
 
     @Shadow @Nullable private EnderDragonFight dragonFight;
 

@@ -10,6 +10,7 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.AnnotationNode;
 
 import javax.inject.Inject;
 import java.io.File;
@@ -68,6 +69,8 @@ public class StaticMethodInjectionProcessor implements MinecraftJarProcessor<Sta
                     }
                     var stub = new MethodNode(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, method.name(), method.descriptor(), method.signature(), null);
                     // Compile ABI only; the registered Mixin supplies the runtime body.
+                    stub.invisibleAnnotations = new java.util.ArrayList<>();
+                    stub.invisibleAnnotations.add(new AnnotationNode("Lgr1mly4memes/felt/mod/mixins/annotation/CompileOnlyStub;"));
                     stub.instructions.add(new InsnNode(Opcodes.ACONST_NULL));
                     stub.instructions.add(new InsnNode(Opcodes.ATHROW));
                     stub.maxStack = 1;

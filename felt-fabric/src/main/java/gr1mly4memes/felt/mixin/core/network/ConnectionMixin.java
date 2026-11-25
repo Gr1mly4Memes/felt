@@ -27,6 +27,13 @@ import java.util.function.Consumer;
 @Mixin(Connection.class)
 public class ConnectionMixin implements ConnectionBridge {
 
+    @Inject(method = "channelActive", at = @At("HEAD"))
+    private void felt$installAsyncPacketGate(io.netty.channel.ChannelHandlerContext context, CallbackInfo ci) {
+        // Outbound messages reach this gate before bundle expansion and packet encoding.
+        context.pipeline().addBefore(context.name(), "felt_async_packets",
+            new gr1mly4memes.felt.mod.util.AsyncPacketSendGate());
+    }
+
     @Shadow public boolean disconnectionHandled;
     @Shadow public io.netty.channel.Channel channel;
 

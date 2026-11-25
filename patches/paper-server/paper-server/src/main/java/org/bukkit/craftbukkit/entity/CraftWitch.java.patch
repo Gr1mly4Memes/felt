@@ -6,6 +6,6 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftWitch
      public void setDrinkingPotion(ItemStack potion) {
          Preconditions.checkArgument(potion == null || potion.getType().isEmpty() || potion.getType() == Material.POTION, "must be potion, air, or null");
 -        this.getHandle().setDrinkingPotion(CraftItemStack.asNMSCopy(potion));
-+        throw new UnsupportedOperationException("Starting witch potion drinking through the API is not supported by Felt yet");
++        ((gr1mly4memes.felt.bridge.core.world.entity.monster.WitchControlBridge)this.getHandle()).bridge$setDrinkingPotion(CraftItemStack.asNMSCopy(potion));
      }
  }

@@ -6,13 +6,13 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftArmor
      @Override
      public boolean canMove() {
 -        return this.getHandle().canMove;
-+        throw new UnsupportedOperationException("Independent armor stand movement control is not supported by Felt yet");
++        return ((gr1mly4memes.felt.bridge.core.world.entity.decoration.ArmorStandControlBridge)this.getHandle()).bridge$canMove();
      }
  
      @Override
      public void setCanMove(boolean move) {
 -        this.getHandle().canMove = move;
-+        throw new UnsupportedOperationException("Independent armor stand movement control is not supported by Felt yet");
++        ((gr1mly4memes.felt.bridge.core.world.entity.decoration.ArmorStandControlBridge)this.getHandle()).bridge$setCanMove(move);
      }
  
      @Override
@@ -21,13 +21,13 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftArmor
      @Override
      public boolean canTick() {
 -        return this.getHandle().canTick;
-+        throw new UnsupportedOperationException("Independent armor stand ticking control is not supported by Felt yet");
++        return ((gr1mly4memes.felt.bridge.core.world.entity.decoration.ArmorStandControlBridge)this.getHandle()).bridge$canTick();
      }
  
      @Override
      public void setCanTick(final boolean tick) {
 -        this.getHandle().canTick = tick;
 -        this.getHandle().canTickSetByAPI = true;
-+        throw new UnsupportedOperationException("Independent armor stand ticking control is not supported by Felt yet");
++        ((gr1mly4memes.felt.bridge.core.world.entity.decoration.ArmorStandControlBridge)this.getHandle()).bridge$setCanTick(tick);
      }
  }

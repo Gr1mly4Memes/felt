@@ -145,7 +145,8 @@ public abstract class ServerChunkCacheMixin implements ServerChunkProviderBridge
                 continue;
             }
             if ((this.spawnFriendlies || !mobCategory.isFriendly()) && (spawnEnemies || mobCategory.isFriendly()) && (spawnPersistent || !mobCategory.isPersistent())
-                && ((WorldEntitySpawnerBridge.EntityDensityManagerBridge) state).bridge$canSpawn(mobCategory, null, limit)) {
+                && (gr1mly4memes.felt.mod.server.world.FeltMobSpawning.perPlayer(this.level)
+                    || ((WorldEntitySpawnerBridge.EntityDensityManagerBridge) state).bridge$canSpawn(mobCategory, null, limit))) {
                 list.add(mobCategory);
             }
         }
@@ -153,6 +154,14 @@ public abstract class ServerChunkCacheMixin implements ServerChunkProviderBridge
     }
 
     public void close(boolean save) throws IOException {
+        if ((Object) this.level instanceof ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel world
+            && world.moonrise$getChunkTaskScheduler() != null) {
+            this.savedDataStorage.close();
+            world.moonrise$getChunkTaskScheduler().chunkHolderManager.close(save, true);
+            this.lightEngine.close();
+            this.chunkMap.close();
+            return;
+        }
         if (save) {
             this.save(true);
         }

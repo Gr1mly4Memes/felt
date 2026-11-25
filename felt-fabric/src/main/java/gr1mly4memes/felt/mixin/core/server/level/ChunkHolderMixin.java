@@ -44,6 +44,10 @@ public abstract class ChunkHolderMixin extends GenerationChunkHolder implements 
     }
 
     public LevelChunk getFullChunkNow() {
+        if ((Object) this instanceof ca.spottedleaf.moonrise.patches.chunk_system.level.chunk.ChunkSystemChunkHolder holder
+            && holder.moonrise$getRealChunkHolder() != null) {
+            return holder.moonrise$getFullChunk();
+        }
         if (!ChunkLevel.fullStatus(this.oldTicketLevel).isOrAfter(FullChunkStatus.FULL)) return null;
         return this.getFullChunkNowUnchecked();
     }

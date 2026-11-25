@@ -1,7 +1,6 @@
 package gr1mly4memes.felt.mixin.core.core;
 
 import gr1mly4memes.felt.bridge.core.core.MappedRegistryBridge;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import net.minecraft.core.Holder;
@@ -20,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class MappedRegistryMixin<T> implements MappedRegistryBridge<T> {
     @Shadow private Map<T, Holder.Reference<T>> unregisteredIntrusiveHolders;
     @Shadow private boolean frozen;
-    @Unique private final Map<ResourceKey<T>, T> temporaryUnfrozenMap = new HashMap<>(); // Paper added
+    @Unique private final Map<ResourceKey<T>, T> temporaryUnfrozenMap = new java.util.concurrent.ConcurrentHashMap<>(); // Paper added
 
     @Override
     @Invoker("validateWrite")

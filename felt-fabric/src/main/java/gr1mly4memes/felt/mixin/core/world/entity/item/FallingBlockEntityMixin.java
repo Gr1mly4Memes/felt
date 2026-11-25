@@ -23,7 +23,38 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 @Mixin(FallingBlockEntity.class)
-public abstract class FallingBlockEntityMixin extends EntityMixin {
+public abstract class FallingBlockEntityMixin extends EntityMixin implements gr1mly4memes.felt.bridge.core.world.entity.item.FallingBlockControlBridge {
+
+    @org.spongepowered.asm.mixin.Unique private boolean felt$autoExpire = true;
+    @Override public boolean bridge$autoExpire() { return this.felt$autoExpire; }
+    @Override public void bridge$setAutoExpire(boolean autoExpire) { this.felt$autoExpire = autoExpire; }
+
+    @com.llamalad7.mixinextras.injector.ModifyExpressionValue(method = "tick",
+        slice = @Slice(from = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/item/FallingBlockEntity;applyEffectsFromBlocks()V")),
+        at = @At(value = "FIELD", target = "Lnet/minecraft/world/entity/item/FallingBlockEntity;time:I", opcode = Opcodes.GETFIELD), require = 2, allow = 2)
+    private int felt$expiryAge(int age) { return this.felt$autoExpire ? age : 0; }
+
+    @Inject(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/item/FallingBlockEntity;applyEffectsFromBlocks()V", shift = At.Shift.AFTER), cancellable = true)
+    private void felt$heightLimit(CallbackInfo ci) {
+        if (((WorldBridge)this.level()).bridge$paperConfig().fixes.fallingBlockHeightNerf.test(height -> this.getY() > height)) {
+            var block = (FallingBlockEntity)(Object)this;
+            if (block.dropItem && this.level() instanceof ServerLevel world && world.getGameRules().get(net.minecraft.world.level.gamerules.GameRules.ENTITY_DROPS))
+                this.spawnAtLocation(world, new net.minecraft.world.item.ItemStack(this.blockState.getBlock()));
+            this.bridge$pushEntityRemoveCause(EntityRemoveEvent.Cause.OUT_OF_WORLD);
+            this.discard();
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "addAdditionalSaveData", at = @At("RETURN"))
+    private void felt$saveExpiry(net.minecraft.world.level.storage.ValueOutput output, CallbackInfo ci) {
+        if (!this.felt$autoExpire) output.putBoolean("Paper.AutoExpire", false);
+    }
+
+    @Inject(method = "readAdditionalSaveData", at = @At("RETURN"))
+    private void felt$loadExpiry(net.minecraft.world.level.storage.ValueInput input, CallbackInfo ci) {
+        this.felt$autoExpire = input.getBooleanOr("Paper.AutoExpire", true);
+    }
 
     // @formatter:off
     @Shadow private BlockState blockState;

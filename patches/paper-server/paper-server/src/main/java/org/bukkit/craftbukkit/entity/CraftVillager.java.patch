@@ -34,7 +34,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftVilla
      public boolean addTrades(int amount) {
          Preconditions.checkArgument(amount > 0, "Number of trades unlocked must be positive");
 -        return this.getHandle().updateTrades((ServerLevel) this.getHandle().level(), amount);
-+        throw new UnsupportedOperationException("Unlocking a specified number of villager trades is not supported");
++        return ((gr1mly4memes.felt.bridge.core.world.entity.npc.VillagerBridge) this.getHandle()).bridge$addTrades(amount);
      }
  
      @Override

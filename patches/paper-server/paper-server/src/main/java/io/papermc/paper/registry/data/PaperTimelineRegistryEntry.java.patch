@@ -1,12 +1,13 @@
 diff --git a/paper-server/src/main/java/io/papermc/paper/registry/data/PaperTimelineRegistryEntry.java b/paper-server/src/main/java/io/papermc/paper/registry/data/PaperTimelineRegistryEntry.java
 --- a/paper-server/src/main/java/io/papermc/paper/registry/data/PaperTimelineRegistryEntry.java
 +++ b/paper-server/src/main/java/io/papermc/paper/registry/data/PaperTimelineRegistryEntry.java
-@@ -97,7 +97,7 @@
+@@ -97,7 +97,8 @@
                  builder.setPeriodTicks(this.periodTicks);
              }
              if (this.internal != null) {
 -                builder.addTracks(this.internal.tracks);
-+                throw new UnsupportedOperationException("Felt does not support copying timeline tracks yet");
++                var tracks = ((gr1mly4memes.felt.bridge.core.world.timeline.TimelineBridge) (Object) this.internal).bridge$tracks();
++                ((gr1mly4memes.felt.bridge.core.world.timeline.TimelineBuilderBridge) builder).bridge$addTracks(tracks);
              }
              this.timeMarkers.forEach((key, marker) -> builder.addTimeMarker(ResourceKey.create(net.minecraft.world.clock.ClockTimeMarkers.ROOT_ID, PaperAdventure.asVanilla(key)), marker.ticks(), marker.showInCommands()));
              return builder.build();

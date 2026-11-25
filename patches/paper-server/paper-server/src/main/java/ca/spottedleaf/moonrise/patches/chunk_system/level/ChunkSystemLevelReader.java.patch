@@ -1,0 +1,15 @@
+diff --git a/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/level/ChunkSystemLevelReader.java b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/level/ChunkSystemLevelReader.java
+new file mode 100644
+--- /dev/null
++++ b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/level/ChunkSystemLevelReader.java
+@@ -0,0 +1,10 @@
++package ca.spottedleaf.moonrise.patches.chunk_system.level;
++
++import net.minecraft.world.level.chunk.ChunkAccess;
++import net.minecraft.world.level.chunk.status.ChunkStatus;
++
++public interface ChunkSystemLevelReader {
++
++    public ChunkAccess moonrise$syncLoadNonFull(final int chunkX, final int chunkZ, final ChunkStatus status);
++
++}

@@ -6,7 +6,7 @@ diff --git a/paper-server/src/main/java/com/destroystokyo/paper/loottable/PaperL
      @Override
      default boolean isRefillEnabled() {
 -        return this.getNMSWorld().paperConfig().lootables.autoReplenish;
-+        throw new UnsupportedOperationException("Loot replenishment and player loot history are not supported by Felt yet");
++        return ((gr1mly4memes.felt.bridge.core.world.level.WorldBridge)this.getNMSWorld()).bridge$paperConfig().lootables.autoReplenish;
      }
  
      @Override
@@ -15,7 +15,7 @@ diff --git a/paper-server/src/main/java/com/destroystokyo/paper/loottable/PaperL
      @Override
      default boolean canPlayerLoot(final UUID player) {
 -        return this.lootableDataForAPI().canPlayerLoot(player, this.getNMSWorld().paperConfig());
-+        throw new UnsupportedOperationException("Loot replenishment and player loot history are not supported by Felt yet");
++        return this.lootableDataForAPI().canPlayerLoot(player, ((gr1mly4memes.felt.bridge.core.world.level.WorldBridge)this.getNMSWorld()).bridge$paperConfig());
      }
  
      @Override

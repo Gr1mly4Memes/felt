@@ -40,13 +40,15 @@ public class SkeletonTrapGoalMixin {
 
     @Unique private List<HumanEntity> eligiblePlayers = ImmutableList.of(); // Paper added
 
-    @Decorate(method = "canUse()Z", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;hasNearbyAlivePlayer(DDDD)Z"), require = 1, allow = 1)
-    private boolean felt$eligiblePlayers(Level level, double x, double y, double z, double range) throws Throwable {
-        boolean canUse = (boolean) DecorationOps.callsite().invoke(level, x, y, z, range);
+    @com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation(method = "canUse()Z", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;hasNearbyAlivePlayer(DDDD)Z"), require = 1, allow = 1)
+    private boolean felt$eligiblePlayers(Level level, double x, double y, double z, double range,
+            com.llamalad7.mixinextras.injector.wrapoperation.Operation<Boolean> original) {
+        boolean canUse = gr1mly4memes.felt.mod.server.world.FeltSpawningInfluence.nearbyAlive(level, x, y, z, range);
         ImmutableList.Builder<HumanEntity> players = ImmutableList.builder();
         if (canUse) {
             for (Player player : level.players()) {
                 if (EntitySelector.NO_SPECTATORS.test(player) && EntitySelector.LIVING_ENTITY_STILL_ALIVE.test(player)
+                    && gr1mly4memes.felt.mod.server.world.FeltSpawningInfluence.affects(player)
                     && (range < 0.0 || player.distanceToSqr(x, y, z) < range * range)) {
                     players.add((HumanEntity) ((EntityBridge) player).bridge$getBukkitEntity());
                 }

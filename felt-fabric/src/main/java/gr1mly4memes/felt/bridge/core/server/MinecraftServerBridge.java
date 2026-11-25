@@ -27,6 +27,11 @@ public interface MinecraftServerBridge {
 
     void bridge$queuedProcess(Runnable runnable);
 
+    /** Paper's public main-thread scheduling API. */
+    default void scheduleOnMain(Runnable runnable) {
+        this.bridge$queuedProcess(runnable);
+    }
+
     void bridge$drainQueuedTasks();
 
     boolean bridge$hasStopped();
@@ -44,6 +49,8 @@ public interface MinecraftServerBridge {
     void bridge$setMotd(net.kyori.adventure.text.Component motd);
 
     boolean bridge$isTickPaused();
+    void bridge$setRespawnWorld(ServerLevel level);
+    void bridge$allowPausing(org.bukkit.plugin.Plugin plugin, boolean allow);
 
     Commands bridge$getVanillaCommands();
 

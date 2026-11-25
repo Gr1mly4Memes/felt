@@ -19,6 +19,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 
 import org.bukkit.event.entity.EntityExhaustionEvent;
 import org.spongepowered.asm.mixin.Mixin;
@@ -52,6 +53,14 @@ public abstract class BlockMixin extends BlockBehaviourMixin implements BlockBri
 
     public int getExpDrop(BlockState blockState, ServerLevel world, BlockPos blockPos, ItemStack itemStack, boolean flag) {
         return this.bridge$getExpDrop(blockState, world, blockPos, itemStack);
+    }
+
+    @com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation(method = "popExperience", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/world/entity/ExperienceOrb;award(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/phys/Vec3;I)V"))
+    private void felt$attributeBlockExperience(ServerLevel level, Vec3 position, int amount,
+            com.llamalad7.mixinextras.injector.wrapoperation.Operation<Void> original) {
+        gr1mly4memes.felt.mod.server.world.FeltExperience.withDefaultAwardAttribution(org.bukkit.entity.ExperienceOrb.SpawnReason.BLOCK_BREAK,
+            () -> original.call(level, position, amount));
     }
 
     protected int tryDropExperience(ServerLevel worldserver, BlockPos blockposition, ItemStack itemstack, IntProvider intprovider) {

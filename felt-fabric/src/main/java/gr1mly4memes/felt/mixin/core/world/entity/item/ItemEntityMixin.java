@@ -39,6 +39,13 @@ import java.util.UUID;
 
 @Mixin(ItemEntity.class)
 public abstract class ItemEntityMixin extends EntityMixin {
+    @com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation(method = "tick",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/phys/Vec3;multiply(DDD)Lnet/minecraft/world/phys/Vec3;", ordinal = 0))
+    private net.minecraft.world.phys.Vec3 felt$itemFriction(net.minecraft.world.phys.Vec3 movement, double x, double y, double z,
+            com.llamalad7.mixinextras.injector.wrapoperation.Operation<net.minecraft.world.phys.Vec3> original) {
+        boolean friction = ((gr1mly4memes.felt.bridge.core.entity.PaperEntityStateBridge)this).bridge$frictionState() != net.kyori.adventure.util.TriState.FALSE;
+        return original.call(movement, friction ? x : 1.0, y, friction ? z : 1.0);
+    }
 
     @Override
     public void bridge$inactiveTick() {

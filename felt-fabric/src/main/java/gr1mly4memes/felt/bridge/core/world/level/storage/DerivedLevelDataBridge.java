@@ -13,4 +13,5 @@ public interface DerivedLevelDataBridge {
     ServerLevelData bridge$getDelegate();
 
     void bridge$setDimType(ResourceKey<LevelStem> typeKey);
+    void bridge$setSpawnDimension(ResourceKey<net.minecraft.world.level.Level> dimension);
 }

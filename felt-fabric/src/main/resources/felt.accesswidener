@@ -1,4 +1,35 @@
 accessWidener v2 official
+extendable class net/minecraft/world/level/chunk/storage/RegionFileStorage
+accessible field net/minecraft/server/level/ChunkLevel FULL_CHUNK_LEVEL I
+accessible field net/minecraft/server/level/ChunkLevel BLOCK_TICKING_LEVEL I
+accessible field net/minecraft/server/level/ChunkLevel ENTITY_TICKING_LEVEL I
+accessible field net/minecraft/server/level/ChunkMap worldGenContext Lnet/minecraft/world/level/chunk/status/WorldGenContext;
+accessible method net/minecraft/server/level/ChunkMap upgradeChunkTag (Lnet/minecraft/nbt/CompoundTag;)Lnet/minecraft/nbt/CompoundTag;
+accessible method net/minecraft/server/network/PlayerChunkSender sendChunk (Lnet/minecraft/server/network/ServerGamePacketListenerImpl;Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/chunk/LevelChunk;)V
+accessible method net/minecraft/world/entity/ai/village/poi/PoiManager setDirty (J)V
+accessible method net/minecraft/world/level/chunk/PalettedContainer get (I)Ljava/lang/Object;
+accessible method net/minecraft/server/level/Ticket <init> (Lnet/minecraft/server/level/TicketType;IJ)V
+accessible field net/minecraft/world/level/chunk/storage/RegionFile info Lnet/minecraft/world/level/chunk/storage/RegionStorageInfo;
+accessible field net/minecraft/world/level/chunk/storage/RegionFile path Ljava/nio/file/Path;
+accessible field net/minecraft/world/level/chunk/storage/RegionFile file Ljava/nio/channels/FileChannel;
+accessible field net/minecraft/world/level/chunk/storage/RegionFile externalFileDir Ljava/nio/file/Path;
+accessible field net/minecraft/world/level/chunk/storage/RegionFile version Lnet/minecraft/world/level/chunk/storage/RegionFileVersion;
+accessible field net/minecraft/world/level/chunk/storage/RegionFile offsets Ljava/nio/IntBuffer;
+accessible field net/minecraft/world/level/chunk/storage/RegionFile timestamps Ljava/nio/IntBuffer;
+accessible field net/minecraft/world/level/chunk/storage/RegionFile usedSectors Lnet/minecraft/world/level/chunk/storage/RegionBitmap;
+accessible field net/minecraft/world/level/chunk/storage/RegionFileVersion VERSIONS Lit/unimi/dsi/fastutil/ints/Int2ObjectMap;
+accessible method net/minecraft/world/level/chunk/storage/RegionFile getExternalChunkPath (Lnet/minecraft/world/level/ChunkPos;)Ljava/nio/file/Path;
+accessible method net/minecraft/world/level/chunk/storage/RegionFile packSectorOffset (II)I
+accessible method net/minecraft/world/level/chunk/storage/RegionFile writeHeader ()V
+accessible method net/minecraft/world/level/chunk/storage/RegionFile write (Lnet/minecraft/world/level/ChunkPos;Ljava/nio/ByteBuffer;)V
+accessible method net/minecraft/world/level/chunk/storage/RegionFile getTimestamp ()I
+accessible method net/minecraft/world/level/chunk/storage/RegionFile isExternalStreamChunk (B)Z
+accessible method net/minecraft/world/level/chunk/storage/RegionFile createStream (Ljava/nio/ByteBuffer;I)Ljava/io/ByteArrayInputStream;
+accessible field net/minecraft/world/level/chunk/storage/RegionFileStorage folder Ljava/nio/file/Path;
+accessible field net/minecraft/world/level/chunk/storage/RegionFileStorage sync Z
+accessible class net/minecraft/server/level/ServerChunkCache$MainThreadExecutor
+accessible field net/minecraft/server/level/ServerChunkCache mainThreadProcessor Lnet/minecraft/server/level/ServerChunkCache$MainThreadExecutor;
+accessible method net/minecraft/world/level/chunk/status/ChunkStatusTasks postLoadProtoChunk (Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/storage/ValueInput$ValueInputList;)V
 accessible method net/minecraft/commands/arguments/MessageArgument$Message resolveComponent (Lnet/minecraft/commands/CommandSourceStack;)Lnet/minecraft/network/chat/Component;
 accessible method net/minecraft/commands/arguments/MessageArgument resolveSignedMessage (Ljava/util/function/Consumer;Lnet/minecraft/commands/CommandSourceStack;Lnet/minecraft/network/chat/PlayerChatMessage;)V
 accessible method net/minecraft/commands/arguments/MessageArgument resolveDisguisedMessage (Ljava/util/function/Consumer;Lnet/minecraft/commands/CommandSourceStack;Lnet/minecraft/network/chat/PlayerChatMessage;)V
@@ -1132,3 +1163,6 @@ accessible field net/minecraft/world/level/biome/Biome climateSettings Lnet/mine
 accessible field net/minecraft/world/level/block/entity/BannerBlockEntity name Lnet/minecraft/network/chat/Component;
 accessible field net/minecraft/world/entity/LivingEntity lastHurtByPlayerMemoryTime I
 accessible field net/minecraft/resources/DelegatingOps delegate Lcom/mojang/serialization/DynamicOps;
+
+accessible class net/minecraft/server/level/ServerLevel$EntityCallbacks
+accessible method net/minecraft/server/level/ServerLevel$EntityCallbacks <init> (Lnet/minecraft/server/level/ServerLevel;)V

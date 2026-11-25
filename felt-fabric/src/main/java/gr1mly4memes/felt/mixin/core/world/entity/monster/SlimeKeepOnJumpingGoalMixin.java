@@ -18,6 +18,7 @@ public abstract class SlimeKeepOnJumpingGoalMixin {
 
     @Decorate(method = "canUse()Z", at = @At("RETURN"), require = 1, expect = 1, allow = 1)
     private void felt$wanderEvent(boolean canUse) throws Throwable {
+        canUse &= ((gr1mly4memes.felt.bridge.core.world.entity.monster.CubeMobControlBridge)this.cubeMob).bridge$canWander();
         // Retain the passenger check; inherited continuation reuses canUse().
         if (canUse) {
             SlimeWanderEvent event = new SlimeWanderEvent(

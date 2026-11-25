@@ -4,7 +4,10 @@ import gr1mly4memes.felt.bridge.core.world.level.storage.DerivedLevelDataBridge;
 import gr1mly4memes.felt.mod.config.FeltConfig;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.dimension.LevelStem;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.DerivedLevelData;
+import net.minecraft.world.level.storage.LevelData.RespawnData;
+import gr1mly4memes.felt.bridge.core.world.level.storage.PrimaryLevelDataBridge;
 import net.minecraft.world.level.storage.ServerLevelData;
 import net.minecraft.world.level.storage.WorldData;
 import org.spongepowered.asm.mixin.Final;
@@ -19,6 +22,33 @@ public class DerivedLevelDataMixin implements DerivedLevelDataBridge {
     @Shadow @Final private ServerLevelData wrapped;
 
     private ResourceKey<LevelStem> typeKey;
+    private ResourceKey<Level> felt$spawnDimension;
+
+    @Override
+    public void bridge$setSpawnDimension(ResourceKey<Level> dimension) {
+        this.felt$spawnDimension = dimension;
+    }
+
+    @Overwrite
+    public RespawnData getRespawnData() {
+        RespawnData fallback = this.wrapped.getRespawnData();
+        var dimension = this.felt$spawnDimension;
+        if (dimension == null || !(this.wrapped instanceof PrimaryLevelDataBridge root)) {
+            return fallback;
+        }
+        RespawnData spawn = root.bridge$getDimensionSpawn(dimension);
+        return spawn == null ? RespawnData.of(dimension, fallback.pos(), fallback.yaw(), fallback.pitch()) : spawn;
+    }
+
+    @Overwrite
+    public void setSpawn(RespawnData spawn) {
+        var dimension = this.felt$spawnDimension;
+        if (dimension == null || !(this.wrapped instanceof PrimaryLevelDataBridge root)) {
+            this.wrapped.setSpawn(spawn);
+            return;
+        }
+        root.bridge$setDimensionSpawn(dimension, RespawnData.of(dimension, spawn.pos(), spawn.yaw(), spawn.pitch()));
+    }
 
     /**
      * @author IzzelAliz

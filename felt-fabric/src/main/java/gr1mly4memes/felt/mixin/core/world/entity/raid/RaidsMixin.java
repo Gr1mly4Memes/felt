@@ -4,6 +4,8 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Cancellable;
+import gr1mly4memes.felt.bridge.core.world.entity.raid.RaidBridge;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffects;
@@ -16,6 +18,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Raids.class)
 public class RaidsMixin {
+    @WrapOperation(method = {"<init>(Ljava/util/List;II)V", "createOrExtendRaid"}, at = @At(value = "INVOKE",
+        target = "Lit/unimi/dsi/fastutil/ints/Int2ObjectMap;put(ILjava/lang/Object;)Ljava/lang/Object;"), require = 2, allow = 2)
+    private Object felt$registerRaidId(Int2ObjectMap<Raid> raids, int id, Object value, Operation<Object> original) {
+        Object previous = original.call(raids, id, value);
+        ((RaidBridge) value).bridge$setId(id);
+        return previous;
+    }
+
     // Fire before the native registration so cancellation never erases an existing raid.
     @ModifyExpressionValue(method = "createOrExtendRaid", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/raid/Raids;getOrCreateRaid(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/entity/raid/Raid;"))
     private Raid felt$raidTrigger(Raid raid, ServerPlayer player, BlockPos pos,

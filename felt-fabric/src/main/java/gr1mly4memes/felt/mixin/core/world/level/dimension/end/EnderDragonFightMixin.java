@@ -19,8 +19,11 @@ import org.bukkit.craftbukkit.boss.CraftDragonBattle;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.gen.Invoker;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.List;
 
@@ -32,6 +35,25 @@ public abstract class EnderDragonFightMixin extends SavedData implements EnderDr
     @Shadow private boolean dragonKilled;
     @Shadow public boolean hasPreviouslyKilledDragon;
     @Shadow public abstract void tryRespawn();
+    @Unique private boolean felt$emptyCrystalRespawnAllowed;
+
+    @com.llamalad7.mixinextras.injector.ModifyExpressionValue(method = "tick", at = @At(value = "INVOKE",
+        target = "Ljava/util/List;isEmpty()Z"), require = 1, allow = 1)
+    private boolean felt$requireRespawnCrystals(boolean empty) {
+        return empty && !this.felt$emptyCrystalRespawnAllowed;
+    }
+
+    @Inject(method = "abortRespawnSequence", at = @At("HEAD"))
+    private void felt$resetCrystalExemptionOnAbort(CallbackInfo ci) {
+        this.felt$emptyCrystalRespawnAllowed = false;
+    }
+
+    @Inject(method = "setRespawnStage", at = @At("RETURN"))
+    private void felt$resetCrystalExemptionOnCompletion(DragonRespawnStage stage, CallbackInfo ci) {
+        if (stage == DragonRespawnStage.END) {
+            this.felt$emptyCrystalRespawnAllowed = false;
+        }
+    }
 
     @Invoker("respawnDragon")
     public abstract void felt$invokeRespawnDragon(List<EndCrystal> crystals);
@@ -48,7 +70,11 @@ public abstract class EnderDragonFightMixin extends SavedData implements EnderDr
     public boolean bridge$respawnDragon(List<EndCrystal> crystals) {
         boolean eligible = this.dragonKilled && this.respawnStage == null;
         this.felt$invokeRespawnDragon(crystals);
-        return eligible && this.respawnStage == DragonRespawnStage.START;
+        boolean started = eligible && this.respawnStage == DragonRespawnStage.START;
+        if (started) {
+            this.felt$emptyCrystalRespawnAllowed = crystals.isEmpty();
+        }
+        return started;
     }
 
     @Decorate(method = "setDragonKilled(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;)V",

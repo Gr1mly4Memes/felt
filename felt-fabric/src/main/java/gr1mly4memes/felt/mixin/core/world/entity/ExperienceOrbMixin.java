@@ -2,19 +2,33 @@ package gr1mly4memes.felt.mixin.core.world.entity;
 
 import com.destroystokyo.paper.event.entity.ExperienceOrbMergeEvent;
 import com.destroystokyo.paper.event.player.PlayerPickupExperienceEvent;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Share;
+import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import gr1mly4memes.felt.bridge.core.entity.EntityBridge;
 import gr1mly4memes.felt.bridge.core.server.level.ServerPlayerBridge;
 import gr1mly4memes.felt.bridge.core.world.entity.ExperienceOrbBridge;
+import gr1mly4memes.felt.mod.server.world.FeltExperience;
+import gr1mly4memes.felt.mod.server.world.FeltExperience.Attribution;
 import gr1mly4memes.felttools.mixin.Decorate;
 import gr1mly4memes.felttools.mixin.DecorationOps;
 import gr1mly4memes.felttools.mixin.Local;
+import net.minecraft.core.UUIDUtil;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.EnchantedItemInUse;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.Vec3;
+import org.bukkit.entity.ExperienceOrb.SpawnReason;
 import org.bukkit.craftbukkit.entity.CraftLivingEntity;
 import org.bukkit.craftbukkit.event.CraftEventFactory;
 import org.bukkit.event.entity.EntityRemoveEvent;
@@ -24,6 +38,7 @@ import org.bukkit.event.player.PlayerExpCooldownChangeEvent;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -33,6 +48,71 @@ import java.util.Optional;
 
 @Mixin(ExperienceOrb.class)
 public abstract class ExperienceOrbMixin extends EntityMixin implements ExperienceOrbBridge {
+    @Unique private Attribution felt$attribution = Attribution.UNKNOWN;
+
+    @Override
+    public Attribution bridge$getAttribution() {
+        return this.felt$attribution;
+    }
+
+    @Override
+    public void bridge$setAttribution(Attribution attribution) {
+        this.felt$attribution = attribution;
+    }
+
+    @Inject(method = "awardWithDirection", at = @At("HEAD"))
+    private static void felt$captureAwardAttribution(ServerLevel level, Vec3 pos, Vec3 direction, int amount, CallbackInfo ci,
+            @Share("feltAwardAttribution") LocalRef<Attribution> attribution) {
+        // Capture once per batch so spawn listeners can safely award their own XP.
+        attribution.set(FeltExperience.takeAwardAttribution());
+    }
+
+    @org.spongepowered.asm.mixin.injection.ModifyConstant(method = {"tryMergeToExisting", "canMerge(Lnet/minecraft/world/entity/ExperienceOrb;II)Z"},
+        constant = @org.spongepowered.asm.mixin.injection.Constant(intValue = 40), require = 2, allow = 2)
+    private static int felt$experienceGroupCount(int defaultGroups) {
+        var config = io.papermc.paper.configuration.GlobalConfiguration.get();
+        return config == null ? defaultGroups : config.misc.xpOrbGroupsPerArea.or(defaultGroups);
+    }
+
+    @WrapOperation(method = "awardWithDirection", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/server/level/ServerLevel;addFreshEntity(Lnet/minecraft/world/entity/Entity;)Z"))
+    private static boolean felt$attributeOrb(ServerLevel level, Entity orb, Operation<Boolean> original,
+            @Share("feltAwardAttribution") LocalRef<Attribution> attribution) {
+        if (attribution.get() != null) {
+            ((ExperienceOrbBridge) orb).bridge$setAttribution(attribution.get());
+        }
+        return original.call(level, orb);
+    }
+
+    @Inject(method = "addAdditionalSaveData", at = @At("RETURN"))
+    private void felt$saveAttribution(ValueOutput output, CallbackInfo ci) {
+        if (this.felt$attribution.equals(Attribution.UNKNOWN)) {
+            return;
+        }
+        var data = new CompoundTag();
+        data.storeNullable("source", UUIDUtil.CODEC, this.felt$attribution.source());
+        data.storeNullable("trigger", UUIDUtil.CODEC, this.felt$attribution.trigger());
+        if (this.felt$attribution.reason() != SpawnReason.UNKNOWN) {
+            data.putString("reason", this.felt$attribution.reason().name());
+        }
+        output.store("Paper.ExpData", CompoundTag.CODEC, data);
+    }
+
+    @Inject(method = "readAdditionalSaveData", at = @At("RETURN"))
+    private void felt$loadAttribution(ValueInput input, CallbackInfo ci) {
+        this.felt$attribution = Attribution.UNKNOWN;
+        input.read("Paper.ExpData", CompoundTag.CODEC).ifPresent(data -> {
+            SpawnReason reason = SpawnReason.UNKNOWN;
+            String name = data.getStringOr("reason", SpawnReason.UNKNOWN.name());
+            try {
+                reason = SpawnReason.valueOf(name);
+            } catch (IllegalArgumentException invalid) {
+                org.slf4j.LoggerFactory.getLogger(ExperienceOrb.class).warn("Invalid experience orb spawn reason {}", name);
+            }
+            this.felt$attribution = new Attribution(reason, data.read("trigger", UUIDUtil.CODEC).orElse(null),
+                data.read("source", UUIDUtil.CODEC).orElse(null));
+        });
+    }
 
     // @formatter:off
     @Shadow private Player followingPlayer;

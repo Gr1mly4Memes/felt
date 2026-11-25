@@ -1,0 +1,17 @@
+diff --git a/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/world/ChunkSystemEntityGetter.java b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/world/ChunkSystemEntityGetter.java
+new file mode 100644
+--- /dev/null
++++ b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/world/ChunkSystemEntityGetter.java
+@@ -0,0 +1,12 @@
++package ca.spottedleaf.moonrise.patches.chunk_system.world;
++
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.phys.AABB;
++import java.util.List;
++import java.util.function.Predicate;
++
++public interface ChunkSystemEntityGetter {
++
++    public List<Entity> moonrise$getHardCollidingEntities(final Entity entity, final AABB box, final Predicate<? super Entity> predicate);
++
++}

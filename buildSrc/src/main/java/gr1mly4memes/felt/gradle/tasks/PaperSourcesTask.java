@@ -31,9 +31,11 @@ import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
@@ -101,7 +103,22 @@ public abstract class PaperSourcesTask extends DefaultTask {
         var head = upstream.resolve(Constants.HEAD);
         if (head == null) throw new GradleException("Paper submodule is not initialized; initialize upstream/Paper before building");
         if (!manifest.commit.equals(head.name())) throw new GradleException("Paper revision does not match the pinned source manifest");
-        if (!new Git(upstream).status().call().isClean()) throw new GradleException("Paper upstream is dirty");
+        verifyWorkingTree(new Git(upstream).status().call(), manifest);
+    }
+
+    private static void verifyWorkingTree(org.eclipse.jgit.api.Status status, Manifest manifest) {
+        Set<String> changed = new HashSet<>(status.getUncommittedChanges());
+        changed.addAll(status.getUntracked());
+        changed.addAll(status.getUntrackedFolders());
+        for (String name : changed) {
+            safe(name);
+            boolean permitted = manifest.groups.values().stream().anyMatch(group -> selected(name, group) && !excluded(name, group));
+            if (!permitted) throw new GradleException("Unexpected change in upstream/Paper: " + name + ". Only selected Paper source roots may be edited.");
+        }
+    }
+
+    private static void requireClean(org.eclipse.jgit.api.Status status) {
+        if (!status.isClean()) throw new GradleException("upstream/Paper is already edited. Run rebuildPaperPatches to save those edits, or restore a clean checkout before applying patches.");
     }
 
     private static void export(Repository upstream, String commit, Group group, Path output) throws Exception {
@@ -139,10 +156,43 @@ public abstract class PaperSourcesTask extends DefaultTask {
                 if (Files.isSymbolicLink(path)) throw new GradleException("Source symlink: " + path);
                 if (!Files.isRegularFile(path)) continue;
                 allowed(name, group);
-                result.put(name, new Content(HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path))), POSIX && Files.isExecutable(path)));
+                result.put(name, new Content(contentHash(path), POSIX && Files.isExecutable(path)));
             }
         }
         return result;
+    }
+
+    /** Snapshot a selected source group from the full Paper checkout. */
+    private static Map<String, Content> snapshotSelected(Path directory, Group group) throws Exception {
+        Map<String, Content> result = new TreeMap<>();
+        try (var paths = Files.walk(directory)) {
+            for (Path path : paths.toList()) {
+                String name = directory.relativize(path).toString().replace(File.separatorChar, '/');
+                if (!selected(name, group) || excluded(name, group)) continue;
+                safe(name);
+                if (Files.isSymbolicLink(path)) throw new GradleException("Source symlink: " + path);
+                if (!Files.isRegularFile(path)) continue;
+                result.put(name, new Content(contentHash(path), POSIX && Files.isExecutable(path)));
+            }
+        }
+        return result;
+    }
+
+    private static String contentHash(Path path) throws Exception {
+        byte[] bytes = Files.readAllBytes(path);
+        boolean binary = false;
+        for (byte value : bytes) if (value == 0) { binary = true; break; }
+        if (!binary) {
+            try {
+                // Editors may use CRLF on Windows; replayed text and patches use canonical LF.
+                // Decode strictly so binary resources retain their exact byte comparison.
+                String text = StandardCharsets.UTF_8.newDecoder().decode(java.nio.ByteBuffer.wrap(bytes)).toString();
+                bytes = text.replace("\r\n", "\n").getBytes(StandardCharsets.UTF_8);
+            } catch (java.nio.charset.CharacterCodingException ignored) {
+                // Non-text resources are compared byte for byte.
+            }
+        }
+        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
     }
 
     private static List<SourcePatch> patches(Path directory, Group group) throws Exception {
@@ -246,12 +296,19 @@ public abstract class PaperSourcesTask extends DefaultTask {
                 comparison = tmp.resolve("second");
                 replay(upstream, manifest, group, directory, comparison);
             }
-            if (!snapshot(replay, group).equals(snapshot(comparison, group))) throw new GradleException("Patch replay differs from editing directory: " + work);
+            var expected = snapshot(replay, group);
+            var actual = snapshotSelected(comparison, group);
+            if (!expected.equals(actual)) {
+                var names = new TreeSet<>(expected.keySet());
+                names.addAll(actual.keySet());
+                var differences = names.stream().filter(name -> !java.util.Objects.equals(expected.get(name), actual.get(name))).limit(10).toList();
+                throw new GradleException("Patch replay differs from upstream/Paper: " + work + " in " + differences);
+            }
         });
     }
 
     private void rebuild(Repository upstream, Manifest manifest, Group group, Path directory, Path work) throws Exception {
-        Map<String, Content> edited = snapshot(work, group);
+        Map<String, Content> edited = snapshotSelected(work, group);
         temporary(directory.getParent(), tmp -> {
             Path baseline = tmp.resolve("baseline");
             Path previousReplay = tmp.resolve("replay");
@@ -304,22 +361,17 @@ public abstract class PaperSourcesTask extends DefaultTask {
         }
         try (Repository upstream = open(root.resolve("upstream/Paper"))) {
             verify(upstream, manifest);
+            if (operation.equals("apply")) requireClean(new Git(upstream).status().call());
             if (!operation.equals("verify")) for (var entry : manifest.groups.entrySet()) {
                 String name = entry.getKey();
                 if (!selectedGroup.isEmpty() && !selectedGroup.equals(name)) continue;
                 safe(name);
                 Group group = entry.getValue();
                 Path directory = root.resolve("patches/" + name);
-                Path work = root.resolve(".paper-work/" + name);
+                Path work = root.resolve("upstream/Paper");
                 switch (operation) {
-                    case "apply", "prepare" -> {
-                        Path output = operation.equals("apply") ? root.resolve("build/paper-patched/" + name) : work;
-                        if (operation.equals("prepare") && Files.exists(work)) throw new GradleException("Patch editing directory already exists: " + work);
-                        temporary(output.getParent(), tmp -> {
-                            Path staged = tmp.resolve("sources");
-                            replay(upstream, manifest, group, directory, staged);
-                            publish(staged, output, tmp);
-                        });
+                    case "apply" -> {
+                        for (SourcePatch patch : patches(directory, group)) applyOne(patch, work);
                     }
                     case "check" -> check(upstream, manifest, group, directory, work);
                     case "rebuild" -> rebuild(upstream, manifest, group, directory, work);

@@ -8,7 +8,20 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNu
  import com.google.common.base.Preconditions;
  import com.google.common.collect.ImmutableMap;
  import com.google.gson.Gson;
-@@ -329,7 +328,7 @@
+@@ -134,8 +133,10 @@
+     // ========================================================================
+     private static final Map<Block, Material> BLOCK_MATERIAL = new IdentityHashMap<>();
+     private static final Map<Item, Material> ITEM_MATERIAL = new IdentityHashMap<>();
+-    private static final Map<Material, Item> MATERIAL_ITEM = new EnumMap<>(Material.class);
+-    private static final Map<Material, Block> MATERIAL_BLOCK = new EnumMap<>(Material.class);
++    // Felt start - EnumMap cannot hold Material constants added during registry bootstrap
++    private static final Map<Material, Item> MATERIAL_ITEM = new HashMap<>();
++    private static final Map<Material, Block> MATERIAL_BLOCK = new HashMap<>();
++    // Felt end - EnumMap cannot hold Material constants added during registry bootstrap
+ 
+     static {
+         for (Block block : BuiltInRegistries.BLOCK) {
+@@ -329,7 +330,7 @@
          }
          if (newEntries.isEmpty()) return List.of();
  
@@ -17,7 +30,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNu
  
          final AdvancementTree tree = manager.tree();
          tree.addAll(newEntries.stream().map(AdvancementEntry::advancement).toList());
-@@ -352,10 +351,10 @@
+@@ -352,10 +353,10 @@
                      LOGGER.error("Error saving advancement {}", entry.id(), ex);
                  }
              }
@@ -30,7 +43,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNu
          return deserializedAdvancements;
      }
  
-@@ -371,7 +370,7 @@
+@@ -371,7 +372,7 @@
      @Override
      public void checkSupported(PluginDescriptionFile descriptionFile) throws InvalidPluginException {
          ApiVersion toCheck = ApiVersion.getOrCreateVersion(descriptionFile.getAPIVersion());
@@ -39,7 +52,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNu
  
          if (toCheck.isNewerThan(ApiVersion.CURRENT)) {
              // Newer than supported
-@@ -416,7 +415,7 @@
+@@ -416,7 +417,7 @@
      public boolean isSupportedApiVersion(String apiVersion) {
          if (apiVersion == null) return false;
          final ApiVersion toCheck = ApiVersion.getOrCreateVersion(apiVersion);
@@ -48,7 +61,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNu
  
          return !toCheck.isNewerThan(ApiVersion.CURRENT) && !toCheck.isOlderThan(minimumVersion);
      }
-@@ -506,15 +505,11 @@
+@@ -506,15 +507,11 @@
          Preconditions.checkArgument(!itemStack.isEmpty(), "Cannot serialize empty ItemStack");
  
          net.minecraft.core.RegistryAccess registryAccess = CraftRegistry.getMinecraftRegistry();
@@ -67,7 +80,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNu
          item.addProperty(SharedConstants.DATA_VERSION_TAG, this.getDataVersion());
          return item;
      }
-@@ -562,7 +557,7 @@
+@@ -562,7 +559,7 @@
              } else {
                  // Ensure misc flag is not needed
                  Preconditions.checkArgument(
@@ -76,7 +89,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNu
                      "Cannot serialize misc non-saveable entity %s(%s) without the MISC flag",
                      e.getType().toShortString(),
                      e.getStringUUID()
-@@ -579,10 +574,14 @@
+@@ -579,10 +576,14 @@
                      throw new IllegalArgumentException("Couldn't serialize entity");
                  }
              } else {
@@ -95,7 +108,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNu
                  if (!serialized) {
                      throw new IllegalArgumentException("Couldn't serialize entity");
                  }
-@@ -599,7 +598,7 @@
+@@ -599,7 +600,7 @@
          CompoundTag tag = MCUtil.deserializeTagFromBytes(data);
          int dataVersion = NbtUtils.getDataVersion(tag, 0);
          Preconditions.checkArgument(dataVersion <= Bukkit.getUnsafe().getDataVersion(), "Newer version! Server downgrades are not supported!");

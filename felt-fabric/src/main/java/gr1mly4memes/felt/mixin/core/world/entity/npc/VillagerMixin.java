@@ -50,6 +50,19 @@ public abstract class VillagerMixin extends AbstractVillagerMixin implements Vil
     @org.spongepowered.asm.mixin.Unique private boolean felt$inactiveVillagerAi;
 
     @Override
+    public boolean bridge$addTrades(int amount) {
+        var villager = (net.minecraft.world.entity.npc.villager.Villager) (Object) this;
+        var data = villager.getVillagerData();
+        if (data.profession().value().getTrades(data.level()) == null) {
+            return false;
+        }
+        // Initialize ordinary trades before setting the request for the additional batch.
+        villager.getOffers();
+        this.felt$updateTrades((ServerLevel) villager.level(), amount);
+        return true;
+    }
+
+    @Override
     public void bridge$inactiveTick() {
         var villager = (net.minecraft.world.entity.npc.villager.Villager) (Object) this;
         if (villager.getUnhappyCounter() > 0) villager.setUnhappyCounter(villager.getUnhappyCounter() - 1);

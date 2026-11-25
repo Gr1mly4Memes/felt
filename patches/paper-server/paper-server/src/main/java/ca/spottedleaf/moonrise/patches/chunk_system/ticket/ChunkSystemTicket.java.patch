@@ -1,0 +1,20 @@
+diff --git a/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/ticket/ChunkSystemTicket.java b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/ticket/ChunkSystemTicket.java
+new file mode 100644
+--- /dev/null
++++ b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/ticket/ChunkSystemTicket.java
+@@ -0,0 +1,15 @@
++package ca.spottedleaf.moonrise.patches.chunk_system.ticket;
++
++import net.minecraft.server.level.Ticket;
++
++public interface ChunkSystemTicket<T> extends Comparable<Ticket> {
++
++    public long moonrise$getRemoveDelay();
++
++    public void moonrise$setRemoveDelay(final long removeDelay);
++
++    public T moonrise$getIdentifier();
++
++    public void moonrise$setIdentifier(final T identifier);
++
++}

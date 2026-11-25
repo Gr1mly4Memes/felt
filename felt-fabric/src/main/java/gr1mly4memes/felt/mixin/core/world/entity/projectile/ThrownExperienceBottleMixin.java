@@ -1,7 +1,7 @@
 package gr1mly4memes.felt.mixin.core.world.entity.projectile;
 
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.ExperienceOrb;
+import gr1mly4memes.felt.mod.server.world.FeltExperience;
 import net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownExperienceBottle;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
@@ -31,12 +31,10 @@ public abstract class ThrownExperienceBottleMixin extends ThrowableItemProjectil
             if (event.getShowEffect()) {
                 this.level().levelEvent(2002, this.blockPosition(), new PotionContents(Potions.WATER).getColor());
             }
-            if (result instanceof BlockHitResult blockHitResult) {
-                Vec3 direction = blockHitResult.getDirection().getUnitVec3();
-                ExperienceOrb.awardWithDirection((ServerLevel) this.level(), result.getLocation(), direction, i);
-            } else {
-                ExperienceOrb.awardWithDirection((ServerLevel) this.level(), result.getLocation(), this.getDeltaMovement().scale(-1.0D), i);
-            }
+            Vec3 direction = result instanceof BlockHitResult blockHitResult
+                ? blockHitResult.getDirection().getUnitVec3() : this.getDeltaMovement().scale(-1.0D);
+            FeltExperience.award((ServerLevel) this.level(), result.getLocation(), direction, i,
+                org.bukkit.entity.ExperienceOrb.SpawnReason.EXP_BOTTLE, this.getOwner(), (ThrownExperienceBottle) (Object) this);
             this.bridge$pushEntityRemoveCause(EntityRemoveEvent.Cause.HIT);
             this.discard();
         }

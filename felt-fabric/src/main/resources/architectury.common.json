@@ -151,6 +151,7 @@
     "net/minecraft/world/level/block/entity/BlockEntity": ["gr1mly4memes/felt/bridge/core/world/level/block/entity/BlockEntityBridge"],
     "net/minecraft/commands/arguments/EntityArgument": ["gr1mly4memes/felt/bridge/core/commands/arguments/EntityArgumentBridge"],
     "net/minecraft/network/Connection": ["gr1mly4memes/felt/bridge/core/network/ConnectionBridge"],
+    "net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket": ["gr1mly4memes/felt/bridge/core/network/ChunkPacketReadyBridge"],
     "net/minecraft/server/network/ServerCommonPacketListenerImpl": ["gr1mly4memes/felt/bridge/core/server/network/ServerCommonPacketListenerImplBridge"],
     "net/minecraft/world/level/portal/TeleportTransition": ["gr1mly4memes/felt/bridge/core/world/level/portal/DimensionTransitionBridge"],
     "net/minecraft/world/entity/monster/zombie/ZombieVillager": ["gr1mly4memes/felt/bridge/core/world/entity/monster/ZombieVillagerBridge"],

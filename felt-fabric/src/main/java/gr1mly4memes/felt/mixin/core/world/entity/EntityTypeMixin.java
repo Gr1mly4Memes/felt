@@ -4,6 +4,8 @@ import com.destroystokyo.paper.event.entity.PreCreatureSpawnEvent;
 import gr1mly4memes.felt.bridge.core.world.entity.EntityTypeBridge;
 import gr1mly4memes.felt.bridge.core.world.level.IWorldWriterBridge;
 import gr1mly4memes.felt.bridge.core.world.level.WorldBridge;
+import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap;
+import java.util.stream.Stream;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -11,6 +13,8 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
 import org.bukkit.craftbukkit.entity.CraftEntityType;
 import org.bukkit.craftbukkit.util.CraftLocation;
 import org.bukkit.event.entity.CreatureSpawnEvent;
@@ -32,6 +36,32 @@ public abstract class EntityTypeMixin<T extends Entity> implements EntityTypeBri
     // @formatter:off
     @Shadow @Nullable public abstract T create(ServerLevel p_262637_, @org.jetbrains.annotations.Nullable PostSpawnProcessor<T> p_262629_, BlockPos p_262595_, EntitySpawnReason p_262666_, boolean p_262685_, boolean p_262588_);
     // @formatter:on
+
+    @Inject(method = "loadEntitiesRecursive", at = @At("HEAD"), cancellable = true)
+    private static void felt$limitLoadedEntityTypes(ValueInput.ValueInputList entities, Level level, EntitySpawnReason reason,
+                                                    CallbackInfoReturnable<Stream<Entity>> cir) {
+        if (!(level instanceof ServerLevel world)) {
+            return;
+        }
+        var config = ((WorldBridge) world).bridge$paperConfig();
+        if (config == null) {
+            return;
+        }
+        var limits = config.chunks.entityPerChunkSaveLimit;
+        var counts = new Reference2IntOpenHashMap<EntityType<?>>();
+        cir.setReturnValue(entities.stream().<Entity>mapMulti((tag, output) -> EntityType.loadEntityRecursive(tag, world, reason, entity -> {
+            EntityType<?> type = entity.getType();
+            int limit = limits.getOrDefault(type, -1);
+            if (limit >= 0) {
+                if (counts.getInt(type) >= limit) {
+                    return null;
+                }
+                counts.addTo(type, 1);
+            }
+            output.accept(entity);
+            return entity;
+        })));
+    }
 
     @com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod(method = "spawn(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/entity/EntitySpawnReason;ZZ)Lnet/minecraft/world/entity/Entity;")
     private T felt$spawnReasonLifetime(ServerLevel worldIn, ItemStack p_20594_, LivingEntity p_20595_, BlockPos p_20596_, EntitySpawnReason p_20597_, boolean p_20598_, boolean p_20599_, com.llamalad7.mixinextras.injector.wrapoperation.Operation<T> original) throws Throwable {

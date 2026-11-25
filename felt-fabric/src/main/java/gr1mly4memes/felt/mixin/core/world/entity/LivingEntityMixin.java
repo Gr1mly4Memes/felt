@@ -43,7 +43,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntityEquipment;
 import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.ExperienceOrb;
+import gr1mly4memes.felt.mod.server.world.FeltExperience;
+import org.bukkit.entity.ExperienceOrb.SpawnReason;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -247,7 +248,9 @@ public abstract class LivingEntityMixin extends EntityMixin implements LivingEnt
         // if (!this.world.isRemote && (this.isPlayer() || this.recentlyHit > 0 && this.canDropLoot() && this.world.getGameRules().getBoolean(GameRules.DO_MOB_LOOT))) {
         if (!((Object) this instanceof EnderDragon)) {
             int reward = this.bridge$mod$getExperienceDrop((LivingEntity) (Object) this, this.getLastHurtByPlayer(), this.expToDrop);
-            ExperienceOrb.award(serverLevel, this.position(), reward);
+            LivingEntity source = (LivingEntity) (Object) this;
+            FeltExperience.award(serverLevel, this.position(), Vec3.ZERO, reward,
+                source instanceof ServerPlayer ? SpawnReason.PLAYER_DEATH : SpawnReason.ENTITY_DEATH, entity, source);
             bridge$setExpToDrop(0);
         }
     }

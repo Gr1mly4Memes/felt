@@ -13,7 +13,7 @@ diff --git a/paper-server/src/main/java/com/destroystokyo/paper/loottable/PaperL
      @Override
      default PaperLootableInventoryData lootableDataForAPI() {
 -        return Objects.requireNonNull(this.getRandomizableContainer().lootableData(), "Can only manage loot tables on tile entities with lootableData");
-+        throw new UnsupportedOperationException("Loot replenishment and player loot history are not supported by Felt yet");
++        return java.util.Objects.requireNonNull(((gr1mly4memes.felt.bridge.core.world.LootableDataBridge)this.getRandomizableContainer()).bridge$lootableData(), "Can only manage loot tables on tile entities with lootableData");
      }
  
      /* LootableBlockInventory */

@@ -183,6 +183,12 @@ public abstract class LevelChunkMixin extends ChunkAccessMixin implements LevelC
 
     @Override
     public boolean isUnsaved() {
+        if ((Object) this instanceof ca.spottedleaf.moonrise.patches.chunk_system.level.chunk.ChunkSystemLevelChunk) {
+            LevelChunk chunk = (LevelChunk)(Object)this;
+            long tick = this.level.getGameTime();
+            if (((ca.spottedleaf.moonrise.patches.chunk_system.ticks.ChunkSystemLevelChunkTicks)chunk.getBlockTicks()).moonrise$isDirty(tick)
+                || ((ca.spottedleaf.moonrise.patches.chunk_system.ticks.ChunkSystemLevelChunkTicks)chunk.getFluidTicks()).moonrise$isDirty(tick)) return !this.mustNotSave;
+        }
         return super.isUnsaved() && !this.mustNotSave;
     }
 }

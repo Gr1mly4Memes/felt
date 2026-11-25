@@ -1,0 +1,25 @@
+diff --git a/paper-server/src/main/java/com/destroystokyo/paper/entity/ai/PaperMobGoals.java b/paper-server/src/main/java/com/destroystokyo/paper/entity/ai/PaperMobGoals.java
+--- a/paper-server/src/main/java/com/destroystokyo/paper/entity/ai/PaperMobGoals.java
++++ b/paper-server/src/main/java/com/destroystokyo/paper/entity/ai/PaperMobGoals.java
+@@ -215,17 +215,17 @@
+ 
+     private GoalSelector getHandle(CraftMob mob, EnumSet<GoalType> types) {
+         if (types.contains(GoalType.TARGET)) {
+-            return mob.getHandle().targetSelector;
++            return ((gr1mly4memes.felt.bridge.core.world.entity.MobBridge)mob.getHandle()).bridge$targetSelector();
+         } else {
+-            return mob.getHandle().getGoalSelector();
++            return ((gr1mly4memes.felt.bridge.core.world.entity.MobBridge)mob.getHandle()).bridge$goalSelector();
+         }
+     }
+ 
+     private GoalSelector getHandle(CraftMob mob, GoalType type) {
+         if (type == GoalType.TARGET) {
+-            return mob.getHandle().targetSelector;
++            return ((gr1mly4memes.felt.bridge.core.world.entity.MobBridge)mob.getHandle()).bridge$targetSelector();
+         } else {
+-            return mob.getHandle().getGoalSelector();
++            return ((gr1mly4memes.felt.bridge.core.world.entity.MobBridge)mob.getHandle()).bridge$goalSelector();
+         }
+     }
+ }

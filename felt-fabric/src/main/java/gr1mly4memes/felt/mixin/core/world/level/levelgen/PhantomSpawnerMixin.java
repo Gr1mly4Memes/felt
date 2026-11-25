@@ -1,6 +1,7 @@
 package gr1mly4memes.felt.mixin.core.world.level.levelgen;
 
 import com.destroystokyo.paper.event.entity.PhantomPreSpawnEvent;
+import gr1mly4memes.felt.bridge.core.world.entity.SpawningEntityBridge;
 import gr1mly4memes.felt.bridge.core.server.level.ServerLevelBridge;
 import gr1mly4memes.felt.bridge.core.server.level.ServerPlayerBridge;
 import gr1mly4memes.felt.bridge.core.world.level.WorldBridge;
@@ -45,7 +46,11 @@ public class PhantomSpawnerMixin {
             }
             return null;
         }
-        return (Entity) DecorationOps.callsite().invoke(type, level, reason);
+        Entity phantom = (Entity) DecorationOps.callsite().invoke(type, level, reason);
+        if (phantom != null) {
+            ((SpawningEntityBridge) phantom).bridge$setSpawningEntity(player.getUUID());
+        }
+        return phantom;
     }
 
     @Inject(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;addFreshEntityWithPassengers(Lnet/minecraft/world/entity/Entity;)V"))

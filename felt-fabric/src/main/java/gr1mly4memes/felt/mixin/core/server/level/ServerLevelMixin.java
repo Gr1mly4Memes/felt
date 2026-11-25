@@ -108,6 +108,14 @@ import java.util.concurrent.Executor;
 
 @Mixin(ServerLevel.class)
 public abstract class ServerLevelMixin extends LevelMixin implements ServerLevelBridge {
+    @org.spongepowered.asm.mixin.Unique
+    private final alternate.current.wire.WireHandler felt$wireHandler =
+        new alternate.current.wire.WireHandler((ServerLevel) (Object) this);
+
+    @Override
+    public alternate.current.wire.WireHandler bridge$getWireHandler() {
+        return this.felt$wireHandler;
+    }
 
     // @formatter:off
     @Shadow public abstract boolean addFreshEntity(Entity entityIn);
@@ -254,6 +262,9 @@ public abstract class ServerLevelMixin extends LevelMixin implements ServerLevel
             this.dragonFight = this.getDataStorage().computeIfAbsent(EnderDragonFight.TYPE);
             this.dragonFight.init((ServerLevel) (Object) this, this.getSeed(), BlockPos.ZERO);
         }
+        if (worldInfo instanceof DerivedLevelDataBridge derived) {
+            derived.bridge$setSpawnDimension(dimension);
+        }
         var typeKey = ((LevelStorageSourceBridge.LevelStorageAccessBridge) levelSave).bridge$getTypeKey();
         if (typeKey != null) {
             this.typeKey = typeKey;
@@ -279,6 +290,9 @@ public abstract class ServerLevelMixin extends LevelMixin implements ServerLevel
             io.papermc.paper.configuration.PaperConfigurations.createWorldContextMap(
                 BukkitWorldIdentity.getWorldFolder(levelSave, dimension), dimension.identifier(),
                 this.spigotConfig, this.registryAccess(), this.getGameRules()));
+        this.getWorld().setVoidDamageEnabled(this.felt$paperConfig.environment.voidDamageAmount.enabled());
+        this.getWorld().setVoidDamageAmount((float)this.felt$paperConfig.environment.voidDamageAmount.or(0));
+        this.getWorld().setVoidDamageMinBuildHeightOffset(this.felt$paperConfig.environment.voidDamageMinBuildHeightOffset);
         for (var category : org.bukkit.entity.SpawnCategory.values()) {
             if (org.bukkit.craftbukkit.util.CraftSpawnCategory.isValidForLimits(category)) {
                 this.getWorld().setSpawnLimit(category, this.felt$paperConfig.entities.spawning.spawnLimits
@@ -310,7 +324,7 @@ public abstract class ServerLevelMixin extends LevelMixin implements ServerLevel
     }
 
     public LevelChunk getChunkIfLoaded(int x, int z) {
-        return this.chunkSource.getChunk(x, z, false);
+        return this.chunkSource.getChunkNow(x, z);
     }
 
     @Nullable
@@ -450,6 +464,22 @@ public abstract class ServerLevelMixin extends LevelMixin implements ServerLevel
         }
     }
 
+    @Inject(method = "setRespawnData", at = @At("HEAD"), cancellable = true)
+    private void felt$setWorldRespawnData(net.minecraft.world.level.storage.LevelData.RespawnData data, CallbackInfo ci) {
+        var level = (ServerLevel) (Object) this;
+        var spawn = net.minecraft.world.level.storage.LevelData.RespawnData.of(level.dimension(), data.pos(), data.yaw(), data.pitch());
+        boolean changed = !this.serverLevelData.getRespawnData().equals(spawn);
+        if (changed) {
+            var previous = this.getWorld().getSpawnLocation();
+            this.serverLevelData.setSpawn(spawn);
+            level.getServer().getPlayerList().broadcastAll(new net.minecraft.network.protocol.game.ClientboundSetDefaultSpawnPositionPacket(spawn), level.dimension());
+            level.getServer().updateEffectiveRespawnData();
+            new org.bukkit.event.world.SpawnChangeEvent(this.getWorld(), previous).callEvent();
+        }
+        ((MinecraftServerBridge) level.getServer()).bridge$setRespawnWorld(level);
+        ci.cancel();
+    }
+
     @Inject(method = "save", at = @At("RETURN"))
     private void felt$saveLevelDat(ProgressListener progress, boolean flush, boolean skipSave, CallbackInfo ci) {
         if (!skipSave && this.serverLevelData instanceof PrimaryLevelData worldInfo) {
@@ -539,6 +569,7 @@ public abstract class ServerLevelMixin extends LevelMixin implements ServerLevel
             return;
         }
         CreatureSpawnEvent.SpawnReason spawnReason = reason == null ? CreatureSpawnEvent.SpawnReason.DEFAULT : reason;
+        ((gr1mly4memes.felt.bridge.core.entity.InitialSpawnReasonBridge)entityIn).bridge$setInitialSpawnReason(spawnReason);
         if (!felt$isActual()) {
             return;
         }
@@ -606,6 +637,11 @@ public abstract class ServerLevelMixin extends LevelMixin implements ServerLevel
     }
 
     public boolean tryAddFreshEntityWithPassengers(Entity entity, CreatureSpawnEvent.SpawnReason reason) {
+        if ((Object) this instanceof ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemLevel world
+            && world.moonrise$getEntityLookup() != null) {
+            if (entity.getSelfAndPassengers().map(Entity::getUUID).anyMatch(world.moonrise$getEntityLookup()::hasEntity)) return false;
+            return this.bridge$addAllEntities(entity, reason);
+        }
         if (entity.getSelfAndPassengers().map(Entity::getUUID).anyMatch(this.entityManager::isLoaded)) {
             return false;
         }
@@ -637,19 +673,41 @@ public abstract class ServerLevelMixin extends LevelMixin implements ServerLevel
         }
     }
 
-    private boolean[] felt$explosionResult;
+    @org.spongepowered.asm.mixin.Unique
+    private gr1mly4memes.felt.mod.server.world.FeltExplosionRequest felt$explosionRequest;
 
     @Override
-    public boolean bridge$createExplosion(Entity source, double x, double y, double z, float power, boolean fire, Level.ExplosionInteraction interaction) {
-        boolean[] previous = this.felt$explosionResult;
-        boolean[] result = new boolean[1];
-        this.felt$explosionResult = result;
+    public boolean bridge$createExplosion(Entity source, double x, double y, double z, float power, boolean fire,
+                                          Level.ExplosionInteraction interaction, boolean excludeSource) {
+        var previous = this.felt$explosionRequest;
+        var request = new gr1mly4memes.felt.mod.server.world.FeltExplosionRequest(excludeSource);
+        this.felt$explosionRequest = request;
         try {
             ((ServerLevel) (Object) this).explode(source, Explosion.getDefaultDamageSource((ServerLevel) (Object) this, source), null, x, y, z, power, fire, interaction);
-            return result[0];
+            return request.explosion != null && !((ExplosionBridge) request.explosion).bridge$wasCancelled();
         } finally {
-            this.felt$explosionResult = previous;
+            this.felt$explosionRequest = previous;
         }
+    }
+
+    @Inject(method = "explode", at = @At("HEAD"))
+    private void felt$takeExplosionRequest(CallbackInfo ci, @com.llamalad7.mixinextras.sugar.Share("feltExplosionRequest")
+            com.llamalad7.mixinextras.sugar.ref.LocalRef<gr1mly4memes.felt.mod.server.world.FeltExplosionRequest> request) {
+        request.set(this.felt$explosionRequest);
+        this.felt$explosionRequest = null;
+    }
+
+    @com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation(method = "explode", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/world/level/ServerExplosion;explode()I"))
+    private int felt$configureExplosion(ServerExplosion explosion, com.llamalad7.mixinextras.injector.wrapoperation.Operation<Integer> original,
+            @com.llamalad7.mixinextras.sugar.Share("feltExplosionRequest")
+            com.llamalad7.mixinextras.sugar.ref.LocalRef<gr1mly4memes.felt.mod.server.world.FeltExplosionRequest> sharedRequest) {
+        var request = sharedRequest.get();
+        if (request != null) {
+            request.explosion = explosion;
+            ((ExplosionBridge) explosion).bridge$setExcludeSource(request.excludeSource);
+        }
+        return original.call(explosion);
     }
 
     @ModifyVariable(method = "explode", index = 17, at = @At(value = "STORE", ordinal = 0))
@@ -659,9 +717,6 @@ public abstract class ServerLevelMixin extends LevelMixin implements ServerLevel
 
     @Decorate(method = "explode", inject = true, at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/ServerExplosion;isSmall()Z"))
     private void felt$doExplosion(@Local(ordinal = 0) ServerExplosion explosion) throws Throwable {
-        if (this.felt$explosionResult != null) {
-            this.felt$explosionResult[0] = !((ExplosionBridge) explosion).bridge$wasCancelled();
-        }
         if (((ExplosionBridge) explosion).bridge$wasCancelled()) {
             DecorationOps.cancel().invoke();
             return;

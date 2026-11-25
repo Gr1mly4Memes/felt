@@ -1,0 +1,14 @@
+diff --git a/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/status/ChunkSystemChunkStep.java b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/status/ChunkSystemChunkStep.java
+new file mode 100644
+--- /dev/null
++++ b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/status/ChunkSystemChunkStep.java
+@@ -0,0 +1,9 @@
++package ca.spottedleaf.moonrise.patches.chunk_system.status;
++
++import net.minecraft.world.level.chunk.status.ChunkStatus;
++
++public interface ChunkSystemChunkStep {
++
++    public ChunkStatus moonrise$getRequiredStatusAtRadius(final int radius);
++
++}

@@ -1,7 +1,7 @@
 diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryCustom.java b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryCustom.java
 --- a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryCustom.java
 +++ b/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryCustom.java
-@@ -64,7 +64,7 @@
+@@ -64,14 +64,14 @@
          }
      }
  
@@ -10,12 +10,20 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/CraftIn
          private final NonNullList<ItemStack> items;
          private int maxStack = MAX_STACK;
          private final List<HumanEntity> viewers;
+         private final String title;
+         private final net.kyori.adventure.text.Component adventure$title; // Paper
+         private InventoryType type;
+-        private final InventoryHolder owner;
++        private InventoryHolder owner;
+ 
+         public MinecraftInventory(InventoryHolder owner, InventoryType type, net.kyori.adventure.text.Component title) {
+             this(owner, type.getDefaultSize(), title);
 @@ -209,6 +209,11 @@
          }
  
          @Override
 +        public void setOwner(InventoryHolder owner) {
-+            throw new UnsupportedOperationException("Custom inventory owner is fixed at construction");
++            this.owner = owner;
 +        }
 +
 +        @Override

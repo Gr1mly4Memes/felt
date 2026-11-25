@@ -78,7 +78,9 @@ public abstract class Fox_BreedGoalMixin extends BreedGoal {
             this.level.broadcastEntityEvent(this.animal, (byte) 18);
             if (this.level.getGameRules().get(GameRules.MOB_DROPS)) {
                 if (experience > 0) {
-                    this.level.addFreshEntity(new ExperienceOrb(this.level, this.animal.getX(), this.animal.getY(), this.animal.getZ(), experience));
+                    var orb = new ExperienceOrb(this.level, this.animal.getX(), this.animal.getY(), this.animal.getZ(), experience);
+                    this.level.addFreshEntity(gr1mly4memes.felt.mod.server.world.FeltExperience.withAttribution(orb,
+                        org.bukkit.entity.ExperienceOrb.SpawnReason.BREED, serverplayerentity2, foxentity));
                 }
             }
 

@@ -163,5 +163,6 @@ public abstract class ArmorStandMixin extends LivingEntityMixin {
         switch (slot.getType()) {
             case HAND, HUMANOID_ARMOR -> this.bridge$playEquipSound(slot, this.equipment.set(slot, stack), stack, silent);
         }
+        ((gr1mly4memes.felt.bridge.core.world.entity.decoration.ArmorStandControlBridge)this).bridge$equipmentChanged();
     }
 }

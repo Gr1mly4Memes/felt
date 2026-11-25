@@ -559,18 +559,14 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftServer.java 
      }
  
      @Override
-@@ -1333,8 +1254,17 @@
+@@ -1333,8 +1254,13 @@
                  handle.save(null, true, false); // Paper - Fix saving in unloadWorld
              }
  
 -            handle.getChunkSource().close(save);
 -            io.papermc.paper.FeatureHooks.closeEntityManager(handle, save); // SPIGOT-6722: close entityManager // Paper - chunk system
 +            ((gr1mly4memes.felt.bridge.core.world.server.ServerChunkProviderBridge) handle.getChunkSource()).bridge$close(save);
-+            try {
-+                ((gr1mly4memes.felt.bridge.core.world.level.entity.PersistentEntitySectionManagerBridge) handle.entityManager).close(save);
-+            } catch (java.io.IOException exception) {
-+                throw new RuntimeException("Failed to close entity manager", exception);
-+            }
++            io.papermc.paper.FeatureHooks.closeEntityManager(handle, save);
 +            LevelStorageSource.LevelStorageAccess access = ((gr1mly4memes.felt.bridge.core.server.level.ServerLevelBridge) handle).bridge$getConvertable();
 +            // Only typed Bukkit-created accesses own the session; native dimensions share their access.
 +            if (((gr1mly4memes.felt.bridge.core.world.level.storage.LevelStorageSourceBridge.LevelStorageAccessBridge) access).bridge$getTypeKey() != null) {
@@ -579,17 +575,17 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftServer.java 
          } catch (Exception ex) {
              this.getLogger().log(Level.SEVERE, null, ex);
          }
-@@ -1353,8 +1283,7 @@
+@@ -1353,8 +1279,7 @@
      public void setRespawnWorld(final World world) {
          Preconditions.checkArgument(world != null, "world cannot be null");
  
 -        ((PrimaryLevelData) this.console.getWorldData()).respawnDimension = ((CraftWorld) world).getHandle().dimension();
 -        this.console.updateEffectiveRespawnData();
-+        throw new UnsupportedOperationException("An independent respawn world selector is not supported by Felt");
++        ((gr1mly4memes.felt.bridge.core.server.MinecraftServerBridge) this.console).bridge$setRespawnWorld(((CraftWorld) world).getHandle());
      }
  
      public DedicatedServer getServer() {
-@@ -1444,13 +1373,13 @@
+@@ -1444,13 +1369,13 @@
          for (Recipe recipe : recipes) {
              final CraftRecipe craftRecipe = CraftRecipe.fromBukkitRecipe(recipe);
              if (craftRecipe != null) {
@@ -605,7 +601,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftServer.java 
          }
          return anyAdded;
      }
-@@ -1484,7 +1413,6 @@
+@@ -1484,7 +1409,6 @@
      private CraftingContainer createCraftingContainer() {
          // Create a players Crafting Inventory
          AbstractContainerMenu container = new AbstractContainerMenu(null, -1) {
@@ -613,7 +609,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftServer.java 
              public InventoryView getBukkitView() {
                  return null;
              }
-@@ -1589,7 +1517,7 @@
+@@ -1589,7 +1513,7 @@
              }
          });
  
@@ -622,7 +618,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftServer.java 
              craftItemResult.setResultMatrix(i, CraftItemStack.asBukkitCopy(craftingContainer.getItem(i)));
          }
  
-@@ -1644,12 +1572,12 @@
+@@ -1644,12 +1568,12 @@
          final RecipeManager recipeManager = this.getServer().getRecipeManager();
          for (NamespacedKey recipeKey : recipeKeys) {
              final ResourceKey<net.minecraft.world.item.crafting.Recipe<?>> id = CraftNamespacedKey.toResourceKey(Registries.RECIPE, recipeKey);
@@ -637,7 +633,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftServer.java 
          }
          return anyRemoved;
      }
-@@ -1975,7 +1903,7 @@
+@@ -1975,7 +1899,7 @@
  
          OfflinePlayer result = getPlayerExact(name);
          if (result == null) {
@@ -646,7 +642,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftServer.java 
  
              if (profile != null) {
                  result = getOfflinePlayer(profile);
-@@ -2318,7 +2246,7 @@
+@@ -2318,7 +2242,7 @@
  
      @Override
      public boolean isPrimaryThread() {
@@ -655,7 +651,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftServer.java 
      }
  
      @Override
-@@ -2511,13 +2439,13 @@
+@@ -2511,13 +2435,13 @@
          Preconditions.checkArgument(key != null, "key cannot be null");
  
          AdvancementHolder advancement = this.console.getAdvancements().get(CraftNamespacedKey.toMinecraft(key));
@@ -671,7 +667,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftServer.java 
          );
      }
  
-@@ -2672,12 +2600,12 @@
+@@ -2672,12 +2596,12 @@
          Preconditions.checkArgument(selector != null, "selector cannot be null");
          Preconditions.checkArgument(sender != null, "CommandSender sender cannot be null");
  
@@ -686,7 +682,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftServer.java 
              Preconditions.checkArgument(!reader.canRead(), "Spurious trailing data in selector: %s", selector);
          } catch (CommandSyntaxException ex) {
              throw new IllegalArgumentException("Could not parse selector: " + selector, ex);
-@@ -2704,14 +2632,12 @@
+@@ -2704,14 +2628,12 @@
  
      @Override
      public long[] getTickTimes() {
@@ -703,7 +699,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftServer.java 
      }
  
      private final org.bukkit.Server.Spigot spigot = new org.bukkit.Server.Spigot() {
-@@ -2734,7 +2660,7 @@
+@@ -2734,7 +2656,7 @@
  
          @Override
          public YamlConfiguration getPaperConfig() {
@@ -712,7 +708,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftServer.java 
          }
  
          @Override
-@@ -2938,7 +2864,7 @@
+@@ -2938,7 +2860,7 @@
  
      @Override
      public int getCurrentTick() {
@@ -721,7 +717,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftServer.java 
      }
  
      @Override
-@@ -2946,11 +2872,9 @@
+@@ -2946,13 +2868,13 @@
          return net.minecraft.server.MinecraftServer.getServer().hasStopped();
      }
  
@@ -730,15 +726,19 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftServer.java 
      @Override
      public com.destroystokyo.paper.entity.ai.MobGoals getMobGoals() {
 -        return mobGoals;
-+        throw new UnsupportedOperationException("Paper MobGoals API is not supported on Felt");
++        return this.feltMobGoals;
      }
  
++    private final com.destroystokyo.paper.entity.ai.MobGoals feltMobGoals = new com.destroystokyo.paper.entity.ai.PaperMobGoals();
++
      @Override
-@@ -2970,6 +2894,6 @@
+     public io.papermc.paper.datapack.PaperDatapackManager getDatapackManager() {
+         return datapackManager;
+@@ -2970,6 +2892,6 @@
  
      @Override
      public void allowPausing(final Plugin plugin, final boolean value) {
 -        this.console.addPluginAllowingSleep(plugin.getName(), value);
-+        throw new UnsupportedOperationException("Per-plugin server pausing control is not supported");
++        ((gr1mly4memes.felt.bridge.core.server.MinecraftServerBridge) this.console).bridge$allowPausing(plugin, value);
      }
  }

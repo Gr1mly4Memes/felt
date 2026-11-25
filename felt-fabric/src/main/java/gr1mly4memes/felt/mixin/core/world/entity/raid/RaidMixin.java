@@ -5,6 +5,8 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalRef;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import gr1mly4memes.felt.bridge.core.world.entity.raid.RaidBridge;
 import gr1mly4memes.felt.bridge.core.world.level.WorldBridge;
 import net.minecraft.core.BlockPos;
@@ -12,6 +14,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import org.bukkit.craftbukkit.event.CraftEventFactory;
+import org.bukkit.craftbukkit.persistence.CraftPersistentDataContainer;
+import org.bukkit.craftbukkit.persistence.CraftPersistentDataTypeRegistry;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.raid.RaidStopEvent;
@@ -24,17 +28,56 @@ import net.minecraft.world.entity.raid.Raid;
 import net.minecraft.world.entity.raid.Raider;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 @Mixin(Raid.class)
 public class RaidMixin implements RaidBridge {
+    @Shadow @Final @Mutable public static MapCodec<Raid> MAP_CODEC;
+    @Unique private static final CraftPersistentDataTypeRegistry felt$raidDataTypes = new CraftPersistentDataTypeRegistry();
+    @Unique private final CraftPersistentDataContainer felt$persistentData = new CraftPersistentDataContainer(felt$raidDataTypes);
+    @Unique private int felt$id = -1;
+
+    @Inject(method = "<clinit>", at = @At("RETURN"))
+    private static void felt$addPersistentDataCodec(CallbackInfo ci) {
+        MapCodec<Raid> vanilla = MAP_CODEC;
+        MAP_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+            vanilla.forGetter(raid -> raid),
+            CraftPersistentDataContainer.createCodec(felt$raidDataTypes)
+                .lenientOptionalFieldOf("BukkitValues")
+                .forGetter((Raid raid) -> {
+                    var data = ((RaidBridge) raid).bridge$getPersistentData();
+                    return data.isEmpty() ? Optional.empty() : Optional.of(data);
+                })
+        ).apply(instance, (raid, data) -> {
+            data.ifPresent(container -> ((RaidBridge) raid).bridge$getPersistentData().putAll(container.getRaw()));
+            return raid;
+        }));
+    }
+
+    @Override
+    public int bridge$getId() {
+        return this.felt$id;
+    }
+
+    @Override
+    public void bridge$setId(int id) {
+        this.felt$id = id;
+    }
+
+    @Override
+    public CraftPersistentDataContainer bridge$getPersistentData() {
+        return this.felt$persistentData;
+    }
 
     // @formatter:off
     @Shadow @Final private Map<Integer, Set<Raider>> groupRaiderMap;

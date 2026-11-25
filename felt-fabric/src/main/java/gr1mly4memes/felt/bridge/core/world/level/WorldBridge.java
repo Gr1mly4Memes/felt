@@ -21,6 +21,17 @@ import java.util.Map;
 
 public interface WorldBridge extends IWorldWriterBridge, LevelAccessorBridge {
 
+    io.papermc.paper.antixray.ChunkPacketBlockController bridge$chunkPacketBlockController();
+
+    /**
+     * Paper's non-loading chunk lookup. The anti-xray implementation uses it to
+     * inspect neighbouring chunks without creating new chunk loads.
+     */
+    default LevelChunk getChunkIfLoaded(int chunkX, int chunkZ) {
+        var chunk = this.bridge$getChunkIfLoadedImmediately(chunkX, chunkZ);
+        return chunk instanceof LevelChunk levelChunk ? levelChunk : null;
+    }
+
     int bridge$getWakeupInactiveAnimals();
     void bridge$setWakeupInactiveAnimals(int value);
     int bridge$getWakeupInactiveFlying();

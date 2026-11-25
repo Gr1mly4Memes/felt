@@ -3,7 +3,9 @@ package gr1mly4memes.felt.mixin.core.world.damagesource;
 import gr1mly4memes.felt.bridge.core.world.damagesource.CombatEntryBridge;
 import gr1mly4memes.felt.bridge.core.world.damagesource.CombatTrackerBridge;
 import io.papermc.paper.world.damagesource.PaperCombatTrackerWrapper;
+import io.papermc.paper.configuration.GlobalConfiguration;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.ArrayListDeque;
 import net.minecraft.world.damagesource.CombatEntry;
 import net.minecraft.world.damagesource.CombatTracker;
 import net.minecraft.world.damagesource.DamageSource;
@@ -11,11 +13,13 @@ import net.minecraft.world.entity.LivingEntity;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.gen.Invoker;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
@@ -23,13 +27,34 @@ import java.util.List;
 @Mixin(CombatTracker.class)
 public abstract class CombatTrackerMixin implements CombatTrackerBridge {
 
-    @Shadow @Final public List<CombatEntry> entries;
+    @Shadow @Final @Mutable public List<CombatEntry> entries;
     @Shadow @Final public LivingEntity mob;
     @Shadow private int lastDamageTime;
     @Shadow private int combatStartTime;
     @Shadow private int combatEndTime;
     @Shadow public boolean inCombat;
     @Shadow public boolean takingDamage;
+
+    @Inject(method = "<init>", at = @At("RETURN"))
+    private void felt$initializeHistory(LivingEntity entity, CallbackInfo ci) {
+        this.entries = new ArrayListDeque<>();
+    }
+
+    @Inject(method = "recordDamage", at = @At(value = "INVOKE", target = "Ljava/util/List;add(Ljava/lang/Object;)Z"))
+    private void felt$trimNativeCombatHistory(DamageSource source, float damage, CallbackInfo ci) {
+        this.felt$trimCombatHistory();
+    }
+
+    @Unique
+    private void felt$trimCombatHistory() {
+        var configuration = GlobalConfiguration.get();
+        if (configuration != null && !this.entries.isEmpty() && configuration.misc.maxTrackingCombatEntries.enabled()) {
+            int limit = Math.max(0, configuration.misc.maxTrackingCombatEntries.intValue());
+            while (this.entries.size() > limit) {
+                this.entries.removeFirst();
+            }
+        }
+    }
 
     @Shadow
     private static boolean shouldEnterCombat(DamageSource source) {
@@ -102,6 +127,7 @@ public abstract class CombatTrackerMixin implements CombatTrackerBridge {
     @Override
     public void bridge$recordDamageAndCheckCombatState(CombatEntry entry) {
         // Native recordDamage tail: keep this entry's supplied fall attribution intact.
+        this.felt$trimCombatHistory();
         this.entries.add(entry);
         this.lastDamageTime = this.mob.tickCount;
         this.takingDamage = true;

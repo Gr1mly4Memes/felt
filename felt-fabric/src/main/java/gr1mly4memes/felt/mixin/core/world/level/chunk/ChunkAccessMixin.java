@@ -47,6 +47,13 @@ public abstract class ChunkAccessMixin implements BlockGetter, BiomeResolver, Ch
 
     @Inject(method = "tryMarkSaved", cancellable = true, at = @At("RETURN"))
     private void felt$tryMarkSaved(CallbackInfoReturnable<Boolean> cir) {
+        if ((Object)this instanceof net.minecraft.world.level.chunk.LevelChunk chunk
+            && (Object)chunk.getBlockTicks() instanceof ca.spottedleaf.moonrise.patches.chunk_system.ticks.ChunkSystemLevelChunkTicks blocks
+            && (Object)chunk.getFluidTicks() instanceof ca.spottedleaf.moonrise.patches.chunk_system.ticks.ChunkSystemLevelChunkTicks fluids) {
+            if (blocks.moonrise$isDirty(chunk.getLevel().getGameTime()) || fluids.moonrise$isDirty(chunk.getLevel().getGameTime())) cir.setReturnValue(true);
+            blocks.moonrise$clearDirty();
+            fluids.moonrise$clearDirty();
+        }
         if (this.persistentDataContainer.dirty()) {
             this.persistentDataContainer.dirty(false);
             cir.setReturnValue(true);

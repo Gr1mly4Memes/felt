@@ -38,12 +38,38 @@ import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Mixin(AbstractFurnaceBlockEntity.class)
 public abstract class AbstractFurnaceBlockEntityMixin extends BaseContainerBlockEntityMixin implements AbstractFurnaceBlockEntityBridge {
+    @org.spongepowered.asm.mixin.Unique private double felt$cookSpeedMultiplier = 1.0;
+    @Shadow private float speedMultiplier;
+    @Shadow @Final public net.minecraft.world.item.crafting.RecipeManager.CachedCheck<net.minecraft.world.item.crafting.SingleRecipeInput, ? extends net.minecraft.world.item.crafting.AbstractCookingRecipe> quickCheck;
+
+    @Override public double bridge$cookSpeedMultiplier() { return this.felt$cookSpeedMultiplier; }
+    @Override public void bridge$setCookSpeedMultiplier(double multiplier, ServerLevel level) {
+        this.felt$cookSpeedMultiplier = multiplier;
+        int vanilla = level == null ? 200 : this.quickCheck.getRecipeFor(new net.minecraft.world.item.crafting.SingleRecipeInput(this.items.get(0)), level)
+            .map(recipe -> recipe.value().cookingTime()).orElse(200);
+        if (this.speedMultiplier > 0) vanilla = (int)Math.ceil(vanilla / this.speedMultiplier);
+        this.cookingTotalTime = (int)Math.ceil(vanilla / multiplier);
+    }
+    @com.llamalad7.mixinextras.injector.ModifyReturnValue(method = "getTotalCookTime", at = @At("RETURN"))
+    private static int felt$scaleCookTime(int vanilla, RecipeHolder<? extends net.minecraft.world.item.crafting.AbstractCookingRecipe> recipe, AbstractFurnaceBlockEntity furnace) {
+        double multiplier = ((AbstractFurnaceBlockEntityBridge)furnace).bridge$cookSpeedMultiplier();
+        return multiplier == 1.0 ? vanilla : (int)Math.ceil(vanilla / multiplier);
+    }
+    @org.spongepowered.asm.mixin.injection.Inject(method = "saveAdditional", at = @At("RETURN"))
+    private void felt$saveCookSpeed(net.minecraft.world.level.storage.ValueOutput output, CallbackInfo ci) {
+        output.putDouble("Paper.CookSpeedMultiplier", this.felt$cookSpeedMultiplier);
+    }
+    @org.spongepowered.asm.mixin.injection.Inject(method = "loadAdditional", at = @At("RETURN"))
+    private void felt$loadCookSpeed(net.minecraft.world.level.storage.ValueInput input, CallbackInfo ci) {
+        this.felt$cookSpeedMultiplier = input.getDoubleOr("Paper.CookSpeedMultiplier", 1.0);
+    }
 
     // @formatter:off
     @Shadow protected NonNullList<ItemStack> items;
@@ -163,7 +189,11 @@ public abstract class AbstractFurnaceBlockEntityMixin extends BaseContainerBlock
 
     @WrapOperation(method = "createExperience", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/ExperienceOrb;award(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/phys/Vec3;I)V"))
     private static void felt$expEvent(ServerLevel level, Vec3 vec3, int amount, Operation<Void> original) {
-        original.call(level, vec3, FeltEventFactory.experienceToDrop(level, amount));
+        var context = FeltCaptures.furnaceExperience;
+        var player = context == null ? null : context.getSecond().getLeft();
+        int experience = FeltEventFactory.experienceToDrop(level, amount);
+        gr1mly4memes.felt.mod.server.world.FeltExperience.withAwardAttribution(org.bukkit.entity.ExperienceOrb.SpawnReason.FURNACE,
+            player, null, () -> original.call(level, vec3, experience));
     }
 
     @Override

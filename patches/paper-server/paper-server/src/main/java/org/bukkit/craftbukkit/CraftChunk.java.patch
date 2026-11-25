@@ -27,48 +27,24 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftChunk.java b
          if (full != null) {
              return full;
          }
-@@ -112,12 +111,38 @@
+@@ -112,12 +111,14 @@
  
      @Override
      public boolean isEntitiesLoaded() {
 -        return this.getCraftWorld().getHandle().areEntitiesLoaded(ChunkPos.pack(this.x, this.z)); // Paper - chunk system
-+        return this.level.entityManager.areEntitiesLoaded(ChunkPos.pack(this.x, this.z));
++        var entities = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemLevel)this.level).moonrise$getEntityLookup().getChunk(this.x, this.z);
++        return entities != null && !entities.isTransient();
      }
  
      @Override
      public Entity[] getEntities() {
 -        return FeatureHooks.getChunkEntities(this.level, this.x, this.z); // Paper - chunk system
 +        org.spigotmc.AsyncCatcher.catchOp("getting chunk entities");
-+        this.level.getChunk(this.x, this.z);
-+        var entityManager = this.level.entityManager;
-+        gr1mly4memes.felt.bridge.core.world.level.entity.PersistentEntitySectionManagerBridge entityBridge = entityManager;
-+        long chunkKey = ChunkPos.pack(this.x, this.z);
-+        if (!entityManager.areEntitiesLoaded(chunkKey)) {
-+            entityManager.ensureChunkQueuedForLoad(chunkKey);
-+            var mailbox = ((net.minecraft.world.level.chunk.storage.EntityStorage) entityManager.permanentStorage).entityDeserializerQueue;
-+            while (!entityManager.areEntitiesLoaded(chunkKey)) {
-+                if (!entityBridge.isPending(chunkKey)) {
-+                    entityManager.ensureChunkQueuedForLoad(chunkKey);
-+                }
-+                entityManager.tick();
-+                if (entityManager.areEntitiesLoaded(chunkKey)) {
-+                    break;
-+                }
-+                if (mailbox.size() != 0) {
-+                    mailbox.run();
-+                } else {
-+                    Thread.yield();
-+                    java.util.concurrent.locks.LockSupport.parkNanos("waiting for entity loading", 100000L);
-+                }
-+            }
-+        }
-+        return entityBridge.getEntities(new ChunkPos(this.x, this.z)).stream()
-+            .map(net.minecraft.world.entity.Entity::getBukkitEntity)
-+            .filter(java.util.Objects::nonNull).toArray(Entity[]::new);
++        return io.papermc.paper.FeatureHooks.getChunkEntities(this.level, this.x, this.z);
      }
  
      @Override
-@@ -190,8 +215,7 @@
+@@ -190,8 +191,7 @@
  
      @Override
      public boolean isSlimeChunk() {
@@ -78,7 +54,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftChunk.java b
      }
  
      @Override
-@@ -329,7 +353,8 @@
+@@ -329,7 +329,8 @@
  
      @Override
      public LoadLevel getLoadLevel() {

@@ -220,7 +220,8 @@ public abstract class ServerPlayerGameModeMixin implements ServerPlayerGameModeB
                 if (breakEventContext != null) {
                     bridge$handleBlockDrop(breakEventContext, pos);
                     if (destroyed && breakEventContext.shouldFinalizeExperience()) {
-                        breakEventContext.getNmsBlock().popExperience(this.level, pos, breakEventContext.getEvent().getExpToDrop());
+                        gr1mly4memes.felt.mod.server.world.FeltExperience.withAwardAttribution(org.bukkit.entity.ExperienceOrb.SpawnReason.BLOCK_BREAK,
+                            this.player, null, () -> breakEventContext.getNmsBlock().popExperience(this.level, pos, breakEventContext.getEvent().getExpToDrop()));
                     }
                 }
             } finally {

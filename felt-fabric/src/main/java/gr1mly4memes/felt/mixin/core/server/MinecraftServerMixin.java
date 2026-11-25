@@ -57,6 +57,7 @@ import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.storage.LevelStorageSource;
+import gr1mly4memes.felt.bridge.core.world.level.storage.PrimaryLevelDataBridge;
 import net.minecraft.world.level.storage.ServerLevelData;
 import net.minecraft.world.level.storage.WorldData;
 import org.bukkit.Bukkit;
@@ -119,6 +120,30 @@ public abstract class MinecraftServerMixin extends ReentrantBlockableEventLoop<T
     // @formatter:on
 
     @Shadow private PlayerList playerList;
+
+    @Override
+    public void bridge$setRespawnWorld(ServerLevel level) {
+        var root = (PrimaryLevelDataBridge) this.worldData.overworldData();
+        root.bridge$setRespawnDimension(level.dimension());
+        this.updateEffectiveRespawnData();
+    }
+
+    @com.llamalad7.mixinextras.injector.ModifyExpressionValue(method = "findRespawnDimension", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/world/level/storage/LevelData$RespawnData;dimension()Lnet/minecraft/resources/ResourceKey;"))
+    private ResourceKey<Level> felt$useSelectedRespawnDimension(ResourceKey<Level> vanilla) {
+        return ((PrimaryLevelDataBridge) this.worldData.overworldData()).bridge$getRespawnDimension();
+    }
+
+    @com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation(method = "updateEffectiveRespawnData", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/server/level/ServerLevel;getWorldBorderAdjustedRespawnData(Lnet/minecraft/world/level/storage/LevelData$RespawnData;)Lnet/minecraft/world/level/storage/LevelData$RespawnData;"))
+    private net.minecraft.world.level.storage.LevelData.RespawnData felt$selectWorldSpawn(ServerLevel level,
+            net.minecraft.world.level.storage.LevelData.RespawnData vanilla,
+            com.llamalad7.mixinextras.injector.wrapoperation.Operation<net.minecraft.world.level.storage.LevelData.RespawnData> original) {
+        var local = level.serverLevelData.getRespawnData();
+        var respawn = net.minecraft.world.level.storage.LevelData.RespawnData.of(level.dimension(), local.pos(), local.yaw(), local.pitch());
+        ((PrimaryLevelDataBridge) this.worldData.overworldData()).bridge$setVanillaRespawnData(respawn);
+        return original.call(level, respawn);
+    }
 
     public MinecraftServerMixin(String name, boolean propagatesCrashes) {
         super(name, propagatesCrashes);
@@ -191,6 +216,8 @@ public abstract class MinecraftServerMixin extends ReentrantBlockableEventLoop<T
     @Unique private volatile boolean isRestarting; // Paper added
     @Shadow private int emptyTicks;
     @Shadow protected abstract int pauseWhenEmptySeconds();
+    @Unique private final java.util.concurrent.ConcurrentMap<String, org.bukkit.plugin.Plugin> felt$pauseBlockers =
+        new java.util.concurrent.ConcurrentHashMap<>();
     @Unique private int felt$currentTick;
     @Unique private long currentTickStart; // Paper added
 
@@ -202,6 +229,21 @@ public abstract class MinecraftServerMixin extends ReentrantBlockableEventLoop<T
     @Override
     public boolean bridge$isTickPaused() {
         return this.emptyTicks > 0 && this.emptyTicks >= this.pauseWhenEmptySeconds() * 20;
+    }
+
+    @Override
+    public void bridge$allowPausing(org.bukkit.plugin.Plugin plugin, boolean allow) {
+        if (allow) {
+            this.felt$pauseBlockers.remove(plugin.getName());
+        } else {
+            this.felt$pauseBlockers.put(plugin.getName(), plugin);
+        }
+    }
+
+    @com.llamalad7.mixinextras.injector.ModifyExpressionValue(method = "tickServer", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/server/ServerTickRateManager;isSprinting()Z"))
+    private boolean felt$preventsEmptyServerPause(boolean sprinting) {
+        return sprinting || !this.felt$pauseBlockers.isEmpty();
     }
 
     @Decorate(method = "runServer()V", inject = true, at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;isPaused()Z"), require = 1, allow = 1)
@@ -367,8 +409,9 @@ public abstract class MinecraftServerMixin extends ReentrantBlockableEventLoop<T
 
     @Override
     public void bridge$drainQueuedTasks() {
-        while (!processQueue.isEmpty()) {
-            processQueue.remove().run();
+        Runnable task;
+        while ((task = this.processQueue.poll()) != null) {
+            task.run();
         }
     }
 
@@ -427,6 +470,11 @@ public abstract class MinecraftServerMixin extends ReentrantBlockableEventLoop<T
 
     @Unique
     private void felt$tickPendingEntities(ServerLevel level) {
+        if ((Object) level instanceof ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel world
+            && world.moonrise$getChunkTaskScheduler() != null) {
+            world.moonrise$getChunkTaskScheduler().executeAllRecentlyQueuedMainThreadTasks();
+            return;
+        }
         level.entityManager.tick(); // Make pending entities available to WorldLoadEvent listeners.
     }
 
@@ -538,7 +586,7 @@ public abstract class MinecraftServerMixin extends ReentrantBlockableEventLoop<T
             // Include queued schedulers and idle wrappers before callbacks can mutate either source.
             Set<EntityScheduler> schedulers = Collections.newSetFromMap(new IdentityHashMap<>());
             Collections.addAll(schedulers, this.server.getEntitySchedulerTickList().getAllSchedulers());
-            for (var entity : ((PersistentEntitySectionManagerBridge) level.entityManager).bridge$getExistingEntities()) {
+            for (var entity : felt$loadedEntities(level)) {
                 var wrapper = ((EntityBridge) entity).bridge$peekBukkitEntity();
                 if (wrapper != null) {
                     schedulers.add(wrapper.taskScheduler);
@@ -670,6 +718,11 @@ public abstract class MinecraftServerMixin extends ReentrantBlockableEventLoop<T
     private void felt$emptyTickSparkStart(CallbackInfo ci) {
         // Empty-server paused branch: Paper starts spark before draining queued tasks.
         this.server.spark.tickStart();
+        this.server.getScheduler().mainThreadHeartbeat();
+        this.bridge$drainQueuedTasks();
+        for (ServerLevel level : this.getAllLevels()) {
+            level.getChunkSource().tick(() -> true, false);
+        }
         this.server.spark.executeMainThreadTasks();
     }
 
@@ -680,6 +733,7 @@ public abstract class MinecraftServerMixin extends ReentrantBlockableEventLoop<T
 
     @Inject(method = "tickServer", at = @At("HEAD"))
     private void felt$tickWatchdog(CallbackInfo ci) {
+        this.felt$pauseBlockers.values().removeIf(plugin -> !plugin.isEnabled());
         felt$tickSpigotWatchdogInternal();
     }
 
@@ -766,5 +820,12 @@ public abstract class MinecraftServerMixin extends ReentrantBlockableEventLoop<T
         this.bridge$safeShutdown(waitForServer, restarting);
     }
 
+
+    @Unique
+    private static Iterable<net.minecraft.world.entity.Entity> felt$loadedEntities(ServerLevel level) {
+        if ((Object) level instanceof ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemLevel world
+            && world.moonrise$getEntityLookup() != null) return world.moonrise$getEntityLookup().getAll();
+        return ((PersistentEntitySectionManagerBridge) level.entityManager).bridge$getExistingEntities();
+    }
 }
 

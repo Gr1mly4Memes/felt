@@ -6,13 +6,13 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/inventory/view/Cr
      @Override
      public boolean bypassesEnchantmentLevelRestriction() {
 -        return this.container.bypassEnchantmentLevelRestriction;
-+        throw new UnsupportedOperationException("Bypassing enchantment level restrictions is not supported");
++        return ((gr1mly4memes.felt.bridge.core.world.inventory.AnvilMenuBridge)this.container).bridge$bypassEnchantmentLimit();
      }
  
      @Override
      public void bypassEnchantmentLevelRestriction(final boolean bypassEnchantmentLevelRestriction) {
 -        this.container.bypassEnchantmentLevelRestriction = bypassEnchantmentLevelRestriction;
-+        throw new UnsupportedOperationException("Bypassing enchantment level restrictions is not supported");
++        ((gr1mly4memes.felt.bridge.core.world.inventory.AnvilMenuBridge)this.container).bridge$setBypassEnchantmentLimit(bypassEnchantmentLevelRestriction);
      }
  
      public void updateFromLegacy(CraftInventoryAnvil legacy) {

@@ -16,7 +16,20 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(net.minecraft.world.entity.monster.cubemob.AbstractCubeMob.class)
-public abstract class AbstractCubeMobMixin extends AgeableMobMixin {
+public abstract class AbstractCubeMobMixin extends AgeableMobMixin implements gr1mly4memes.felt.bridge.core.world.entity.monster.CubeMobControlBridge {
+    @org.spongepowered.asm.mixin.Unique private boolean felt$canWander = true;
+    @Override public boolean bridge$canWander() { return this.felt$canWander; }
+    @Override public void bridge$setWander(boolean canWander) { this.felt$canWander = canWander; }
+
+    @Inject(method = "addAdditionalSaveData", at = @At("RETURN"))
+    private void felt$saveWandering(net.minecraft.world.level.storage.ValueOutput output, CallbackInfo ci) {
+        output.putBoolean("Paper.canWander", this.felt$canWander);
+    }
+    @Inject(method = "readAdditionalSaveData", at = @At("RETURN"))
+    private void felt$loadWandering(net.minecraft.world.level.storage.ValueInput input, CallbackInfo ci) {
+        this.felt$canWander = input.getBooleanOr("Paper.canWander", true);
+    }
+
     @WrapMethod(method = "remove(Lnet/minecraft/world/entity/Entity$RemovalReason;)V")
     private void felt$splitScope(Entity.RemovalReason reason, Operation<Void> original) {
         var previous = gr1mly4memes.felt.mod.util.FeltCaptures.slimeSplit;

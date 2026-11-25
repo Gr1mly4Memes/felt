@@ -1,0 +1,20 @@
+diff --git a/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/util/ChunkSystemSortedArraySet.java b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/util/ChunkSystemSortedArraySet.java
+new file mode 100644
+--- /dev/null
++++ b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/util/ChunkSystemSortedArraySet.java
+@@ -0,0 +1,15 @@
++package ca.spottedleaf.moonrise.patches.chunk_system.util;
++
++import net.minecraft.util.SortedArraySet;
++
++public interface ChunkSystemSortedArraySet<T> {
++
++    public SortedArraySet<T> moonrise$copy();
++
++    public Object[] moonrise$copyBackingArray();
++
++    public T moonrise$replace(final T object);
++
++    public T moonrise$removeAndGet(final T object);
++
++}

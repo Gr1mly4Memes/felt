@@ -31,13 +31,16 @@ public final class FeatureHooks {
 
     // this includes non-accessible entities
     public static Iterable<Entity> getAllEntities(final net.minecraft.server.level.ServerLevel level) {
-        return level.getAllEntities();
+        return ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemLevel)level).moonrise$getEntityLookup().getAllMapped();
     }
 
     public static void setPlayerChunkUnloadDelay(final long ticks) {
+        ca.spottedleaf.moonrise.patches.chunk_system.player.RegionizedPlayerChunkLoader.setUnloadDelay(ticks);
     }
 
     public static void registerPaperCommands(final Map<Set<String>, PaperSubcommand> commands) {
+        commands.put(Set.of("fixlight"), new io.papermc.paper.command.subcommands.FixLightCommand());
+        commands.put(Set.of("debug", "chunkinfo", "holderinfo"), new io.papermc.paper.command.subcommands.ChunkDebugCommand());
     }
 
     public static LevelChunkSection createSection(final PalettedContainerFactory palettedContainerFactory, final Level level, final ChunkPos chunkPos, final int chunkSection) {
@@ -45,11 +48,15 @@ public final class FeatureHooks {
     }
 
     public static void sendChunkRefreshPackets(final List<ServerPlayer> playersInRange, final LevelChunk chunk) {
-        final ClientboundLevelChunkWithLightPacket refreshPacket = new ClientboundLevelChunkWithLightPacket(chunk, chunk.getLevel().getLightEngine(), null, null);
+        final Map<Boolean, ClientboundLevelChunkWithLightPacket> packets = new HashMap<>();
+        final var controller = ((gr1mly4memes.felt.bridge.core.world.level.WorldBridge) chunk.getLevel()).bridge$chunkPacketBlockController();
         for (final ServerPlayer player : playersInRange) {
             if (player.connection == null) continue;
 
-            player.connection.send(refreshPacket);
+            boolean modify = controller.shouldModify(player, chunk);
+            player.connection.send(packets.computeIfAbsent(modify, key ->
+                gr1mly4memes.felt.mod.server.world.FeltAntiXray.withModification(key, () ->
+                    new ClientboundLevelChunkWithLightPacket(chunk, chunk.getLevel().getLightEngine(), null, null))));
         }
     }
 
@@ -58,23 +65,23 @@ public final class FeatureHooks {
     }
 
     public static Set<Long> getSentChunkKeys(final ServerPlayer player) {
-        final LongSet keys = new LongOpenHashSet();
-        player.getChunkTrackingView().forEach(pos -> keys.add(pos.pack()));
-        return LongSets.unmodifiable(keys);
+        final var loader = ((ca.spottedleaf.moonrise.patches.chunk_system.player.ChunkSystemServerPlayer)player).moonrise$getChunkLoader();
+        return loader == null ? java.util.Set.of() : LongSets.unmodifiable(new LongOpenHashSet(loader.getSentChunksRaw()));
     }
 
     public static Set<Chunk> getSentChunks(final ServerPlayer player) {
         final ObjectSet<Chunk> chunks = new ObjectOpenHashSet<>();
         final World world = player.level().getWorld();
-        player.getChunkTrackingView().forEach(pos -> {
-            final Chunk chunk = world.getChunkAt(pos.pack());
+        getSentChunkKeys(player).forEach(pos -> {
+            final Chunk chunk = world.getChunkAt(pos);
             chunks.add(chunk);
         });
         return ObjectSets.unmodifiable(chunks);
     }
 
     public static boolean isChunkSent(final ServerPlayer player, final long chunkKey) {
-        return player.getChunkTrackingView().contains(ChunkPos.unpack(chunkKey));
+        final var loader = ((ca.spottedleaf.moonrise.patches.chunk_system.player.ChunkSystemServerPlayer)player).moonrise$getChunkLoader();
+        return loader != null && loader.getSentChunksRaw().contains(chunkKey);
     }
 
     public static boolean isCollidingWithWorldBorder(final Entity entity) {
@@ -88,59 +95,17 @@ public final class FeatureHooks {
     }
 
     public static void dumpAllChunkLoadInfo(net.minecraft.server.MinecraftServer server, boolean isLongTimeout) {
+        ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkTaskScheduler.dumpAllChunkLoadInfo(server, isLongTimeout);
     }
 
     private static void dumpEntity(final Entity entity) {
     }
 
     public static org.bukkit.entity.Entity[] getChunkEntities(net.minecraft.server.level.ServerLevel level, int chunkX, int chunkZ) {
-        level.getChunk(chunkX, chunkZ); // ensure full loaded
-
-        net.minecraft.world.level.entity.PersistentEntitySectionManager<Entity> entityManager = level.entityManager;
-        gr1mly4memes.felt.bridge.core.world.level.entity.PersistentEntitySectionManagerBridge entityManagerBridge = (gr1mly4memes.felt.bridge.core.world.level.entity.PersistentEntitySectionManagerBridge) entityManager;
-        long chunkKey = ChunkPos.pack(chunkX, chunkZ);
-
-        if (entityManager.areEntitiesLoaded(chunkKey)) {
-            return entityManagerBridge.getEntities(new ChunkPos(chunkX, chunkZ)).stream()
-                .map(Entity::getBukkitEntity)
-                .filter(java.util.Objects::nonNull).toArray(org.bukkit.entity.Entity[]::new);
-        }
-
-        entityManager.ensureChunkQueuedForLoad(chunkKey); // Start entity loading
-
-        // SPIGOT-6772: Use entity mailbox and re-schedule entities if they get unloaded
-        net.minecraft.util.thread.ConsecutiveExecutor mailbox = ((net.minecraft.world.level.chunk.storage.EntityStorage) entityManager.permanentStorage).entityDeserializerQueue;
-        java.util.function.BooleanSupplier supplier = () -> {
-            // only execute inbox if our entities are not present
-            if (entityManager.areEntitiesLoaded(chunkKey)) {
-                return true;
-            }
-
-            if (!entityManagerBridge.isPending(chunkKey)) {
-                // Our entities got unloaded, this should normally not happen.
-                entityManager.ensureChunkQueuedForLoad(chunkKey); // Re-start entity loading
-            }
-
-            // tick loading inbox, which loads the created entities to the world
-            // (if present)
-            entityManager.tick();
-            // check if our entities are loaded
-            return entityManager.areEntitiesLoaded(chunkKey);
-        };
-
-        // now we wait until the entities are loaded,
-        // the converting from NBT to entity object is done on the main Thread which is why we wait
-        while (!supplier.getAsBoolean()) {
-            if (mailbox.size() != 0) {
-                mailbox.run();
-            } else {
-                Thread.yield();
-                java.util.concurrent.locks.LockSupport.parkNanos("waiting for entity loading", 100000L);
-            }
-        }
-
-        return entityManagerBridge.getEntities(new ChunkPos(chunkX, chunkZ)).stream()
-            .map(Entity::getBukkitEntity)
+        level.getChunk(chunkX, chunkZ);
+        var entities = ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)level)
+            .moonrise$getChunkTaskScheduler().chunkHolderManager.getOrCreateEntityChunk(chunkX, chunkZ, false);
+        return entities.getAllEntities().stream().map(Entity::getBukkitEntity)
             .filter(java.util.Objects::nonNull).toArray(org.bukkit.entity.Entity[]::new);
     }
 
@@ -180,15 +145,15 @@ public final class FeatureHooks {
     }
 
     public static int getViewDistance(net.minecraft.server.level.ServerLevel level) {
-        return level.getChunkSource().chunkMap.serverViewDistance;
+        return ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)level).moonrise$getPlayerChunkLoader().getAPIViewDistance();
     }
 
     public static int getSimulationDistance(net.minecraft.server.level.ServerLevel level) {
-        return level.getChunkSource().chunkMap.getDistanceManager().simulationDistance;
+        return ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)level).moonrise$getPlayerChunkLoader().getAPITickDistance();
     }
 
     public static int getSendViewDistance(net.minecraft.server.level.ServerLevel level) {
-        return getViewDistance(level);
+        return ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)level).moonrise$getPlayerChunkLoader().getAPISendViewDistance();
     }
 
     public static void setViewDistance(net.minecraft.server.level.ServerLevel level, int distance) {
@@ -206,14 +171,17 @@ public final class FeatureHooks {
     }
 
     public static void setSendViewDistance(net.minecraft.server.level.ServerLevel level, int distance) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        if (distance != -1 && (distance < 2 || distance > 32)) throw new IllegalArgumentException("Send view distance must be -1 or between 2 and 32");
+        ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)level).moonrise$getPlayerChunkLoader().setSendDistance(distance);
     }
 
     public static void tickEntityManager(net.minecraft.server.level.ServerLevel level) {
-        level.entityManager.tick();
+        ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)level).moonrise$getChunkTaskScheduler().executeAllRecentlyQueuedMainThreadTasks();
     }
 
     public static void closeEntityManager(net.minecraft.server.level.ServerLevel level, boolean save) {
+        if ((Object)level instanceof ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel world
+            && world.moonrise$getChunkTaskScheduler() != null) return;
         try {
             ((gr1mly4memes.felt.bridge.core.world.level.entity.PersistentEntitySectionManagerBridge) level.entityManager).close(save);
         } catch (final java.io.IOException exception) {
@@ -222,19 +190,22 @@ public final class FeatureHooks {
     }
 
     public static java.util.concurrent.Executor getWorldgenExecutor() {
-        return net.minecraft.util.Util.backgroundExecutor();
+        return Runnable::run;
     }
 
     public static void setViewDistance(ServerPlayer player, int distance) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        if (distance != -1 && (distance < 2 || distance > 32)) throw new IllegalArgumentException("View distance must be -1 or between 2 and 32");
+        ((ca.spottedleaf.moonrise.patches.chunk_system.player.ChunkSystemServerPlayer)player).moonrise$getViewDistanceHolder().setLoadViewDistance(distance == -1 ? -1 : distance + 1);
     }
 
     public static void setSimulationDistance(ServerPlayer player, int distance) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        if (distance != -1 && (distance < 2 || distance > 32)) throw new IllegalArgumentException("Simulation distance must be -1 or between 2 and 32");
+        ((ca.spottedleaf.moonrise.patches.chunk_system.player.ChunkSystemServerPlayer)player).moonrise$getViewDistanceHolder().setTickViewDistance(distance);
     }
 
     public static void setSendViewDistance(ServerPlayer player, int distance) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        if (distance != -1 && (distance < 2 || distance > 32)) throw new IllegalArgumentException("Send view distance must be -1 or between 2 and 32");
+        ((ca.spottedleaf.moonrise.patches.chunk_system.player.ChunkSystemServerPlayer)player).moonrise$getViewDistanceHolder().setSendViewDistance(distance);
     }
 
     public static io.papermc.paper.world.chunk.ChunkGenerationState getChunkGenerationState(final net.minecraft.server.level.ServerLevel level, final int chunkX, final int chunkZ) {

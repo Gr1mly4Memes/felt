@@ -6,13 +6,13 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftMob.j
      public void setDespawnInPeacefulOverride(final TriState state) {
          Preconditions.checkArgument(state != null, "TriState cannot be null");
 -        this.getHandle().despawnInPeacefulOverride = state;
-+        throw new UnsupportedOperationException("Peaceful despawn overrides are not supported");
++        ((gr1mly4memes.felt.bridge.core.entity.PaperEntityStateBridge)this.getHandle()).bridge$setDespawnInPeaceful(state);
      }
  
      @Override
      public TriState getDespawnInPeacefulOverride() {
 -        return this.getHandle().despawnInPeacefulOverride;
-+        throw new UnsupportedOperationException("Peaceful despawn overrides are not supported");
++        return ((gr1mly4memes.felt.bridge.core.entity.PaperEntityStateBridge)this.getHandle()).bridge$despawnInPeaceful();
      }
  
      @Override

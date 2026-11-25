@@ -6,8 +6,8 @@ version = paper_api_version
 
 java { withSourcesJar() }
 sourceSets.main.java {
-    srcDir rootProject.layout.buildDirectory.dir('paper-patched/paper-api/paper-api/src/main/java')
-    srcDir rootProject.layout.buildDirectory.dir('paper-patched/paper-api/paper-api/src/generated/java')
+    srcDir rootProject.file('upstream/Paper/paper-api/src/main/java')
+    srcDir rootProject.file('upstream/Paper/paper-api/src/generated/java')
 }
 
 dependencies {
@@ -51,14 +51,14 @@ def generateApiVersioning = tasks.register('generateApiVersioning') {
 }
 sourceSets.main.resources.srcDir(generateApiVersioning)
 tasks.named('compileJava') {
-    dependsOn rootProject.tasks.named('applyPaperPatches')
+    dependsOn rootProject.tasks.named('verifyPaperUpstream')
     options.encoding = 'UTF-8'
 }
-tasks.named('sourcesJar') { dependsOn rootProject.tasks.named('applyPaperPatches') }
+tasks.named('sourcesJar') { dependsOn rootProject.tasks.named('verifyPaperUpstream') }
 tasks.named('jar') {
-    dependsOn rootProject.tasks.named('applyPaperPatches')
+    dependsOn rootProject.tasks.named('verifyPaperUpstream')
     manifest.attributes 'Automatic-Module-Name': 'org.bukkit'
-    from(rootProject.layout.buildDirectory.dir('paper-patched/paper-api')) {
+    from(rootProject.file('upstream/Paper')) {
         include 'LICENSE.md', 'licenses/**'
         into 'META-INF/paper'
     }

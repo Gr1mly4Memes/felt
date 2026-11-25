@@ -1,0 +1,308 @@
+diff --git a/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/storage/MoonriseRegionFileStorageAccess.java b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/storage/MoonriseRegionFileStorageAccess.java
+new file mode 100644
+--- /dev/null
++++ b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/storage/MoonriseRegionFileStorageAccess.java
+@@ -0,0 +1,303 @@
++package ca.spottedleaf.moonrise.patches.chunk_system.storage;
++
++import ca.spottedleaf.moonrise.patches.chunk_system.io.ChunkSystemRegionFileStorage;
++import java.io.DataInputStream;
++import java.io.IOException;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.util.Optional;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.function.IntSupplier;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.nbt.NbtIo;
++import net.minecraft.util.FileUtil;
++import net.minecraft.world.level.ChunkPos;
++import net.minecraft.world.level.chunk.storage.RegionFile;
++import net.minecraft.world.level.chunk.storage.RegionFileStorage;
++import org.jspecify.annotations.Nullable;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++
++/** Paper's split storage operations and region cache, delegated from Felt's storage mixin. */
++public final class MoonriseRegionFileStorageAccess implements ChunkSystemRegionFileStorage {
++    private static final Logger LOGGER = LoggerFactory.getLogger(MoonriseRegionFileStorageAccess.class);
++    private final RegionFileStorage storage;
++    private final IntSupplier cacheLimit;
++    private final ConcurrentHashMap<RegionFile, MoonriseRegionFileAccess> access = new ConcurrentHashMap<>();
++
++    public MoonriseRegionFileStorageAccess(RegionFileStorage storage) {
++        this(storage, () -> {
++            var config = io.papermc.paper.configuration.GlobalConfiguration.get();
++            return config == null ? 256 : config.misc.regionFileCacheSize;
++        });
++    }
++
++    public MoonriseRegionFileStorageAccess(RegionFileStorage storage, IntSupplier cacheLimit) {
++        this.storage = java.util.Objects.requireNonNull(storage);
++        this.cacheLimit = java.util.Objects.requireNonNull(cacheLimit);
++    }
++
++    private MoonriseRegionFileAccess accessFor(RegionFile file) {
++        if (file instanceof MoonriseRegionFileAccess.Owner owner) return owner.moonrise$getRegionFileAccess();
++        // Direct use outside the mixin runtime shares one recovery generation per cached file as well.
++        return this.access.computeIfAbsent(file, MoonriseRegionFileAccess::new);
++    }
++
++    private record Lease(RegionFile file, MoonriseRegionFileAccess access) implements AutoCloseable {
++        @Override public void close() { this.access.releaseIO(); }
++    }
++
++    private Lease lease(int x, int z, boolean create) throws IOException {
++        // Pin while still holding the cache monitor: eviction cannot close the returned file
++        // in the gap before its region monitor is acquired for actual I/O.
++        synchronized (this.storage) {
++            RegionFile file = this.getRegionFile(new ChunkPos(x, z), create);
++            if (file == null) return null;
++            MoonriseRegionFileAccess access = this.accessFor(file);
++            access.acquireIO();
++            return new Lease(file, access);
++        }
++    }
++
++    private static final int REGION_SHIFT = 5;
++    private static final int MAX_NON_EXISTING_CACHE = 1024 * 4;
++    private final it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet nonExistingRegionFiles = new it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet();
++    private static String getRegionFileName(final int chunkX, final int chunkZ) {
++        return "r." + (chunkX >> REGION_SHIFT) + "." + (chunkZ >> REGION_SHIFT) + ".mca";
++    }
++
++    private boolean doesRegionFilePossiblyExist(final long position) {
++        synchronized (this.nonExistingRegionFiles) {
++            if (this.nonExistingRegionFiles.contains(position)) {
++                this.nonExistingRegionFiles.addAndMoveToFirst(position);
++                return false;
++            }
++            return true;
++        }
++    }
++
++    private void createRegionFile(final long position) {
++        synchronized (this.nonExistingRegionFiles) {
++            this.nonExistingRegionFiles.remove(position);
++        }
++    }
++
++    private void markNonExisting(final long position) {
++        synchronized (this.nonExistingRegionFiles) {
++            if (this.nonExistingRegionFiles.addAndMoveToFirst(position)) {
++                while (this.nonExistingRegionFiles.size() >= MAX_NON_EXISTING_CACHE) {
++                    this.nonExistingRegionFiles.removeLastLong();
++                }
++            }
++        }
++    }
++
++    @Override
++    public final boolean moonrise$doesRegionFileNotExistNoIO(final int chunkX, final int chunkZ) {
++        return !this.doesRegionFilePossiblyExist(ChunkPos.pack(chunkX >> REGION_SHIFT, chunkZ >> REGION_SHIFT));
++    }
++
++    @Override
++    public final RegionFile moonrise$getRegionFileIfLoaded(final int chunkX, final int chunkZ) {
++        synchronized (this.storage) {
++            final Optional<RegionFile> ret = this.storage.regionCache.getAndMoveToFirst(ChunkPos.pack(chunkX >> REGION_SHIFT, chunkZ >> REGION_SHIFT));
++            return ret == null || ret.isEmpty() ? null : ret.get();
++        }
++    }
++
++    @Override
++    public final RegionFile moonrise$getRegionFileIfExists(final int chunkX, final int chunkZ) throws IOException {
++        return this.getRegionFile(new ChunkPos(chunkX, chunkZ), false);
++    }
++
++    @Override
++    public final ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.WriteData moonrise$startWrite(
++        final int chunkX, final int chunkZ, final CompoundTag compound
++    ) throws IOException {
++        if (compound == null) {
++            return new ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.WriteData(
++                compound, ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.WriteData.WriteResult.DELETE,
++                null, null
++            );
++        }
++
++        final ChunkPos pos = new ChunkPos(chunkX, chunkZ);
++        final RegionFile regionFile = this.getRegionFile(pos, true);
++
++        // note: not required to keep regionfile loaded after this call, as the write param takes a regionfile as input
++        // (and, the regionfile parameter is unused for writing until the write call)
++        final ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.WriteData writeData = MoonriseRegionFileAccess.prepareWrite(regionFile, compound, pos);
++
++        try {
++            NbtIo.write(compound, writeData.output());
++        } finally {
++            writeData.output().close();
++        }
++
++        return writeData;
++    }
++
++    @Override
++    public final void moonrise$finishWrite(
++        final int chunkX, final int chunkZ, final ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.WriteData writeData
++    ) throws IOException {
++        final ChunkPos pos = new ChunkPos(chunkX, chunkZ);
++        if (writeData.result() == ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.WriteData.WriteResult.DELETE) {
++            try (Lease lease = this.lease(chunkX, chunkZ, false)) {
++                if (lease != null) synchronized (lease.file()) { lease.file().clear(pos); }
++            } // else: didn't exist
++
++            return;
++        }
++
++        try (Lease lease = this.lease(chunkX, chunkZ, true)) {
++            writeData.write().run(lease.file());
++        }
++    }
++
++    @Override
++    public final ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.ReadData moonrise$readData(
++        final int chunkX, final int chunkZ
++    ) throws IOException {
++        // retrieve the count after reading under the regionfile lock, so that it matches the header the data was read with
++        final int recalculateCount;
++        final DataInputStream input;
++        try (Lease lease = this.lease(chunkX, chunkZ, false)) {
++            if (lease == null) {
++                recalculateCount = 0;
++                input = null;
++            } else {
++                synchronized (lease.file()) {
++                    input = lease.access().readInput(new ChunkPos(chunkX, chunkZ));
++                    recalculateCount = lease.access().moonrise$getRecalculateCount();
++                }
++            }
++        }
++
++        if (input == null) {
++            return new ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.ReadData(
++                ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.ReadData.ReadResult.NO_DATA, null, null, recalculateCount
++            );
++        }
++
++        final ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.ReadData ret = new ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.ReadData(
++            ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.ReadData.ReadResult.HAS_DATA, input, null, recalculateCount
++        );
++
++        if (!(input instanceof ca.spottedleaf.moonrise.patches.chunk_system.util.stream.ExternalChunkStreamMarker)) {
++            // internal stream, which is fully read
++            return ret;
++        }
++
++        final CompoundTag syncRead = this.moonrise$finishRead(chunkX, chunkZ, ret);
++
++        if (syncRead == null) {
++            // need to try again
++            return this.moonrise$readData(chunkX, chunkZ);
++        }
++
++        return new ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.ReadData(
++            ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.ReadData.ReadResult.SYNC_READ, null, syncRead, recalculateCount
++        );
++    }
++
++    // if the return value is null, then the caller needs to re-try with a new call to readData()
++    @Override
++    public final CompoundTag moonrise$finishRead(
++        final int chunkX, final int chunkZ, final ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.ReadData readData
++    ) throws IOException {
++        final CompoundTag ret;
++        try {
++            ret = NbtIo.read(readData.input()); // Felt: optimized NBT parsing is a separate pending port.
++        } finally {
++            readData.input().close();
++        }
++
++        if (!ca.spottedleaf.moonrise.patches.chunk_system.storage.RegionFileRecovery.isChunkStorage(this.storage.info())) {
++            return ret;
++        }
++
++        try (Lease lease = this.lease(chunkX, chunkZ, false)) {
++            if (lease == null || lease.access().moonrise$getRecalculateCount() != readData.recalculateCount()) {
++                // header was recalculated (or the regionfile was removed), so the data may be stale
++                return null;
++            }
++
++            final ChunkPos pos = new ChunkPos(chunkX, chunkZ);
++            final ChunkPos storedPos = ca.spottedleaf.moonrise.patches.chunk_system.storage.RegionFileRecovery.getChunkCoordinate(ret);
++            if (storedPos.equals(pos)) {
++                return ret;
++            }
++
++            LOGGER.error("Attempting to read chunk data at {} but got chunk data for {} instead! Attempting regionfile recalculation for regionfile {}", pos, storedPos, lease.file().getPath().toAbsolutePath());
++            final Boolean recalc = lease.access().moonrise$tryRecalcHeader(readData.recalculateCount());
++            if (recalc == null || recalc.booleanValue()) {
++                // some other thread re-calculated or we re-calculated
++                return null;
++            }
++
++            LOGGER.error("Can't recalculate regionfile header for regionfile {}", lease.file().getPath().toAbsolutePath());
++            return ret;
++        }
++    }
++
++    private @Nullable RegionFile getRegionFile(final ChunkPos pos, final boolean create) throws IOException {
++        // Paper start - rewrite chunk system
++        synchronized (this.storage) {
++            final long key = ChunkPos.pack(pos.x() >> REGION_SHIFT, pos.z() >> REGION_SHIFT);
++
++            final Optional<RegionFile> cached = this.storage.regionCache.getAndMoveToFirst(key);
++            if (cached != null) {
++                if (cached.isPresent()) {
++                    return cached.get();
++                }
++
++                if (!create) {
++                    return null;
++                }
++            }
++
++            if (!create && !this.doesRegionFilePossiblyExist(key)) {
++                return null;
++            }
++
++            final Path regionPath = this.storage.folder.resolve(getRegionFileName(pos.x(), pos.z()));
++
++            if (!create && !Files.isRegularFile(regionPath)) {
++                // unlike vanilla, do not cache Optional.empty() here: missing regions are tracked in
++                // nonExistingRegionFiles so that a read miss cannot evict a live RegionFile from the cache
++                this.markNonExisting(key);
++                return null;
++            }
++
++            final int cacheSize = this.cacheLimit.getAsInt();
++            if (cacheSize <= 0) throw new IllegalStateException("Region file cache limit must be positive"); // Paper - Sanitise RegionFileCache and make configurable - Config not available during initial FileFixerUpper run
++
++            if (this.storage.regionCache.size() >= cacheSize) {
++                final Optional<RegionFile> evicted = this.storage.regionCache.removeLast();
++                if (evicted.isPresent()) {
++                    this.accessFor(evicted.get()).closeFile();
++                    this.access.remove(evicted.get());
++                }
++            }
++
++            this.createRegionFile(key);
++
++            FileUtil.createDirectoriesSafe(this.storage.folder);
++
++            final RegionFile ret = new RegionFile(this.storage.info(), regionPath, this.storage.folder, this.storage.sync);
++
++            try {
++                this.accessFor(ret).recoverHeaderIfNeeded();
++            } catch (IOException | RuntimeException | Error failure) {
++                this.access.remove(ret);
++                try { ret.close(); } catch (IOException closeFailure) { failure.addSuppressed(closeFailure); }
++                throw failure;
++            }
++            this.storage.regionCache.putAndMoveToFirst(key, Optional.of(ret));
++
++            return ret;
++        }
++    }
++}
++

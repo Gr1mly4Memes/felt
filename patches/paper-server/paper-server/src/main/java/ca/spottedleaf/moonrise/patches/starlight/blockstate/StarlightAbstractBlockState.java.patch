@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/starlight/blockstate/StarlightAbstractBlockState.java b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/starlight/blockstate/StarlightAbstractBlockState.java
+new file mode 100644
+--- /dev/null
++++ b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/starlight/blockstate/StarlightAbstractBlockState.java
+@@ -0,0 +1,7 @@
++package ca.spottedleaf.moonrise.patches.starlight.blockstate;
++
++public interface StarlightAbstractBlockState {
++
++    public boolean starlight$isConditionallyFullOpaque();
++
++}

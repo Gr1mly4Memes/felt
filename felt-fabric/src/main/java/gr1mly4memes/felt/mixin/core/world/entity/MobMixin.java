@@ -54,6 +54,14 @@ import javax.annotation.Nullable;
 
 @Mixin(Mob.class)
 public abstract class MobMixin extends LivingEntityMixin implements MobBridge {
+    @WrapOperation(method = "checkDespawn", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getNearestPlayer(Lnet/minecraft/world/entity/Entity;D)Lnet/minecraft/world/entity/player/Player;"))
+    private Player felt$spawningPlayerForDespawn(net.minecraft.world.level.Level level, Entity source, double range, Operation<Player> original) {
+        return gr1mly4memes.felt.mod.server.world.FeltSpawningInfluence.nearestForDespawn(level, source, range);
+    }
+    @WrapOperation(method = "aiStep", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Mob;pickUpItem(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/item/ItemEntity;)V"))
+    private void felt$mobPickupControl(Mob mob, ServerLevel level, ItemEntity item, Operation<Void> original) {
+        if (((gr1mly4memes.felt.bridge.core.entity.PaperEntityStateBridge)item).bridge$canMobPickup()) original.call(mob, level, item);
+    }
 
     @WrapOperation(method = "shearItem(Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/entity/EquipmentSlot;Lnet/minecraft/world/item/ItemStack;)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Mob;spawnAtLocation(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/phys/Vec3;)Lnet/minecraft/world/entity/item/ItemEntity;"))
     private ItemEntity felt$forcedEquipmentDrop(Mob entity, ServerLevel level, ItemStack stack, Vec3 offset, Operation<ItemEntity> original) {

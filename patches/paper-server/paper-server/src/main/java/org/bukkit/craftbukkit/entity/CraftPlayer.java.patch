@@ -321,13 +321,13 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftPlaye
      // Paper start
      public void setAffectsSpawning(boolean affects) {
 -        this.getHandle().affectsSpawning = affects;
-+        throw new UnsupportedOperationException("Per-player spawning influence is not supported");
++        ((gr1mly4memes.felt.bridge.core.world.entity.player.SpawningInfluenceBridge)this.getHandle()).bridge$setAffectsSpawning(affects);
      }
  
      @Override
      public boolean getAffectsSpawning() {
 -        return this.getHandle().affectsSpawning;
-+        throw new UnsupportedOperationException("Per-player spawning influence is not supported");
++        return ((gr1mly4memes.felt.bridge.core.world.entity.player.SpawningInfluenceBridge)this.getHandle()).bridge$affectsSpawning();
      }
      // Paper end
  
@@ -553,51 +553,46 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftPlaye
      }
      // Paper end
  
-@@ -3212,32 +3322,37 @@
+@@ -3212,32 +3322,32 @@
  
      @Override
      public int getViewDistance() {
 -        return ca.spottedleaf.moonrise.common.PlatformHooks.get().getViewDistance(this.getHandle());
-+        return this.getHandle().level().getChunkSource().chunkMap.serverViewDistance;
++        return ca.spottedleaf.moonrise.patches.chunk_system.player.RegionizedPlayerChunkLoader.getAPIViewDistance(this.getHandle());
      }
  
      @Override
      public void setViewDistance(final int viewDistance) {
 -        FeatureHooks.setViewDistance(this.getHandle(), viewDistance); // Paper - chunk system
-+        throw new UnsupportedOperationException("Felt does not support a player view distance independent of its world yet");
++        io.papermc.paper.FeatureHooks.setViewDistance(this.getHandle(), viewDistance);
      }
  
      @Override
      public int getSimulationDistance() {
 -        return ca.spottedleaf.moonrise.common.PlatformHooks.get().getTickViewDistance(this.getHandle());
-+        return this.getHandle().level().getChunkSource().chunkMap.getDistanceManager().simulationDistance;
++        return ca.spottedleaf.moonrise.patches.chunk_system.player.RegionizedPlayerChunkLoader.getAPITickViewDistance(this.getHandle());
      }
  
      @Override
      public void setSimulationDistance(final int simulationDistance) {
 -        FeatureHooks.setSimulationDistance(this.getHandle(), simulationDistance); // Paper - chunk system
-+        throw new UnsupportedOperationException("Felt does not support a player simulation distance independent of its world yet");
++        io.papermc.paper.FeatureHooks.setSimulationDistance(this.getHandle(), simulationDistance);
      }
  
      @Override
      public int getSendViewDistance() {
 -        return ca.spottedleaf.moonrise.common.PlatformHooks.get().getSendViewDistance(this.getHandle());
-+        final ServerPlayer player = this.getHandle();
-+        if (player.getChunkTrackingView() instanceof net.minecraft.server.level.ChunkTrackingView.Positioned view) {
-+            return view.viewDistance();
-+        }
-+        return net.minecraft.util.Mth.clamp(player.requestedViewDistance(), 2,
-+            player.level().getChunkSource().chunkMap.serverViewDistance);
++        return ca.spottedleaf.moonrise.patches.chunk_system.player.RegionizedPlayerChunkLoader.getAPISendViewDistance(this.getHandle());
      }
  
      @Override
      public void setSendViewDistance(final int viewDistance) {
 -        FeatureHooks.setSendViewDistance(this.getHandle(), viewDistance); // Paper - chunk system
-+        throw new UnsupportedOperationException("Felt does not support an independently configured player send view distance yet");
++        io.papermc.paper.FeatureHooks.setSendViewDistance(this.getHandle(), viewDistance);
      }
  
      // Paper start - entity effect API
-@@ -3315,26 +3430,44 @@
+@@ -3315,26 +3425,44 @@
  
      @Override
      public org.bukkit.entity.Entity releaseLeftShoulderEntity() {

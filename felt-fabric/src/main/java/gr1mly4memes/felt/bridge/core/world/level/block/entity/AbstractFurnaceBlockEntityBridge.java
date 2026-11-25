@@ -7,6 +7,8 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import java.util.List;
 
 public interface AbstractFurnaceBlockEntityBridge {
+    double bridge$cookSpeedMultiplier();
+    void bridge$setCookSpeedMultiplier(double multiplier, net.minecraft.server.level.ServerLevel level);
 
     net.minecraft.world.item.crafting.RecipeType<? extends net.minecraft.world.item.crafting.AbstractCookingRecipe> bridge$getRecipeType();
 

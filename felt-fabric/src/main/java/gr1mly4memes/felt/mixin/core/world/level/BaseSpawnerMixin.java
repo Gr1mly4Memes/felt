@@ -34,6 +34,11 @@ import java.util.Optional;
 
 @Mixin(BaseSpawner.class)
 public abstract class BaseSpawnerMixin implements BaseSpawnerBridge {
+    @com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation(method = "isNearPlayer", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;hasNearbyAlivePlayer(DDDD)Z"))
+    private boolean felt$spawningInfluence(net.minecraft.world.level.Level level, double x, double y, double z, double range,
+            com.llamalad7.mixinextras.injector.wrapoperation.Operation<Boolean> original) {
+        return gr1mly4memes.felt.mod.server.world.FeltSpawningInfluence.nearbyAlive(level, x, y, z, range);
+    }
 
     // @formatter:off
     @Shadow public WeightedList<SpawnData> spawnPotentials;
@@ -111,6 +116,7 @@ public abstract class BaseSpawnerMixin implements BaseSpawnerBridge {
 
     @Decorate(method = "serverTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;tryAddFreshEntityWithPassengers(Lnet/minecraft/world/entity/Entity;)Z"))
     private boolean felt$spawnerSpawn(ServerLevel instance, Entity entity, ServerLevel level, BlockPos pos) throws Throwable {
+        ((gr1mly4memes.felt.bridge.core.entity.PaperEntityStateBridge)entity).bridge$markFromSpawner();
         if (CraftEventFactory.callSpawnerSpawnEvent(entity, pos).isCancelled()) {
             throw DecorationOps.jumpToLoopStart();
         }

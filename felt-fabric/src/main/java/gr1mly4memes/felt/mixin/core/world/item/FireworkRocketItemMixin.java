@@ -7,6 +7,7 @@ import com.llamalad7.mixinextras.sugar.Cancellable;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import gr1mly4memes.felt.bridge.core.world.entity.projectile.ProjectileSpawnBridge;
+import gr1mly4memes.felt.bridge.core.world.entity.SpawningEntityBridge;
 import gr1mly4memes.felt.bridge.core.world.inventory.AbstractContainerMenuBridge;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
@@ -60,6 +61,7 @@ public abstract class FireworkRocketItemMixin {
                                                 Operation<Projectile> original, Level level, Player player, InteractionHand hand,
                                                 @Share("feltBoostEvent") LocalRef<PlayerElytraBoostEvent> boostEvent,
                                                 @Cancellable CallbackInfoReturnable<InteractionResult> cir) {
+        ((SpawningEntityBridge) projectile).bridge$setSpawningEntity(player.getUUID());
         var event = new PlayerElytraBoostEvent((org.bukkit.entity.Player) player.bridge$getBukkitEntity(),
             CraftItemStack.asCraftMirror(stack), (org.bukkit.entity.Firework) projectile.bridge$getBukkitEntity(),
             CraftEquipmentSlot.getHand(hand));

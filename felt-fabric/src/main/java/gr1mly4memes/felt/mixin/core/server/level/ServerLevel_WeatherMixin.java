@@ -1,13 +1,16 @@
 package gr1mly4memes.felt.mixin.core.server.level;
 
+import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import gr1mly4memes.felt.bridge.core.world.level.saveddata.WeatherDataBridge;
 import gr1mly4memes.felttools.mixin.Decorate;
 import gr1mly4memes.felttools.mixin.DecorationOps;
 import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.protocol.Packet;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.saveddata.WeatherData;
@@ -31,13 +34,17 @@ public abstract class ServerLevel_WeatherMixin extends Level {
     }
 
     @Group(name = "felt$weatherBroadcasts", min = 6, max = 6)
-    @Redirect(method = "advanceWeatherCycle()V", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/players/PlayerList;broadcastAll(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/resources/ResourceKey;)V"), require = 0, allow = 6)
-    private void felt$deferDimensionWeather(net.minecraft.server.players.PlayerList list, net.minecraft.network.protocol.Packet<?> packet, net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension) {
+    @WrapWithCondition(method = "advanceWeatherCycle()V", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/players/PlayerList;broadcastAll(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/resources/ResourceKey;)V"), require = 0, allow = 6)
+    private boolean felt$deferDimensionWeather(PlayerList list, Packet<?> packet, ResourceKey<Level> dimension) {
+        return false;
     }
 
+    // The Sift only narrows these sends to the ticking dimension (#2197).
+    // Guard the redirected call too: the per-player delivery below already scopes it and honors overrides.
     @Group(name = "felt$weatherBroadcasts", min = 6, max = 6)
-    @Redirect(method = "advanceWeatherCycle()V", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/players/PlayerList;broadcastAll(Lnet/minecraft/network/protocol/Packet;)V"), require = 0, allow = 4)
-    private void felt$deferGlobalWeather(net.minecraft.server.players.PlayerList list, net.minecraft.network.protocol.Packet<?> packet) {
+    @WrapWithCondition(method = "advanceWeatherCycle()V", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/players/PlayerList;broadcastAll(Lnet/minecraft/network/protocol/Packet;)V"), require = 0, allow = 4)
+    private boolean felt$deferGlobalWeather(PlayerList list, Packet<?> packet) {
+        return false;
     }
 
     @Inject(method = "advanceWeatherCycle()V", at = @At("RETURN"))

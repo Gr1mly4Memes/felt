@@ -63,15 +63,27 @@ public class FeltGameProvider extends MinecraftGameProvider {
             Files.createDirectories(dir);
         }
         var mod = dir.resolve(version + ".jar");
-        if (!Files.exists(mod) || Boolean.getBoolean("felt.alwaysExtract")) {
-            try (var path = getClass().getResourceAsStream("/common.jar");
-                 var files = Files.list(dir)) {
+        var staged = Files.createTempFile(dir, ".common-", ".jar");
+        try {
+            try (var path = getClass().getResourceAsStream("/common.jar")) {
                 if (path == null) throw new IllegalStateException("Felt common.jar is missing");
-                for (Path old : files.toList()) {
-                    Files.delete(old);
-                }
-                Files.copy(path, mod);
+                Files.copy(path, staged, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             }
+            // Snapshot rebuilds can share a version and commit, so compare content.
+            if (!Files.exists(mod) || Boolean.getBoolean("felt.alwaysExtract") || Files.mismatch(staged, mod) != -1L) {
+                try {
+                    Files.move(staged, mod, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+                } catch (java.nio.file.AtomicMoveNotSupportedException unsupported) {
+                    Files.move(staged, mod, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+                try (var files = Files.list(dir)) {
+                    for (Path old : files.filter(file -> !file.equals(mod) && !file.equals(staged)).toList()) {
+                        Files.delete(old);
+                    }
+                }
+            }
+        } finally {
+            Files.deleteIfExists(staged);
         }
         return mod;
     }

@@ -8,10 +8,12 @@ import gr1mly4memes.felt.bridge.core.world.IInventoryBridge;
 import gr1mly4memes.felt.bridge.core.world.item.trading.MerchantOfferBridge;
 import gr1mly4memes.felt.mixin.core.world.entity.PathfinderMobMixin;
 import net.minecraft.core.HolderSet;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
+import net.minecraft.world.item.trading.TradeSet;
 import net.minecraft.world.item.trading.VillagerTrade;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.loot.LootContext;
@@ -27,6 +29,7 @@ import org.bukkit.inventory.InventoryHolder;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -35,6 +38,27 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class AbstractVillagerMixin extends PathfinderMobMixin implements MerchantBridge {
 
     @Shadow @Final private SimpleContainer inventory;
+    @Shadow protected abstract void updateTrades(ServerLevel level);
+    @Unique private int felt$requestedTradeCount = -1;
+
+    protected void felt$updateTrades(ServerLevel level, int amount) {
+        int previous = this.felt$requestedTradeCount;
+        this.felt$requestedTradeCount = amount;
+        try {
+            this.updateTrades(level);
+        } finally {
+            this.felt$requestedTradeCount = previous;
+        }
+    }
+
+    @WrapOperation(method = "addOffersFromTradeSet", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/world/item/trading/TradeSet;calculateNumberOfTrades(Lnet/minecraft/world/level/storage/loot/LootContext;)I"))
+    private int felt$tradeCount(TradeSet trades, LootContext context, Operation<Integer> original) {
+        int requested = this.felt$requestedTradeCount;
+        // A plugin can reenter the trade API during an acquisition event.
+        this.felt$requestedTradeCount = -1;
+        return requested == -1 ? original.call(trades, context) : requested;
+    }
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void felt$init(EntityType<? extends net.minecraft.world.entity.npc.villager.AbstractVillager> type, Level worldIn, CallbackInfo ci) {
@@ -48,9 +72,9 @@ public abstract class AbstractVillagerMixin extends PathfinderMobMixin implement
         return (craftMerchant == null) ? craftMerchant = new CraftAbstractVillager(((CraftServer) Bukkit.getServer()), (net.minecraft.world.entity.npc.villager.AbstractVillager) (Object) this) : craftMerchant;
     }
 
-    // Both native helpers are static. The TradeSet context carries the owning villager;
-    // fixed CraftBukkit dispatches acquisition only in the without-duplicates branch.
-    @WrapOperation(method = "addOffersFromItemListingsWithoutDuplicates(Lnet/minecraft/world/level/storage/loot/LootContext;Lnet/minecraft/world/item/trading/MerchantOffers;Lnet/minecraft/core/HolderSet;I)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/trading/MerchantOffers;add(Ljava/lang/Object;)Z"), require = 1, expect = 1, allow = 1)
+    // Both native helpers are static. The TradeSet context carries the owning villager.
+    @WrapOperation(method = {"addOffersFromItemListings", "addOffersFromItemListingsWithoutDuplicates"},
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/trading/MerchantOffers;add(Ljava/lang/Object;)Z"), require = 2, allow = 2)
     private static boolean felt$gainOffer(MerchantOffers merchantOffers, Object e, Operation<Boolean> original,
             LootContext lootContext, MerchantOffers offers, HolderSet<VillagerTrade> potentialOffers, int numberOfOffers) {
         MerchantOffer offer = (MerchantOffer) e;
@@ -65,7 +89,7 @@ public abstract class AbstractVillagerMixin extends PathfinderMobMixin implement
         if (villager.bridge$isValid()) {
             Bukkit.getPluginManager().callEvent(event);
         }
-        if (!event.isCancelled()) {
+        if (!event.isCancelled() && !event.getRecipe().getIngredients().isEmpty()) {
             return original.call(merchantOffers, CraftMerchantRecipe.fromBukkit(event.getRecipe()).toMinecraft());
         }
         // The native helper ignores add's boolean, then increments offersFound even on veto.

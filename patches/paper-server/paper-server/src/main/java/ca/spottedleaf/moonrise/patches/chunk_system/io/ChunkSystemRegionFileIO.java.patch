@@ -1,0 +1,64 @@
+diff --git a/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/io/ChunkSystemRegionFileIO.java b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/io/ChunkSystemRegionFileIO.java
+new file mode 100644
+--- /dev/null
++++ b/paper-server/src/main/java/ca/spottedleaf/moonrise/patches/chunk_system/io/ChunkSystemRegionFileIO.java
+@@ -0,0 +1,59 @@
++package ca.spottedleaf.moonrise.patches.chunk_system.io;
++
++import java.lang.invoke.MethodHandle;
++import java.lang.invoke.MethodHandles;
++import java.lang.invoke.MethodType;
++
++/** Storage portion of the native level contract, separated from the scheduler while it is ported. */
++public interface ChunkSystemRegionFileIO {
++
++    MoonriseRegionFileIO.RegionDataController moonrise$getChunkDataController();
++
++    MoonriseRegionFileIO.RegionDataController moonrise$getPoiChunkDataController();
++
++    MoonriseRegionFileIO.RegionDataController moonrise$getEntityChunkDataController();
++
++    static MoonriseRegionFileIO.RegionDataController controllerFor(Object world, MoonriseRegionFileIO.RegionFileType type) {
++        if (world instanceof ChunkSystemRegionFileIO controllers) {
++            return switch (type) {
++                case CHUNK_DATA -> controllers.moonrise$getChunkDataController();
++                case POI_DATA -> controllers.moonrise$getPoiChunkDataController();
++                case ENTITY_DATA -> controllers.moonrise$getEntityChunkDataController();
++            };
++        }
++        // A separately installed Moonrise exposes these getters through its full level interface.
++        // Resolve their real return types once, retaining compatibility without defining a partial
++        // ChunkSystemServerLevel interface that would shadow the external mod's complete contract.
++        try {
++            return (MoonriseRegionFileIO.RegionDataController) Access.GETTERS.get(world.getClass())[type.ordinal()].invokeExact(world);
++        } catch (RuntimeException | Error failure) {
++            throw failure;
++        } catch (Throwable failure) {
++            throw new IllegalStateException("Cannot access Moonrise region storage for " + world.getClass().getName(), failure);
++        }
++    }
++
++    final class Access {
++        private Access() {}
++
++        private static final ClassValue<MethodHandle[]> GETTERS = new ClassValue<>() {
++            @Override protected MethodHandle[] computeValue(Class<?> type) {
++                String[] names = {"moonrise$getChunkDataController", "moonrise$getPoiChunkDataController", "moonrise$getEntityChunkDataController"};
++                MethodHandle[] getters = new MethodHandle[names.length];
++                for (int i = 0; i < names.length; i++) {
++                    try {
++                        var method = type.getMethod(names[i]);
++                        if (!MoonriseRegionFileIO.RegionDataController.class.isAssignableFrom(method.getReturnType())) {
++                            throw new IllegalStateException("Invalid Moonrise storage getter " + method);
++                        }
++                        getters[i] = MethodHandles.publicLookup().unreflect(method).asType(
++                            MethodType.methodType(MoonriseRegionFileIO.RegionDataController.class, Object.class));
++                    } catch (ReflectiveOperationException failure) {
++                        throw new IllegalStateException("Native Moonrise region storage is not installed for " + type.getName(), failure);
++                    }
++                }
++                return getters;
++            }
++        };
++    }
++}

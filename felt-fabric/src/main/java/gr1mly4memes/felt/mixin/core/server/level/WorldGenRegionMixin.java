@@ -47,6 +47,7 @@ public abstract class WorldGenRegionMixin implements WorldBridge {
     }
 
     public boolean addFreshEntity(Entity entity, CreatureSpawnEvent.SpawnReason reason) {
+        ((gr1mly4memes.felt.bridge.core.entity.InitialSpawnReasonBridge)entity).bridge$setInitialSpawnReason(reason);
         return this.addFreshEntity(entity);
     }
 
@@ -57,6 +58,16 @@ public abstract class WorldGenRegionMixin implements WorldBridge {
 
     @Override
     public void bridge$pushAddEntityReason(CreatureSpawnEvent.SpawnReason reason) {
+        this.felt$pendingSpawnReason = reason;
+    }
+
+    @org.spongepowered.asm.mixin.Unique private CreatureSpawnEvent.SpawnReason felt$pendingSpawnReason;
+
+    @org.spongepowered.asm.mixin.injection.Inject(method = "addFreshEntity", at = @org.spongepowered.asm.mixin.injection.At("HEAD"))
+    private void felt$initialSpawnReason(Entity entity, org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Boolean> cir) {
+        ((gr1mly4memes.felt.bridge.core.entity.InitialSpawnReasonBridge)entity).bridge$setInitialSpawnReason(
+            this.felt$pendingSpawnReason == null ? CreatureSpawnEvent.SpawnReason.DEFAULT : this.felt$pendingSpawnReason);
+        this.felt$pendingSpawnReason = null;
     }
 
     @Override
@@ -66,6 +77,6 @@ public abstract class WorldGenRegionMixin implements WorldBridge {
 
     @Override
     public CreatureSpawnEvent.SpawnReason bridge$getAddEntityReason() {
-        return CreatureSpawnEvent.SpawnReason.DEFAULT;
+        return this.felt$pendingSpawnReason == null ? CreatureSpawnEvent.SpawnReason.DEFAULT : this.felt$pendingSpawnReason;
     }
 }

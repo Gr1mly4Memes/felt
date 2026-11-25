@@ -40,6 +40,13 @@ import java.util.function.BooleanSupplier;
 @Mixin(ChunkMap.class)
 public abstract class ChunkMapMixin implements ChunkMapBridge {
 
+    @Shadow @Final private Long2ObjectLinkedOpenHashMap<ChunkHolder> pendingUnloads;
+
+    @Override
+    public ChunkHolder bridge$getUnloadingChunkHolder(int chunkX, int chunkZ) {
+        return this.pendingUnloads.get(net.minecraft.world.level.ChunkPos.pack(chunkX, chunkZ));
+    }
+
     // @formatter:off
     @Shadow @Final public it.unimi.dsi.fastutil.ints.Int2ObjectMap<ChunkMap.TrackedEntity> entityMap;
     @Shadow @Nullable protected abstract ChunkHolder getUpdatingChunkIfPresent(long chunkPosIn);
@@ -56,6 +63,9 @@ public abstract class ChunkMapMixin implements ChunkMapBridge {
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void felt$updateRandom(ServerLevel p_214836_, LevelStorageSource.LevelStorageAccess p_214837_, DataFixer p_214838_, StructureTemplateManager p_214839_, Executor p_214840_, BlockableEventLoop p_214841_, LightChunkGetter p_214842_, ChunkGenerator chunkGenerator, ChunkStatusUpdateListener p_214845_, net.minecraft.world.level.TicketStorage ticketStorage, int p_214847_, boolean p_214848_, CallbackInfo ci) {
+        if ((Object) ticketStorage instanceof ca.spottedleaf.moonrise.patches.chunk_system.ticket.ChunkSystemTicketStorage owner) {
+            owner.moonrise$setChunkMap((ChunkMap) (Object) this);
+        }
         this.bridge$setChunkGenerator(chunkGenerator);
     }
 
@@ -118,6 +128,8 @@ public abstract class ChunkMapMixin implements ChunkMapBridge {
 
     @Override
     public Iterable<ChunkHolder> bridge$getLoadedChunksIterable() {
+        if ((Object)this.level instanceof ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel world
+            && world.moonrise$getChunkTaskScheduler() != null) return world.moonrise$getChunkTaskScheduler().chunkHolderManager.getOldChunkHoldersIterable();
         return this.visibleChunkMap.values();
     }
 

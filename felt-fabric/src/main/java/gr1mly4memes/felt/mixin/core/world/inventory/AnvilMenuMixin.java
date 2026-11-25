@@ -54,6 +54,15 @@ public abstract class AnvilMenuMixin extends ItemCombinerMenuMixin implements An
     public int maximumRepairCost = 40;
 
     private CraftAnvilView bukkitEntity;
+    @Unique private boolean felt$bypassEnchantmentLimit;
+    @Override public boolean bridge$bypassEnchantmentLimit() { return this.felt$bypassEnchantmentLimit; }
+    @Override public void bridge$setBypassEnchantmentLimit(boolean bypass) { this.felt$bypassEnchantmentLimit = bypass; }
+
+    @com.llamalad7.mixinextras.injector.ModifyExpressionValue(method = "createResult",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/enchantment/Enchantment;getMaxLevel()I"), require = 2, allow = 2)
+    private int felt$enchantmentLimit(int vanillaLimit) {
+        return this.felt$bypassEnchantmentLimit ? Integer.MAX_VALUE : vanillaLimit;
+    }
 
     private boolean felt$zeroCostAllowed = false;
 

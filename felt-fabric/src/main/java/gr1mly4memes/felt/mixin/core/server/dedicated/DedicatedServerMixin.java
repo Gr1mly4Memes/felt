@@ -205,7 +205,7 @@ public abstract class DedicatedServerMixin extends MinecraftServerMixin implemen
         internal.setSpawnSettings(true);
         this.addLevel(internal);
         this.prepareLevels(internal);
-        internal.entityManager.tick();
+        io.papermc.paper.FeatureHooks.tickEntityManager(internal);
     }
 
     @Override

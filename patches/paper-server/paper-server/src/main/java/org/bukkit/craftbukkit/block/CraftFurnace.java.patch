@@ -1,12 +1,12 @@
 diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/block/CraftFurnace.java b/paper-server/src/main/java/org/bukkit/craftbukkit/block/CraftFurnace.java
 --- a/paper-server/src/main/java/org/bukkit/craftbukkit/block/CraftFurnace.java
 +++ b/paper-server/src/main/java/org/bukkit/craftbukkit/block/CraftFurnace.java
-@@ -93,16 +93,14 @@
+@@ -93,16 +93,15 @@
  
      @Override
      public double getCookSpeedMultiplier() {
 -        return this.getSnapshot().cookSpeedMultiplier;
-+        throw new UnsupportedOperationException("Furnace cook speed multipliers are not supported");
++        return ((gr1mly4memes.felt.bridge.core.world.level.block.entity.AbstractFurnaceBlockEntityBridge)this.getSnapshot()).bridge$cookSpeedMultiplier();
      }
  
      @Override
@@ -16,7 +16,8 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/block/CraftFurnac
 -        T snapshot = this.getSnapshot();
 -        snapshot.cookSpeedMultiplier = multiplier;
 -        snapshot.cookingTotalTime = AbstractFurnaceBlockEntity.getTotalCookTime(this.isPlaced() ? this.world.getHandle() : null, snapshot); // Update the snapshot's current total cook time to scale with the newly set multiplier
-+        throw new UnsupportedOperationException("Furnace cook speed multipliers are not supported");
++        ((gr1mly4memes.felt.bridge.core.world.level.block.entity.AbstractFurnaceBlockEntityBridge)this.getSnapshot())
++            .bridge$setCookSpeedMultiplier(multiplier, this.isPlaced() ? this.world.getHandle() : null);
      }
  
      @Override

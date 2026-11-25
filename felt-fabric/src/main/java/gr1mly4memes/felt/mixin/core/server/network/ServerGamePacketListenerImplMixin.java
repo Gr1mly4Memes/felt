@@ -384,7 +384,8 @@ public abstract class ServerGamePacketListenerImplMixin extends ServerCommonPack
                     this.send(new ClientboundMoveVehiclePacket(PositionAndRotation.of(entity.position(), entity.getYRot(), entity.getXRot())));
                     return;
                 }
-                boolean flag = worldserver.noCollision(entity, entity.getBoundingBox().deflate(0.0625));
+                AABB oldAABB = entity.getBoundingBox();
+                boolean flag = worldserver.noCollision(entity, oldAABB.deflate(0.0625));
                 d7 = d4 - this.vehicleLastGoodX;
                 d8 = d5 - this.vehicleLastGoodY - 1.0E-6;
                 d9 = d6 - this.vehicleLastGoodZ;
@@ -410,11 +411,14 @@ public abstract class ServerGamePacketListenerImplMixin extends ServerCommonPack
                     flag2 = true;
                     LOGGER.warn("{} (vehicle of {}) moved wrongly! {}", entity.getName().getString(), this.player.getName().getString(), Math.sqrt(d11));
                 }
+                // Keep the native pre-snap collision call here for Unbound (https://github.com/IzzelAliz/Arclight/issues/2197).
+                boolean movementRejected = (flag && flag2)
+                        || this.isEntityCollidingWithAnythingNew(worldserver, entity, oldAABB, d4, d5, d6);
                 Location curPos = this.getCraftPlayer().getLocation();
                 entity.snapTo(d4, d5, d6, f, f2);
                 this.player.snapTo(d4, d5, d6, this.player.getYRot(), this.player.getXRot());
                 boolean flag3 = worldserver.noCollision(entity, entity.getBoundingBox().deflate(0.0625));
-                if (flag && (flag2 || !flag3)) {
+                if (movementRejected || (flag && !flag3)) {
                     entity.snapTo(d0, d2, d3, f, f2);
                     this.player.snapTo(d0, d2, d3, this.player.getYRot(), this.player.getXRot());
                     this.send(new ClientboundMoveVehiclePacket(PositionAndRotation.of(entity.position(), entity.getYRot(), entity.getXRot())));
@@ -463,6 +467,9 @@ public abstract class ServerGamePacketListenerImplMixin extends ServerCommonPack
                 this.player.level().getChunkSource().move(this.player);
                 Vec3 vec3d = new Vec3(entity.getX() - d0, entity.getY() - d2, entity.getZ() - d3);
                 this.player.setKnownMovement(vec3d);
+                entity.setOnGroundWithMovement(packetplayinvehiclemove.onGround(), vec3d);
+                // Unbound also wraps the native fall check on accepted vehicle movement.
+                entity.doCheckFallDamage(vec3d.x, vec3d.y, vec3d.z, packetplayinvehiclemove.onGround());
                 this.player.checkMovementStatistics(vec3d.x, vec3d.y, vec3d.z);
                 this.clientVehicleIsFloating = d11 >= -0.03125D && !flag1 && !this.server.allowFlight()
                     && !entity.isFlyingVehicle() && !entity.isNoGravity() && this.noBlocksAround(entity);

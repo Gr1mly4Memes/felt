@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/antixray/ChunkPacketBlockController.java b/paper-server/src/main/java/io/papermc/paper/antixray/ChunkPacketBlockController.java
+--- a/paper-server/src/main/java/io/papermc/paper/antixray/ChunkPacketBlockController.java
++++ b/paper-server/src/main/java/io/papermc/paper/antixray/ChunkPacketBlockController.java
+@@ -33,7 +33,7 @@
+     }
+ 
+     public void modifyBlocks(ClientboundLevelChunkWithLightPacket chunkPacket, ChunkPacketInfo<BlockState> chunkPacketInfo) {
+-        chunkPacket.setReady(true);
++        ((gr1mly4memes.felt.bridge.core.network.ChunkPacketReadyBridge) chunkPacket).setReady(true);
+     }
+ 
+     public void onBlockChange(Level level, BlockPos blockPos, BlockState newBlockState, BlockState oldBlockState, @Block.UpdateFlags int flags, int maxUpdateDepth) {

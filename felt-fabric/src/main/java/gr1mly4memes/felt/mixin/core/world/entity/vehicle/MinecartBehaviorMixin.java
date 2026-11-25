@@ -22,6 +22,11 @@ public abstract class MinecartBehaviorMixin extends MinecartBehavior {
         return original || !((AbstractMinecartBridge) this.minecart).bridge$isSlowWhenEmpty();
     }
 
+    @Inject(method = "getSlowdownFactor", at = @At("HEAD"), cancellable = true)
+    private void felt$frictionOverride(CallbackInfoReturnable<Double> cir) {
+        if (((gr1mly4memes.felt.bridge.core.entity.PaperEntityStateBridge)this.minecart).bridge$frictionState() == net.kyori.adventure.util.TriState.FALSE) cir.setReturnValue(1.0D);
+    }
+
     @Inject(method = "getMaxSpeed", at = @At("HEAD"), cancellable = true)
     private void felt$maxSpeedOverride(ServerLevel level, CallbackInfoReturnable<Double> cir) {
         Double maxSpeed = ((AbstractMinecartBridge) this.minecart).bridge$getMaxSpeedOverride();

@@ -27,6 +27,7 @@ public class ServerLevel_EntityCallbacksMixin {
     private void felt$valid(Entity entity, CallbackInfo ci) {
         ((EntityBridge) entity).bridge$setInWorld(true);
         ((EntityBridge) entity).bridge$setValid(true);
+        ((gr1mly4memes.felt.bridge.core.entity.PaperEntityStateBridge)entity).bridge$captureOrigin();
         new com.destroystokyo.paper.event.entity.EntityAddToWorldEvent(((EntityBridge) entity).bridge$getBukkitEntity(),
             ((gr1mly4memes.felt.bridge.core.world.level.WorldBridge) this.outerThis).bridge$getWorld()).callEvent();
     }

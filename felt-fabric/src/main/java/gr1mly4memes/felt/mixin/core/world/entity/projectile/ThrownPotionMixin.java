@@ -3,7 +3,9 @@ package gr1mly4memes.felt.mixin.core.world.entity.projectile;
 import com.google.common.collect.Iterators;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import gr1mly4memes.felt.bridge.core.world.entity.LivingEntityBridge;
+import gr1mly4memes.felt.bridge.core.world.entity.projectile.ThrownPotionBridge;
 import gr1mly4memes.felt.mod.util.FeltCaptures.WaterPotionSplashContext;
 import gr1mly4memes.felttools.mixin.Decorate;
 import gr1mly4memes.felttools.mixin.DecorationOps;
@@ -22,6 +24,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.axolotl.Axolotl;
 import net.minecraft.world.entity.projectile.throwableitemprojectile.AbstractThrownPotion;
+import net.minecraft.world.entity.projectile.throwableitemprojectile.ThrowableItemProjectile;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.AbstractCandleBlock;
@@ -51,7 +54,19 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 @Mixin(AbstractThrownPotion.class)
-public abstract class ThrownPotionMixin extends ThrowableItemProjectileMixin {
+public abstract class ThrownPotionMixin extends ThrowableItemProjectileMixin implements ThrownPotionBridge {
+    @Shadow protected abstract void onHit(HitResult result);
+
+    @Override
+    public void bridge$splash() {
+        this.onHit(null);
+    }
+
+    @WrapWithCondition(method = "onHit", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/world/entity/projectile/throwableitemprojectile/ThrowableItemProjectile;onHit(Lnet/minecraft/world/phys/HitResult;)V"))
+    private boolean felt$hasCollision(ThrowableItemProjectile potion, HitResult result) {
+        return result != null;
+    }
 
     @Unique protected transient HitResult felt$hitResult;
     @Unique private transient WaterPotionSplashContext felt$waterSplash;

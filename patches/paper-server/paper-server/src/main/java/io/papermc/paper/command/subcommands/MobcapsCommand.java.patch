@@ -43,24 +43,24 @@ diff --git a/paper-server/src/main/java/io/papermc/paper/command/subcommands/Mob
              ));
          }
      }
-@@ -161,19 +164,7 @@
+@@ -161,17 +164,15 @@
              return;
          }
  
 -        final ServerPlayer serverPlayer = ((CraftPlayer) player).getHandle();
--        final ServerLevel level = serverPlayer.level();
++        final net.minecraft.server.level.ServerPlayer serverPlayer = ((org.bukkit.craftbukkit.entity.CraftPlayer)player).getHandle();
+         final ServerLevel level = serverPlayer.level();
 -
 -        if (!level.paperConfig().entities.spawning.perPlayerMobSpawns) {
--            sender.sendMessage(Component.text("Use '/paper mobcaps' for worlds where per-player mob spawning is disabled.", NamedTextColor.RED));
--            return;
--        }
++        if (!gr1mly4memes.felt.mod.server.world.FeltMobSpawning.perPlayer(level)) {
+             sender.sendMessage(Component.text("Use '/paper mobcaps' for worlds where per-player mob spawning is disabled.", NamedTextColor.RED));
+             return;
+         }
 -
--        sender.sendMessage(Component.join(JoinConfiguration.noSeparators(), Component.text("Mobcaps for player: "), Component.text(player.getName(), NamedTextColor.GREEN)));
--        sender.sendMessage(createMobcapsComponent(
+         sender.sendMessage(Component.join(JoinConfiguration.noSeparators(), Component.text("Mobcaps for player: "), Component.text(player.getName(), NamedTextColor.GREEN)));
+         sender.sendMessage(createMobcapsComponent(
 -            category -> level.getChunkSource().chunkMap.getMobCountNear(serverPlayer, category),
--            category -> level.getWorld().getSpawnLimitUnsafe(org.bukkit.craftbukkit.util.CraftSpawnCategory.toBukkit(category))
--        ));
-+        sender.sendMessage(Component.text("Per-player mobcaps are not supported on Felt yet. Use '/paper mobcaps' for global mobcaps.", NamedTextColor.RED));
++            category -> gr1mly4memes.felt.mod.server.world.FeltMobSpawning.count(serverPlayer, category),
+             category -> level.getWorld().getSpawnLimitUnsafe(org.bukkit.craftbukkit.util.CraftSpawnCategory.toBukkit(category))
+         ));
      }
- 
-     private static Component createMobcapsComponent(final ToIntFunction<MobCategory> countGetter, final ToIntFunction<MobCategory> limitGetter) {

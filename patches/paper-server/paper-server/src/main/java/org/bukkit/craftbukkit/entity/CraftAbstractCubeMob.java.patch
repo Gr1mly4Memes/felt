@@ -6,12 +6,12 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftAbstr
      @Override
      public boolean canWander() {
 -        return this.getHandle().canWander();
-+        throw new UnsupportedOperationException("Independent slime wandering control is not supported by Felt yet");
++        return ((gr1mly4memes.felt.bridge.core.world.entity.monster.CubeMobControlBridge)this.getHandle()).bridge$canWander();
      }
  
      @Override
      public void setWander(boolean canWander) {
 -        this.getHandle().setWander(canWander);
-+        throw new UnsupportedOperationException("Independent slime wandering control is not supported by Felt yet");
++        ((gr1mly4memes.felt.bridge.core.world.entity.monster.CubeMobControlBridge)this.getHandle()).bridge$setWander(canWander);
      }
  }

@@ -62,13 +62,7 @@ public abstract class NaturalSpawnerMixin {
      */
     @Overwrite
     public static void spawnForChunk(ServerLevel level, LevelChunk chunk, NaturalSpawner.SpawnState state, List<MobCategory> spawningCategories) {
-        for (MobCategory mobCategory : spawningCategories) {
-            if (((WorldEntitySpawnerBridge.EntityDensityManagerBridge) state).bridge$canSpawnLocal(mobCategory, chunk.getPos())) {
-                spawnCategoryForChunk(mobCategory, level, chunk,
-                    ((WorldEntitySpawnerBridge.EntityDensityManagerBridge) state)::bridge$canSpawn,
-                    ((WorldEntitySpawnerBridge.EntityDensityManagerBridge) state)::bridge$updateDensity);
-            }
-        }
+        gr1mly4memes.felt.mod.server.world.FeltMobSpawning.spawnForChunk(level, chunk, state, spawningCategories);
     }
 
     @Decorate(method = "spawnCategoryForPosition(Lnet/minecraft/world/entity/MobCategory;Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/chunk/ChunkAccess;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/NaturalSpawner$SpawnPredicate;Lnet/minecraft/world/level/NaturalSpawner$AfterSpawnCallback;)V",
@@ -81,6 +75,7 @@ public abstract class NaturalSpawnerMixin {
             CraftLocation.toBukkit(pos, ((WorldBridge) level).bridge$getWorld()),
             CraftEntityType.minecraftToBukkit(data.type()), CreatureSpawnEvent.SpawnReason.NATURAL);
         if (!event.callEvent()) {
+            gr1mly4memes.felt.mod.server.world.FeltMobSpawning.failure(level, new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4), category);
             if (event.shouldAbortSpawn()) {
                 return (boolean) DecorationOps.cancel().invoke();
             }
@@ -116,6 +111,37 @@ public abstract class NaturalSpawnerMixin {
         if (!mob.isRemoved()) {
             DecorationOps.callsite().invoke(afterSpawnCallback, mob, chunkAccess);
         }
+    }
+
+    @Inject(method = "lambda$createState$0", at = @At("HEAD"), cancellable = true)
+    private static void felt$countOnlyNatural(ServerLevel level, BlockPos pos, Entity entity,
+            net.minecraft.world.level.PotentialCalculator potential, net.minecraft.world.level.LocalMobCapCalculator local,
+            MobCategory category, it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap<MobCategory> counts,
+            LevelChunk chunk, CallbackInfo ci) {
+        if (!gr1mly4memes.felt.mod.server.world.FeltMobSpawning.countsForSpawning(level, entity)) ci.cancel();
+    }
+
+    @com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation(method = "lambda$createState$0",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/LocalMobCapCalculator;addMob(Lnet/minecraft/world/level/ChunkPos;Lnet/minecraft/world/entity/MobCategory;)V"))
+    private static void felt$optionalLocalCaps(net.minecraft.world.level.LocalMobCapCalculator caps, ChunkPos pos, MobCategory category,
+            com.llamalad7.mixinextras.injector.wrapoperation.Operation<Void> original) {
+        if (caps != null) original.call(caps, pos, category);
+    }
+
+    @Inject(method = "lambda$createState$0", at = @At("RETURN"))
+    private static void felt$countForNearbyPlayers(ServerLevel level, BlockPos pos, Entity entity,
+            net.minecraft.world.level.PotentialCalculator potential, net.minecraft.world.level.LocalMobCapCalculator local,
+            MobCategory category, it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap<MobCategory> counts,
+            LevelChunk chunk, CallbackInfo ci) {
+        if (gr1mly4memes.felt.mod.server.world.FeltMobSpawning.countsForSpawning(level, entity))
+            gr1mly4memes.felt.mod.server.world.FeltMobSpawning.track(level, entity);
+    }
+
+    @Inject(method = "spawnCategoryForPosition(Lnet/minecraft/world/entity/MobCategory;Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/chunk/ChunkAccess;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/NaturalSpawner$SpawnPredicate;Lnet/minecraft/world/level/NaturalSpawner$AfterSpawnCallback;)V",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/NaturalSpawner$AfterSpawnCallback;run(Lnet/minecraft/world/entity/Mob;Lnet/minecraft/world/level/chunk/ChunkAccess;)V", shift = At.Shift.AFTER), cancellable = true)
+    private static void felt$stopAtPlayerCap(MobCategory category, ServerLevel level, ChunkAccess chunk, BlockPos pos,
+            NaturalSpawner.SpawnPredicate predicate, NaturalSpawner.AfterSpawnCallback callback, CallbackInfo ci) {
+        if (gr1mly4memes.felt.mod.server.world.FeltMobSpawning.budgetExhausted()) ci.cancel();
     }
 
     @Inject(method = "spawnMobsForChunkGeneration", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/ServerLevelAccessor;addFreshEntityWithPassengers(Lnet/minecraft/world/entity/Entity;)V"))

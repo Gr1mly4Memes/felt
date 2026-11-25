@@ -152,7 +152,9 @@ public abstract class AnimalMixin extends AgeableMobMixin implements AnimalBridg
         if (worldserver.getGameRules().get(GameRules.MOB_DROPS)) {
             // CraftBukkit start - use event experience
             if (experience > 0) {
-                worldserver.addFreshEntity(new ExperienceOrb(worldserver, this.getX(), this.getY(), this.getZ(), experience));
+                var orb = new ExperienceOrb(worldserver, this.getX(), this.getY(), this.getZ(), experience);
+                worldserver.addFreshEntity(gr1mly4memes.felt.mod.server.world.FeltExperience.withAttribution(orb,
+                    org.bukkit.entity.ExperienceOrb.SpawnReason.BREED, cause.orElse(null), entityageable == null ? (Animal) (Object) this : entityageable));
             }
             // CraftBukkit end
         }

@@ -6,12 +6,12 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftFalli
      @Override
      public boolean doesAutoExpire() {
 -        return this.getHandle().autoExpire;
-+        throw new UnsupportedOperationException("Independent falling block expiry control is not supported by Felt yet");
++        return ((gr1mly4memes.felt.bridge.core.world.entity.item.FallingBlockControlBridge)this.getHandle()).bridge$autoExpire();
      }
  
      @Override
      public void shouldAutoExpire(boolean autoExpires) {
 -        this.getHandle().autoExpire = autoExpires;
-+        throw new UnsupportedOperationException("Independent falling block expiry control is not supported by Felt yet");
++        ((gr1mly4memes.felt.bridge.core.world.entity.item.FallingBlockControlBridge)this.getHandle()).bridge$setAutoExpire(autoExpires);
      }
  }

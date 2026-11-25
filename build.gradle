@@ -57,24 +57,24 @@ allprojects {
     }
 }
 
-def paperActions = [verifyPaperUpstream: 'verify', preparePaperPatchWorkspace: 'prepare',
-                    rebuildPaperPatches: 'rebuild', applyPaperPatches: 'apply', checkPaperPatches: 'check']
+def paperActions = [verifyPaperUpstream: 'verify', applyPaperPatches: 'apply',
+                    rebuildPaperPatches: 'rebuild', checkPaperPatches: 'check']
 paperActions.each { taskName, action ->
     tasks.register(taskName, gr1mly4memes.felt.gradle.tasks.PaperSourcesTask) {
         group = 'paper sources'
-        description = "${action.capitalize()} pinned Paper sources and per-file patches."
+        description = [
+            verify: 'Verify the pinned Paper checkout is safe to use as Felt source code.',
+            apply: 'Apply committed Felt patches directly to a clean upstream/Paper checkout.',
+            rebuild: 'Regenerate Felt patch files from edits in upstream/Paper.',
+            check: 'Verify upstream/Paper edits match the committed Felt patch files.'
+        ][action]
         sourceRoot = rootDir
         operation = action
         selectedGroup = providers.gradleProperty('paperGroup').getOrElse('')
         inputs.file('build-support/paper-sources.json')
-        if (action == 'apply') {
-            dependsOn 'verifyPaperUpstream'
-            inputs.dir(selectedGroup ? "patches/${selectedGroup}" : 'patches')
-            outputs.dir(selectedGroup ? "build/paper-patched/${selectedGroup}" : 'build/paper-patched')
-            mustRunAfter 'clean', 'rebuildPaperPatches'
-        }
-        if (action == 'rebuild') mustRunAfter 'preparePaperPatchWorkspace'
-        if (action == 'check') mustRunAfter 'preparePaperPatchWorkspace', 'rebuildPaperPatches', 'applyPaperPatches'
+        if (action != 'verify') inputs.dir(selectedGroup ? "patches/${selectedGroup}" : 'patches')
+        if (action == 'apply') dependsOn 'verifyPaperUpstream'
+        if (action == 'rebuild' || action == 'check') mustRunAfter 'applyPaperPatches'
     }
 }
 
@@ -91,7 +91,7 @@ rootProject.ext.subProjects.each { Project p ->
             )
             addMinecraftJarProcessor(
                 gr1mly4memes.felt.gradle.processor.StaticMethodInjectionProcessor,
-                'felt:static-method-injection-v1',
+                'felt:static-method-injection-v2',
                 rootProject.file('felt-fabric/src/main/resources/architectury.common.json')
             )
             interfaceInjection {

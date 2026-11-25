@@ -23,6 +23,7 @@ import javax.annotation.Nullable;
 import java.util.Optional;
 
 public interface LivingEntityBridge extends EntityBridge {
+    void detectEquipmentUpdatesPublic();
 
     default boolean bridge$capturePlayerDrop(net.minecraft.world.entity.item.ItemEntity item) {
         return false;

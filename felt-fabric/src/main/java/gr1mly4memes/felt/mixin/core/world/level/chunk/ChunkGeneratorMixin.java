@@ -32,6 +32,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ChunkGenerator.class)
 public abstract class ChunkGeneratorMixin implements ChunkGeneratorBridge {
 
+    @com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation(method = "createBiomes",
+        at = @At(value = "INVOKE", target = "Ljava/util/concurrent/CompletableFuture;supplyAsync(Ljava/util/function/Supplier;Ljava/util/concurrent/Executor;)Ljava/util/concurrent/CompletableFuture;"))
+    private java.util.concurrent.CompletableFuture<ChunkAccess> felt$moonriseBiomeExecutor(java.util.function.Supplier<ChunkAccess> task,
+            java.util.concurrent.Executor executor, com.llamalad7.mixinextras.injector.wrapoperation.Operation<java.util.concurrent.CompletableFuture<ChunkAccess>> original) {
+        return original.call(task, io.papermc.paper.FeatureHooks.getWorldgenExecutor());
+    }
+
     // @formatter:off
     @Shadow public abstract void applyBiomeDecoration(WorldGenLevel p_187712_, ChunkAccess p_187713_, StructureManager p_187714_);
     @Shadow @Final @Mutable protected BiomeSource biomeSource;

@@ -9,6 +9,8 @@ import java.util.function.BooleanSupplier;
 
 public interface ChunkMapBridge {
 
+    ChunkHolder bridge$getUnloadingChunkHolder(int chunkX, int chunkZ);
+
     void bridge$tick(BooleanSupplier hasMoreTime);
 
     Iterable<ChunkHolder> bridge$getLoadedChunksIterable();

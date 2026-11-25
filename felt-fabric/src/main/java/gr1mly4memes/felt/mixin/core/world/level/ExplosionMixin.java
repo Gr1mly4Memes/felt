@@ -40,6 +40,19 @@ import java.util.function.BiConsumer;
 
 @Mixin(ServerExplosion.class)
 public abstract class ExplosionMixin implements ExplosionBridge {
+    @org.spongepowered.asm.mixin.Unique private boolean felt$excludeSource = true;
+
+    @Override
+    public void bridge$setExcludeSource(boolean excludeSource) {
+        this.felt$excludeSource = excludeSource;
+    }
+
+    @com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation(method = "hurtEntities", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/server/level/ServerLevel;getEntities(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/AABB;)Ljava/util/List;"))
+    private List<Entity> felt$affectedEntities(ServerLevel level, Entity source, net.minecraft.world.phys.AABB bounds,
+                                               com.llamalad7.mixinextras.injector.wrapoperation.Operation<List<Entity>> original) {
+        return level.getEntities(this.felt$excludeSource ? source : null, bounds, entity -> entity.isAlive() && !entity.isSpectator());
+    }
 
     // @formatter:off
     @Shadow @Final private ServerLevel level;

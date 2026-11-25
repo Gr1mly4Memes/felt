@@ -107,6 +107,10 @@ public interface AbstractBootstrap {
     default void setupMod(FeltPlatform platform, boolean extract) throws Exception {
         FeltVersion.setVersion(FeltVersion.V26_3);
         FeltPlatform.setPlatform(platform);
+        if (!extract && Boolean.getBoolean("fabric.development")) {
+            LogManager.getLogger("Felt").info("Running Felt from development source roots");
+            return;
+        }
         try (InputStream stream = ownArchiveResource(getClass(), "META-INF/MANIFEST.MF")) {
             Manifest manifest = new Manifest(stream);
             Attributes attributes = manifest.getMainAttributes();
@@ -158,11 +162,25 @@ public interface AbstractBootstrap {
             Files.createDirectories(dir);
         }
         var mod = dir.resolve(version + ".jar");
-        if (!Files.exists(mod) || Boolean.getBoolean("felt.alwaysExtract")) {
-            for (Path old : Files.list(dir).collect(Collectors.toList())) {
-                Files.delete(old);
+        var staged = Files.createTempFile(dir, ".common-", ".jar");
+        try {
+            Files.copy(path, staged, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            // A rebuilt snapshot can keep its version and commit. Refresh by content,
+            // otherwise replacing the launcher leaves the previous common.jar active.
+            if (!Files.exists(mod) || Boolean.getBoolean("felt.alwaysExtract") || Files.mismatch(staged, mod) != -1L) {
+                try {
+                    Files.move(staged, mod, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+                } catch (java.nio.file.AtomicMoveNotSupportedException unsupported) {
+                    Files.move(staged, mod, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+                try (var entries = Files.list(dir)) {
+                    for (Path old : entries.filter(file -> !file.equals(mod) && !file.equals(staged)).toList()) {
+                        Files.delete(old);
+                    }
+                }
             }
-            Files.copy(path, mod);
+        } finally {
+            Files.deleteIfExists(staged);
         }
     }
 }

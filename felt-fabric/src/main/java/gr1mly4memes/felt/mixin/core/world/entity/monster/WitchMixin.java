@@ -28,7 +28,23 @@ import org.spongepowered.asm.mixin.injection.At;
 import java.util.function.Consumer;
 
 @Mixin(Witch.class)
-public abstract class WitchMixin extends RaiderMixin {
+public abstract class WitchMixin extends RaiderMixin implements gr1mly4memes.felt.bridge.core.world.entity.monster.WitchControlBridge {
+    @org.spongepowered.asm.mixin.Shadow private static net.minecraft.resources.Identifier SPEED_MODIFIER_DRINKING_ID;
+    @org.spongepowered.asm.mixin.Shadow private static net.minecraft.world.entity.ai.attributes.AttributeModifier SPEED_MODIFIER_DRINKING;
+    @org.spongepowered.asm.mixin.Shadow public int usingTime;
+    @org.spongepowered.asm.mixin.Shadow public abstract void setUsingItem(boolean using);
+
+    @Override public void bridge$setDrinkingPotion(ItemStack potion) {
+        potion = CraftEventFactory.handleWitchReadyPotionEvent((Witch)(Object)this, potion);
+        this.setItemSlot(EquipmentSlot.MAINHAND, potion);
+        this.usingTime = this.getMainHandItem().getUseDuration((LivingEntity)(Object)this);
+        this.setUsingItem(true);
+        if (!this.isSilent()) this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
+            net.minecraft.sounds.SoundEvents.WITCH_DRINK, this.getSoundSource(), 1.0F, 0.8F + this.random.nextFloat() * 0.4F);
+        var speed = this.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
+        speed.removeModifier(SPEED_MODIFIER_DRINKING_ID);
+        speed.addTransientModifier(SPEED_MODIFIER_DRINKING);
+    }
 
     @Decorate(method = "aiStep()V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/monster/Witch;setItemSlot(Lnet/minecraft/world/entity/EquipmentSlot;Lnet/minecraft/world/item/ItemStack;)V", ordinal = 1), require = 1, allow = 1)
     private void felt$readyPotion(Witch witch, EquipmentSlot slot, ItemStack potion) throws Throwable {

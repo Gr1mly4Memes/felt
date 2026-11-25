@@ -1,7 +1,7 @@
 diff --git a/paper-server/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/paper-server/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 --- a/paper-server/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 +++ b/paper-server/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-@@ -210,19 +210,13 @@
+@@ -210,7 +210,7 @@
          public boolean saveEmptyScoreboardTeams = true;
      }
  
@@ -10,19 +10,15 @@ diff --git a/paper-server/src/main/java/io/papermc/paper/configuration/GlobalCon
      public ChunkSystem chunkSystem;
  
      public class ChunkSystem extends ConfigurationPart {
+@@ -220,7 +220,6 @@
  
-         public int ioThreads = -1;
-         public int workerThreads = -1;
--
--        @PostProcess
--        private void postProcess() {
+         @PostProcess
+         private void postProcess() {
 -            ca.spottedleaf.moonrise.common.util.FMA.init();
--            ca.spottedleaf.moonrise.common.util.MoonriseCommon.adjustWorkerThreads(this.workerThreads, this.ioThreads);
--        }
+             ca.spottedleaf.moonrise.common.util.MoonriseCommon.adjustWorkerThreads(this.workerThreads, this.ioThreads);
+         }
      }
- 
-     public ItemValidation itemValidation;
-@@ -306,8 +300,7 @@
+@@ -306,8 +305,7 @@
  
              @PostProcess
              private void postProcess() {
@@ -32,7 +28,7 @@ diff --git a/paper-server/src/main/java/io/papermc/paper/configuration/GlobalCon
                  int _chatExecutorMaxSize = (this.chatExecutorMaxSize <= 0) ? Integer.MAX_VALUE : this.chatExecutorMaxSize; // This is somewhat dumb, but, this is the default, do we cap this?;
                  int _chatExecutorCoreSize = Math.max(this.chatExecutorCoreSize, 0);
  
-@@ -315,7 +308,13 @@
+@@ -315,7 +313,13 @@
                      _chatExecutorMaxSize = _chatExecutorCoreSize;
                  }
  

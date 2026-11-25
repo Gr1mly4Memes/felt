@@ -18,6 +18,17 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(PlayerChunkSender.class)
 public abstract class PlayerChunkSenderMixin {
 
+    @com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation(method = "sendChunk",
+        at = @At(value = "NEW", target = "net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket"))
+    private static net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket felt$antiXrayBypass(
+            LevelChunk chunk, net.minecraft.world.level.lighting.LevelLightEngine light, java.util.BitSet sky,
+            java.util.BitSet block, com.llamalad7.mixinextras.injector.wrapoperation.Operation<net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket> original,
+            ServerGamePacketListenerImpl connection, ServerLevel level, LevelChunk sentChunk) {
+        var controller = ((gr1mly4memes.felt.bridge.core.world.level.WorldBridge) level).bridge$chunkPacketBlockController();
+        return gr1mly4memes.felt.mod.server.world.FeltAntiXray.withModification(
+            controller.shouldModify(connection.getPlayer(), chunk), () -> original.call(chunk, light, sky, block));
+    }
+
     @Decorate(method = "sendChunk(Lnet/minecraft/server/network/ServerGamePacketListenerImpl;Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/level/chunk/LevelChunk;)V",
         inject = true, require = 1, allow = 1, at = @At(value = "INVOKE", shift = At.Shift.AFTER,
         target = "Lnet/minecraft/server/network/ServerGamePacketListenerImpl;send(Lnet/minecraft/network/protocol/Packet;)V"))

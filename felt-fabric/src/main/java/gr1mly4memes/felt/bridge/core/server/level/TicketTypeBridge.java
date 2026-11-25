@@ -2,6 +2,11 @@ package gr1mly4memes.felt.bridge.core.server.level;
 
 public interface TicketTypeBridge {
 
+    static net.minecraft.server.level.TicketType bridge$chunkLoad() {
+        return java.util.Objects.requireNonNull(net.minecraft.core.registries.BuiltInRegistries.TICKET_TYPE.getValue(
+            net.minecraft.resources.Identifier.withDefaultNamespace("chunk_load")), "Chunk load ticket type is not registered");
+    }
+
     static net.minecraft.server.level.TicketType bridge$plugin() {
         return java.util.Objects.requireNonNull(net.minecraft.core.registries.BuiltInRegistries.TICKET_TYPE.getValue(
             net.minecraft.resources.Identifier.withDefaultNamespace("plugin")), "Plugin ticket type is not registered");

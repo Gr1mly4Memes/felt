@@ -32,7 +32,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
  import net.minecraft.sounds.SoundEvent;
  import net.minecraft.sounds.SoundEvents;
  import net.minecraft.sounds.SoundSource;
-@@ -179,57 +180,63 @@
+@@ -179,14 +180,16 @@
      private final List<BlockPopulator> populators = new ArrayList<>();
      private final BlockMetadataStore blockMetadata = new BlockMetadataStore(this);
      private final Object2IntOpenHashMap<SpawnCategory> spawnCategoryLimit = new Object2IntOpenHashMap<>();
@@ -46,44 +46,13 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
 -    private boolean voidDamageEnabled;
 -    private float voidDamageAmount;
 -    private double voidDamageMinBuildHeightOffset;
++    private boolean voidDamageEnabled = true;
++    private float voidDamageAmount = 4.0F;
++    private double voidDamageMinBuildHeightOffset = -64.0;
  
      @Override
      public boolean isVoidDamageEnabled() {
--        return this.voidDamageEnabled;
-+        throw new UnsupportedOperationException("Felt does not expose configurable world void damage");
-     }
- 
-     @Override
-     public void setVoidDamageEnabled(final boolean enabled) {
--        this.voidDamageEnabled = enabled;
-+        throw new UnsupportedOperationException("Felt does not expose configurable world void damage");
-     }
- 
-     @Override
-     public float getVoidDamageAmount() {
--        return this.voidDamageAmount;
-+        throw new UnsupportedOperationException("Felt does not expose configurable world void damage");
-     }
- 
-     @Override
-     public void setVoidDamageAmount(float voidDamageAmount) {
--        this.voidDamageAmount = voidDamageAmount;
-+        throw new UnsupportedOperationException("Felt does not expose configurable world void damage");
-     }
- 
-     @Override
-     public double getVoidDamageMinBuildHeightOffset() {
--        return this.voidDamageMinBuildHeightOffset;
-+        throw new UnsupportedOperationException("Felt does not expose configurable world void damage");
-     }
- 
-     @Override
-     public void setVoidDamageMinBuildHeightOffset(double minBuildHeightOffset) {
--        this.voidDamageMinBuildHeightOffset = minBuildHeightOffset;
-+        throw new UnsupportedOperationException("Felt does not expose configurable world void damage");
-     }
-     // Paper end - void damage configuration
- 
+@@ -222,14 +225,21 @@
      // Paper start - Provide fast information methods
      @Override
      public int getEntityCount() {
@@ -107,7 +76,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
              net.minecraft.world.level.chunk.LevelChunk chunk = playerchunk.getTickingChunk();
              if (chunk == null) {
                  continue;
-@@ -246,7 +253,14 @@
+@@ -246,7 +256,14 @@
  
      @Override
      public int getChunkCount() {
@@ -123,7 +92,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
      }
  
      @Override
-@@ -308,19 +322,6 @@
+@@ -308,19 +325,6 @@
          this.biomeProvider = biomeProvider;
  
          this.environment = environment;
@@ -143,7 +112,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
      }
  
      @Override
-@@ -368,7 +369,7 @@
+@@ -368,7 +372,7 @@
              if (plugin != null) {
                  plugin.getLogger().warning("Plugin is %s at (%s, %s), this might cause issues.".formatted(reason, x, z));
              }
@@ -152,7 +121,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
                  io.papermc.paper.util.TraceUtil.dumpTraceForThread("Dangerous chunk retrieval");
              }
          }
-@@ -406,59 +407,44 @@
+@@ -406,59 +410,44 @@
  
      @Override
      public boolean isChunkGenerated(int x, int z) {
@@ -232,7 +201,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
      }
  
      @Override
-@@ -470,7 +456,7 @@
+@@ -470,7 +459,7 @@
      public boolean unloadChunkRequest(int x, int z) {
          org.spigotmc.AsyncCatcher.catchOp("chunk unload"); // Spigot
          if (this.isChunkLoaded(x, z)) {
@@ -241,7 +210,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
          }
  
          return true;
-@@ -497,17 +483,20 @@
+@@ -497,17 +486,14 @@
          ChunkHolder playerChunk = this.world.getChunkSource().chunkMap.getVisibleChunkIfPresent(ChunkPos.pack(x, z));
          if (playerChunk == null) return false;
  
@@ -259,17 +228,11 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
  
 -                FeatureHooks.sendChunkRefreshPackets(playersInRange, chunk);
 -        // Paper - chunk system
-+        var packet = new net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket(
-+            chunk, this.world.getChunkSource().getLightEngine(), null, null);
-+        for (ServerPlayer player : playersInRange) {
-+            if (player.connection != null) {
-+                player.connection.send(packet);
-+            }
-+        }
++        io.papermc.paper.FeatureHooks.sendChunkRefreshPackets(playersInRange, chunk);
  
          return true;
      }
-@@ -555,7 +544,7 @@
+@@ -555,7 +541,7 @@
          }
  
          if (chunk instanceof LevelChunk) {
@@ -278,7 +241,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
              return true;
          }
  
-@@ -582,8 +571,8 @@
+@@ -582,8 +568,8 @@
          Preconditions.checkArgument(plugin != null, "null plugin");
          Preconditions.checkArgument(plugin.isEnabled(), "plugin is not enabled");
  
@@ -289,7 +252,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
              this.getChunkAt(x, z); // ensure it's loaded
              return true;
          }
-@@ -595,26 +584,47 @@
+@@ -595,26 +581,47 @@
      public boolean removePluginChunkTicket(int x, int z, Plugin plugin) {
          Preconditions.checkNotNull(plugin, "null plugin");
  
@@ -343,7 +306,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
      }
  
      @NotNull
-@@ -673,7 +683,8 @@
+@@ -673,7 +680,8 @@
          if (function != null) {
              function.accept(itemEntity);
          }
@@ -353,7 +316,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
          return itemEntity;
      }
  
-@@ -728,8 +739,9 @@
+@@ -728,8 +736,9 @@
  
          LightningBolt lightning = EntityTypes.LIGHTNING_BOLT.create(this.world, EntitySpawnReason.COMMAND);
          lightning.snapTo(loc.getX(), loc.getY(), loc.getZ());
@@ -365,7 +328,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
          return (LightningStrike) lightning.getBukkitEntity();
      }
  
-@@ -745,8 +757,16 @@
+@@ -745,8 +754,16 @@
  
      @Override
      public Location findLightningTarget(Location location) {
@@ -384,7 +347,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
      }
      // Paper end - Add methods to find targets for lightning strikes
  
-@@ -757,35 +777,26 @@
+@@ -757,35 +774,26 @@
  
      @Override
      public boolean generateTree(Location loc, TreeType type, BlockChangeDelegate delegate) {
@@ -434,20 +397,13 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
      }
  
      @Override
-@@ -895,32 +906,23 @@
+@@ -895,32 +903,26 @@
  
      @Override
      public boolean createExplosion(double x, double y, double z, float power, boolean setFire, boolean breakBlocks, Entity source) {
 -        // Paper start - expand explosion API
 -        return this.createExplosion(x, y, z, power, setFire, breakBlocks, source, null);
-+        net.minecraft.world.level.Level.ExplosionInteraction interaction = !breakBlocks
-+            ? Level.ExplosionInteraction.NONE
-+            : source == null ? gr1mly4memes.felt.mod.FeltConstants.STANDARD
-+            : source instanceof org.bukkit.entity.minecart.ExplosiveMinecart || source instanceof org.bukkit.entity.TNTPrimed
-+                ? Level.ExplosionInteraction.TNT : Level.ExplosionInteraction.MOB;
-+        net.minecraft.world.entity.Entity entity = source == null ? null : ((CraftEntity) source).getHandle();
-+        gr1mly4memes.felt.bridge.core.server.level.ServerLevelBridge level = this.world;
-+        return level.bridge$createExplosion(entity, x, y, z, power, setFire, interaction);
++        return this.createExplosion(x, y, z, power, setFire, breakBlocks, source, true);
      }
  
 -    private boolean createExplosion(double x, double y, double z, float power, boolean setFire, boolean breakBlocks, Entity source, Consumer<net.minecraft.world.level.ServerExplosion> configurator) {
@@ -465,15 +421,24 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
 -
 -        net.minecraft.world.entity.Entity entity = (source == null) ? null : ((CraftEntity) source).getHandle();
 -        return !this.world.explode0(entity, Explosion.getDefaultDamageSource(this.world, entity), null, x, y, z, power, setFire, explosionType, ParticleTypes.EXPLOSION, ParticleTypes.EXPLOSION_EMITTER, Level.DEFAULT_EXPLOSION_BLOCK_PARTICLES, SoundEvents.GENERIC_EXPLODE, configurator).wasCanceled; // Paper - expand explosion API
--    }
++    private boolean createExplosion(double x, double y, double z, float power, boolean setFire, boolean breakBlocks, Entity source, boolean excludeSource) {
++        net.minecraft.world.level.Level.ExplosionInteraction interaction = !breakBlocks
++            ? Level.ExplosionInteraction.NONE
++            : source == null ? gr1mly4memes.felt.mod.FeltConstants.STANDARD
++            : source instanceof org.bukkit.entity.minecart.ExplosiveMinecart || source instanceof org.bukkit.entity.TNTPrimed
++                ? Level.ExplosionInteraction.TNT : Level.ExplosionInteraction.MOB;
++        net.minecraft.world.entity.Entity entity = source == null ? null : ((CraftEntity) source).getHandle();
++        gr1mly4memes.felt.bridge.core.server.level.ServerLevelBridge level = this.world;
++        return level.bridge$createExplosion(entity, x, y, z, power, setFire, interaction, excludeSource);
+     }
 -    // Paper start
++
      @Override
      public boolean createExplosion(Entity source, Location loc, float power, boolean setFire, boolean breakBlocks, boolean excludeSourceFromDamage) {
 -        return this.createExplosion(loc.x(), loc.getY(), loc.getZ(), power, setFire, breakBlocks, source, e -> e.excludeSourceFromDamage = excludeSourceFromDamage);
-+        if (!excludeSourceFromDamage && source != null) {
-+            throw new UnsupportedOperationException("Including the explosion source in damage is not supported");
-+        }
-+        return this.createExplosion(loc, power, setFire, breakBlocks, source);
++        Preconditions.checkArgument(loc != null, "Location is null");
++        Preconditions.checkArgument(this.equals(loc.getWorld()), "Location not in world");
++        return this.createExplosion(loc.getX(), loc.getY(), loc.getZ(), power, setFire, breakBlocks, source, excludeSourceFromDamage);
      }
 -    // Paper end
  
@@ -675,20 +640,20 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
      // Spigot start
      private final org.bukkit.World.Spigot spigot = new org.bukkit.World.Spigot() {
  
-@@ -2055,48 +2098,35 @@
+@@ -2055,48 +2098,41 @@
      // Paper start
      @Override
      public void getChunkAtAsync(int x, int z, boolean gen, boolean urgent, @NotNull Consumer<? super Chunk> cb) {
 -        warnUnsafeChunk("getting a faraway chunk async", x, z); // Paper
--        ca.spottedleaf.moonrise.common.PlatformHooks.get().scheduleChunkLoad(
--            this.getHandle(), x, z, gen, ChunkStatus.FULL, true,
--            urgent ? ca.spottedleaf.concurrentutil.util.Priority.HIGHER : ca.spottedleaf.concurrentutil.util.Priority.NORMAL,
+         ca.spottedleaf.moonrise.common.PlatformHooks.get().scheduleChunkLoad(
+             this.getHandle(), x, z, gen, ChunkStatus.FULL, true,
+             urgent ? ca.spottedleaf.concurrentutil.util.Priority.HIGHER : ca.spottedleaf.concurrentutil.util.Priority.NORMAL,
 -            (ChunkAccess chunk) -> {
 -                cb.accept(chunk == null ? null : new CraftChunk((net.minecraft.world.level.chunk.LevelChunk)chunk));
 -            }
 -        );
 -
-+        throw new UnsupportedOperationException("Asynchronous chunk loading is not supported by Felt");
++            chunk -> cb.accept(chunk == null ? null : new CraftChunk((net.minecraft.world.level.chunk.LevelChunk)chunk)));
      }
  
      @Override
@@ -697,12 +662,14 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
 -        warnUnsafeChunk("getting a faraway chunk async", maxX, maxZ); // Paper
 -        this.getHandle().loadChunks(
 -            minX, minZ, maxX, maxZ,
--            urgent ? ca.spottedleaf.concurrentutil.util.Priority.HIGHER : ca.spottedleaf.concurrentutil.util.Priority.NORMAL,
++        ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel)this.world).moonrise$loadChunksAsync(
++            minX, maxX, minZ, maxZ,
+             urgent ? ca.spottedleaf.concurrentutil.util.Priority.HIGHER : ca.spottedleaf.concurrentutil.util.Priority.NORMAL,
 -            (List<ChunkAccess> chunks) -> {
 -                cb.run();
 -            }
 -        );
-+        throw new UnsupportedOperationException("Asynchronous chunk loading is not supported by Felt");
++            chunks -> cb.run());
      }
  
      @Override
@@ -723,13 +690,13 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b
      @Override
      public int getSendViewDistance() {
 -        return FeatureHooks.getSendViewDistance(this.world); // Paper - chunk system
-+        return this.world.getChunkSource().chunkMap.serverViewDistance;
++        return io.papermc.paper.FeatureHooks.getSendViewDistance(this.world);
      }
  
      @Override
      public void setSendViewDistance(final int viewDistance) {
 -        FeatureHooks.setSendViewDistance(this.world, viewDistance); // Paper - chunk system
-+        throw new UnsupportedOperationException("Felt does not support a world send view distance independent of its view distance");
++        io.papermc.paper.FeatureHooks.setSendViewDistance(this.world, viewDistance);
      }
  
      // Paper start - implement pointers

@@ -32,7 +32,32 @@ import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 import java.util.Optional;
 
 @Mixin(CampfireBlockEntity.class)
-public abstract class CampfireBlockEntityMixin extends BlockEntityMixin {
+public abstract class CampfireBlockEntityMixin extends BlockEntityMixin implements gr1mly4memes.felt.bridge.core.world.level.block.entity.CampfireControlBridge {
+    @org.spongepowered.asm.mixin.Unique private final boolean[] felt$stoppedCooking = new boolean[4];
+    @Override public boolean[] bridge$stoppedCooking() { return this.felt$stoppedCooking; }
+    @org.spongepowered.asm.mixin.injection.ModifyConstant(method = "cookTick",
+        constant = @org.spongepowered.asm.mixin.injection.Constant(intValue = 1, ordinal = 0),
+        slice = @org.spongepowered.asm.mixin.injection.Slice(
+            from = @At(value = "FIELD", target = "Lnet/minecraft/world/level/block/entity/CampfireBlockEntity;cookingProgress:[I", ordinal = 0),
+            to = @At(value = "FIELD", target = "Lnet/minecraft/world/level/block/entity/CampfireBlockEntity;cookingProgress:[I", ordinal = 1)), require = 1)
+    private static int felt$pauseCookingIncrement(int increment,
+            @com.llamalad7.mixinextras.sugar.Local(argsOnly = true) CampfireBlockEntity entity,
+            @com.llamalad7.mixinextras.sugar.Local(ordinal = 0) int slot) {
+        return ((gr1mly4memes.felt.bridge.core.world.level.block.entity.CampfireControlBridge)entity).bridge$stoppedCooking()[slot] ? 0 : increment;
+    }
+    @Inject(method = "saveAdditional", at = @At("RETURN"))
+    private void felt$saveCookingState(net.minecraft.world.level.storage.ValueOutput output, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        byte[] state = new byte[4];
+        for (int slot = 0; slot < state.length; ++slot) state[slot] = (byte)(this.felt$stoppedCooking[slot] ? 1 : 0);
+        output.store("Paper.StopCooking", com.mojang.serialization.Codec.BYTE_BUFFER, java.nio.ByteBuffer.wrap(state));
+    }
+    @Inject(method = "loadAdditional", at = @At("RETURN"))
+    private void felt$loadCookingState(net.minecraft.world.level.storage.ValueInput input, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        java.util.Arrays.fill(this.felt$stoppedCooking, false);
+        input.read("Paper.StopCooking", com.mojang.serialization.Codec.BYTE_BUFFER).ifPresent(state -> {
+            for (int slot = 0; slot < this.felt$stoppedCooking.length && state.hasRemaining(); ++slot) this.felt$stoppedCooking[slot] = state.get() == 1;
+        });
+    }
 
     // @formatter:off
     @Shadow @Final public int[] cookingTime;

@@ -29,6 +29,11 @@ public abstract class ServerChunkCache_MainThreadExecutorMixin extends Blockable
     @Overwrite
     public boolean pollTask() {
         try {
+            if ((Object) outer.chunkMap.level instanceof ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel world
+                && world.moonrise$getChunkTaskScheduler() != null) {
+                world.moonrise$getChunkTaskScheduler().chunkHolderManager.processTicketUpdates();
+                return super.pollTask() | world.moonrise$getChunkTaskScheduler().executeMainThreadTask();
+            }
             if (((ServerChunkProviderBridge) outer).bridge$tickDistanceManager()) {
                 return true;
             } else {

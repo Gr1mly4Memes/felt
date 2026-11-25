@@ -149,6 +149,9 @@
       "net/minecraft/network/Connection": [
         "gr1mly4memes/felt/bridge/core/network/ConnectionBridge"
       ],
+      "net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket": [
+        "gr1mly4memes/felt/bridge/core/network/ChunkPacketReadyBridge"
+      ],
       "net/minecraft/server/network/ServerCommonPacketListenerImpl": [
         "gr1mly4memes/felt/bridge/core/server/network/ServerCommonPacketListenerImplBridge"
       ],

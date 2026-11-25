@@ -1,0 +1,21 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/antixray/ChunkPacketBlockControllerAntiXray.java b/paper-server/src/main/java/io/papermc/paper/antixray/ChunkPacketBlockControllerAntiXray.java
+--- a/paper-server/src/main/java/io/papermc/paper/antixray/ChunkPacketBlockControllerAntiXray.java
++++ b/paper-server/src/main/java/io/papermc/paper/antixray/ChunkPacketBlockControllerAntiXray.java
+@@ -182,7 +182,7 @@
+     @Override
+     public void modifyBlocks(ClientboundLevelChunkWithLightPacket chunkPacket, ChunkPacketInfo<BlockState> chunkPacketInfo) {
+         if (!(chunkPacketInfo instanceof ChunkPacketInfoAntiXray)) {
+-            chunkPacket.setReady(true);
++            ((gr1mly4memes.felt.bridge.core.network.ChunkPacketReadyBridge) chunkPacket).setReady(true);
+             return;
+         }
+ 
+@@ -382,7 +382,7 @@
+             }
+         }
+ 
+-        chunkPacketInfoAntiXray.getChunkPacket().setReady(true);
++        ((gr1mly4memes.felt.bridge.core.network.ChunkPacketReadyBridge) chunkPacketInfoAntiXray.getChunkPacket()).setReady(true);
+     }
+ 
+     private void obfuscateLayer(int y, BitStorageReader bitStorageReader, BitStorageWriter bitStorageWriter, boolean[] solid, boolean[] obfuscate, int[] presetBlockStateBits, boolean[][] current, boolean[][] next, boolean[][] nextNext, LevelChunkSection[] nearbyChunkSections, IntSupplier random) {

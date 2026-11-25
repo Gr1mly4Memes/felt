@@ -1,0 +1,12 @@
+diff --git a/paper-server/src/main/java/io/papermc/paper/PaperBootstrap.java b/paper-server/src/main/java/io/papermc/paper/PaperBootstrap.java
+--- a/paper-server/src/main/java/io/papermc/paper/PaperBootstrap.java
++++ b/paper-server/src/main/java/io/papermc/paper/PaperBootstrap.java
+@@ -22,7 +22,7 @@
+ 
+         getStartupVersionMessages().forEach(LOGGER::info);
+ 
+-        Main.main(options);
++        gr1mly4memes.felt.mod.util.PaperBootstrapBridge.boot(options);
+     }
+ 
+     private static List<String> getStartupVersionMessages() {

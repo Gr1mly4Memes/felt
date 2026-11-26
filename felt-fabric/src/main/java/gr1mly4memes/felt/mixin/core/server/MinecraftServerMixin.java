@@ -59,6 +59,7 @@ import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.storage.LevelStorageSource;
 import gr1mly4memes.felt.bridge.core.world.level.storage.PrimaryLevelDataBridge;
 import net.minecraft.world.level.storage.ServerLevelData;
+import net.minecraft.world.level.storage.LevelData;
 import net.minecraft.world.level.storage.WorldData;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
@@ -91,6 +92,7 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -321,6 +323,13 @@ public abstract class MinecraftServerMixin extends ReentrantBlockableEventLoop<T
         this.server.spark.enableBeforePlugins();
     }
 
+    @Inject(method = "runServer", at = @At(value = "FIELD", opcode = org.objectweb.asm.Opcodes.PUTFIELD,
+        target = "Lnet/minecraft/server/MinecraftServer;status:Lnet/minecraft/network/protocol/status/ServerStatus;",
+        ordinal = 0, shift = At.Shift.AFTER))
+    private void felt$fireRegionizedServerInit(CallbackInfo ci) {
+        new io.papermc.paper.threadedregions.RegionizedServerInitEvent().callEvent();
+    }
+
     @Inject(method = "runServer", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;waitUntilNextTick()V"))
     private void felt$updateTickParam(CallbackInfo ci) {
         if (this.felt$tpsTickCount++ % SAMPLE_INTERVAL == 0) {
@@ -492,7 +501,8 @@ public abstract class MinecraftServerMixin extends ReentrantBlockableEventLoop<T
     }
 
     // bukkit methods
-    public void initWorld(ServerLevel serverWorld, ServerLevelData worldInfo, WorldData saveData, WorldOptions worldOptions) {
+    public void initWorld(ServerLevel serverWorld, ServerLevelData worldInfo, WorldData saveData, WorldOptions worldOptions,
+                          org.bukkit.WorldCreator creator) {
         boolean flag = saveData.isDebugWorld();
         if (((WorldBridge) serverWorld).bridge$getGenerator() != null) {
             serverWorld.bridge$getWorld().getPopulators().addAll(
@@ -516,7 +526,15 @@ public abstract class MinecraftServerMixin extends ReentrantBlockableEventLoop<T
 
         if (!worldInfo.isInitialized()) {
             try {
-                setInitialSpawn(serverWorld, worldInfo, worldOptions.generateBonusChest(), flag, this.levelLoadListener);
+                var position = creator.forcedSpawnPosition();
+                if (position == null) {
+                    setInitialSpawn(serverWorld, worldInfo, worldOptions.generateBonusChest(), flag, this.levelLoadListener);
+                } else {
+                    var defaults = LevelData.RespawnData.DEFAULT;
+                    worldInfo.setSpawn(LevelData.RespawnData.of(serverWorld.dimension(), io.papermc.paper.util.MCUtil.toBlockPos(position),
+                        Objects.requireNonNullElse(creator.forcedSpawnYaw(), defaults.yaw()),
+                        Objects.requireNonNullElse(creator.forcedSpawnPitch(), defaults.pitch())));
+                }
                 worldInfo.setInitialized(true);
                 if (flag) {
                     this.felt$setupWorldDebugLevel(saveData, serverWorld);
@@ -650,6 +668,13 @@ public abstract class MinecraftServerMixin extends ReentrantBlockableEventLoop<T
         this.server.getScheduler().mainThreadHeartbeat();
         this.server.tickPaperSchedulers();
         this.bridge$drainQueuedTasks();
+    }
+
+    @Inject(method = "tickChildren", at = @At(value = "INVOKE_STRING",
+        target = "Lnet/minecraft/util/profiling/ProfilerFiller;push(Ljava/lang/String;)V", args = "ldc=commandFunctions"))
+    private void felt$loadClickCallbacks(BooleanSupplier haveTime, CallbackInfo ci) {
+        io.papermc.paper.adventure.providers.ClickCallbackProviderImpl.ADVENTURE_CLICK_MANAGER.handleQueue(this.tickCount);
+        io.papermc.paper.adventure.providers.ClickCallbackProviderImpl.DIALOG_CLICK_MANAGER.handleQueue(this.tickCount);
     }
 
     @Inject(method = "stopServer", at = @At(value = "INVOKE", shift = At.Shift.AFTER, target = "Lnet/minecraft/server/MinecraftServer;saveAllChunks(ZZZ)Z"))

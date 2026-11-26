@@ -6,6 +6,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.storage.LevelStorageSource;
 import net.minecraft.world.level.storage.PrimaryLevelData;
 import net.minecraft.world.level.storage.WorldData;
+import org.bukkit.WorldCreator;
 
 public interface DedicatedServerBridge {
     net.minecraft.server.dedicated.DedicatedServerProperties bridge$reloadProperties();
@@ -18,5 +19,5 @@ public interface DedicatedServerBridge {
 
     void felt$forceUpgradeIfNeeded(LevelStorageSource.LevelStorageAccess worldSession, WorldData worldData, RegistryAccess.Frozen dimensions);
 
-    void felt$prepareAndAddLevel(ServerLevel level, PrimaryLevelData levelData);
+    void felt$prepareAndAddLevel(ServerLevel level, PrimaryLevelData levelData, WorldCreator creator);
 }

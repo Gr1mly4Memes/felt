@@ -44,6 +44,8 @@ dependencies {
     shadowBundle(project(':felt-paper-api')) { transitive = false }
     implementation "org.jline:jline:${jline_version}"
     shadowBundle("org.jline:jline:${jline_version}") { transitive = false }
+    implementation("io.netty:netty-codec-haproxy:4.2.16.Final") { transitive = false }
+    shadowBundle("io.netty:netty-codec-haproxy:4.2.16.Final") { transitive = false }
 
     implementation "me.lucko:fabric-permissions-api:${fabric_permissions_api_version}"
     include "me.lucko:fabric-permissions-api:${fabric_permissions_api_version}"

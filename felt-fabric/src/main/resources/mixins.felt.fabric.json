@@ -24,7 +24,7 @@
     "core.server.MinecraftServerMixin_Fabric",
     "core.world.entity.EntityMixin_Fabric",
     "core.world.entity.LivingEntityMixin_Fabric",
-    "core.world.entity.animal.SheepMixin_Fabric",
+    "core.world.entity.animal.sheep.SheepMixin_Fabric",
     "core.world.entity.animal.WolfMixin_Fabric",
     "core.world.entity.monster.ZombieMixin_Fabric",
 

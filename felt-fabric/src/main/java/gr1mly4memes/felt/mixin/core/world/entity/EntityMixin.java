@@ -1246,6 +1246,19 @@ public abstract class EntityMixin implements InternalEntityBridge, EntityBridge,
         return this.teleportTo(worldserver, d0, d1, d2, set, f, f1, true);
     }
 
+    @Inject(method = "push(Lnet/minecraft/world/entity/Entity;)V", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/world/entity/Entity;getX()D", ordinal = 0), cancellable = true)
+    private void felt$collideWithEntity(Entity other, CallbackInfo ci) {
+        if (!(this.level() instanceof ServerLevel)) {
+            return;
+        }
+        var handlers = io.papermc.paper.event.entity.EntityCollideWithEntityEvent.getHandlerList();
+        if (handlers.hasListeners() && !new io.papermc.paper.event.entity.EntityCollideWithEntityEvent(
+            this.getBukkitEntity(), other.bridge$getBukkitEntity()).callEvent()) {
+            ci.cancel();
+        }
+    }
+
     @Decorate(method = "teleport(Lnet/minecraft/world/level/portal/TeleportTransition;)Lnet/minecraft/world/entity/Entity;", inject = true, at = @At("HEAD"))
     private void felt$changeDim(TeleportTransition dimensionTransition) throws Throwable {
         if (this.level() instanceof ServerLevel && !this.isRemoved()) {
@@ -1265,10 +1278,37 @@ public abstract class EntityMixin implements InternalEntityBridge, EntityBridge,
                 DecorationOps.cancel().invoke((Entity) null);
                 return;
             }
-            if (!to.equals(teleEvent.getTo())) {
+            boolean changed = !to.equals(teleEvent.getTo());
+            Vec3 velocity = absolutePosition.deltaMovement();
+            if (changed) {
                 to = teleEvent.getTo();
+                velocity = Vec3.ZERO;
+            }
+            if (entity.portalProcess != null) {
+                var bukkit = this.getBukkitEntity();
+                var before = bukkit.getVelocity();
+                var after = org.bukkit.craftbukkit.util.CraftVector.toBukkit(velocity);
+                var event = new org.bukkit.event.entity.EntityPortalExitEvent(bukkit, bukkit.getLocation(), to.clone(), before, after);
+                event.callEvent();
+                if (event.isCancelled() || event.getTo() == null) {
+                    var original = event.getFrom().clone();
+                    original.setWorld(to.getWorld());
+                    to = original;
+                    velocity = org.bukkit.craftbukkit.util.CraftVector.toVec3(event.getBefore());
+                    changed = true;
+                } else if (!to.equals(event.getTo()) || !after.equals(event.getAfter())) {
+                    to = event.getTo();
+                    velocity = org.bukkit.craftbukkit.util.CraftVector.toVec3(event.getAfter());
+                    changed = true;
+                }
+            }
+            if (this.isRemoved()) {
+                DecorationOps.cancel().invoke((Entity) null);
+                return;
+            }
+            if (changed) {
                 var cause = ((DimensionTransitionBridge) (Object) dimensionTransition).bridge$getTeleportCause();
-                dimensionTransition = new TeleportTransition(((CraftWorld) to.getWorld()).getHandle(), CraftLocation.toVec3(to), Vec3.ZERO, to.getYaw(), to.getPitch(), dimensionTransition.missingRespawnBlock(), dimensionTransition.asPassenger(), Set.of(), dimensionTransition.postTeleportTransition());
+                dimensionTransition = new TeleportTransition(((CraftWorld) to.getWorld()).getHandle(), CraftLocation.toVec3(to), velocity, to.getYaw(), to.getPitch(), dimensionTransition.missingRespawnBlock(), dimensionTransition.asPassenger(), Set.of(), dimensionTransition.postTeleportTransition());
                 ((DimensionTransitionBridge) (Object) dimensionTransition).bridge$setTeleportCause(cause);
                 DecorationOps.blackhole().invoke(dimensionTransition);
             }

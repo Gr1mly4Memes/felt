@@ -1,7 +1,7 @@
 package gr1mly4memes.felt.mixin.core.world.item.crafting;
 
-import gr1mly4memes.felt.bridge.core.world.item.crafting.IngredientBridge;
 import gr1mly4memes.felt.bridge.core.world.item.crafting.RecipeBridge;
+import gr1mly4memes.felt.mod.inventory.FeltRecipeBookContents;
 import gr1mly4memes.felt.mod.util.FeltSpecialRecipe;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemStackTemplate;
@@ -45,7 +45,7 @@ public abstract class ShapelessRecipeMixin implements RecipeBridge {
                                          @Local(argsOnly = true) CraftingInput input) {
         // Only replace the holder-only operation for component-sensitive choices.
         // All other paths and the supplied operation for non-exact recipes remain native.
-        if (this.ingredients.stream().noneMatch(ingredient -> ((IngredientBridge) (Object) ingredient).bridge$isExact())) {
+        if (this.ingredients.stream().noneMatch(FeltRecipeBookContents::usesComponents)) {
             return original.call(contents, recipe, output);
         }
         List<ItemStack> items = new ArrayList<>(input.ingredientCount());

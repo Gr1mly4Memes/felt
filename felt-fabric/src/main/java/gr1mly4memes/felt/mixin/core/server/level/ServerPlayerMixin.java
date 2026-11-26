@@ -50,7 +50,6 @@ import net.minecraft.world.entity.Relative;
 import net.minecraft.world.entity.animal.equine.AbstractHorse;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Monster;
-import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodData;
@@ -97,7 +96,6 @@ import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerSpawnChangeEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
-import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -806,18 +804,6 @@ public abstract class ServerPlayerMixin extends PlayerMixin implements ServerPla
                 CraftEventFactory.handleInventoryCloseEvent((ServerPlayer) (Object) this, reason == null ? InventoryCloseEvent.Reason.UNKNOWN : reason);
             } finally {
                 FeltCaptures.popContainerOwner((ServerPlayer) (Object) this);
-            }
-        }
-    }
-
-    @Inject(method = "setLastClientInput", cancellable = true, at = @At("HEAD"))
-    private void felt$toggleSneak(Input input, CallbackInfo ci) {
-        if (input.shift() != this.isShiftKeyDown()) {
-            PlayerToggleSneakEvent event = new PlayerToggleSneakEvent(this.getBukkitEntity(), input.shift());
-            Bukkit.getPluginManager().callEvent(event);
-
-            if (event.isCancelled()) {
-                ci.cancel();
             }
         }
     }

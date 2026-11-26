@@ -105,12 +105,19 @@ public final class MoonriseWorldTest {
             var server = new DedicatedServer(serverThread, storage, packs, stem, Optional.empty(), settings, DataFixers.getDataFixer(), services, JsonRpc.create(settings, notifications), notifications) {
                 private int verificationTicks;
                 private boolean verifyEmptyPause;
+                private int initEvents;
+                private AutoCloseable initListener;
+                private PaperCustomClickTest customClicks;
                 @Override public int pauseWhenEmptySeconds() {
                     return this.verifyEmptyPause ? 1 : 0;
                 }
                 @Override protected boolean initServer() throws java.io.IOException {
                     try {
                         check(super.initServer(), "Dedicated server did not initialize");
+                        var type = io.papermc.paper.threadedregions.RegionizedServerInitEvent.class;
+                        this.initListener = PaperEventHooksTest.listen(io.papermc.paper.threadedregions.RegionizedServerInitEvent.getHandlerList(),
+                            type, verificationPlugin(), event -> ++this.initEvents);
+                        this.customClicks = new PaperCustomClickTest();
                     } catch (Throwable thrown) { failure.set(thrown); }
                     if (failure.get() != null) this.halt(false);
                     return true;
@@ -119,11 +126,18 @@ public final class MoonriseWorldTest {
                     try {
                         super.tickServer(haveTime);
                         if (++this.verificationTicks == 5) {
+                            this.initListener.close();
+                            check(this.initEvents == 1, "Paper startup event did not fire exactly once before ticking");
+                            this.customClicks.verify(this.overworld(), verificationPlugin());
                             verifyWorld(this.overworld());
                             for (ServerLevel dimension : this.getAllLevels()) if (dimension != this.overworld()) verifyDimension(dimension);
                             PaperGameplayApiTest.verifyRespawnWorld(this);
+                            PaperWorldCreatorTest.verify();
                             registries.verify(this);
+                            PaperRecipeBookTest.verify(this.overworld());
+                            PaperProxyConnectionTest.verify(this);
                             PaperReconfigurationTest.verifyTracking(this.overworld());
+                            PaperReconfigurationTest.verifyResourcePackStages(this.overworld(), verificationPlugin());
                             PaperReconfigurationTest.verify(this.overworld(), verificationPlugin());
                             this.verifyPausing(haveTime);
                             this.halt(false);
@@ -173,7 +187,7 @@ public final class MoonriseWorldTest {
         System.out.println("Native Moonrise world: generation, promotion, lighting, entities, save, unload and reload passed");
     }
 
-    private static void verifyWorld(ServerLevel world) {
+    private static void verifyWorld(ServerLevel world) throws Exception {
         check(TickThread.isTickThread(), "Server did not use a tick thread");
         var nativeWorld = (ChunkSystemServerLevel) world;
         var scheduler = nativeWorld.moonrise$getChunkTaskScheduler();
@@ -226,6 +240,9 @@ public final class MoonriseWorldTest {
         verifyWitchDrinking(world, marker);
         var merchant = verifyMerchantDiscounts(world, marker);
         var attributed = PaperGameplayApiTest.verify(world, marker, pig, verificationPlugin());
+        PaperGameplayApiTest.verifyDecorationDeathVibrations(world, marker.above(10), verificationPlugin());
+        PaperEventHooksTest.verify(world, marker.atY(230), verificationPlugin());
+        PaperDispenserApiTest.verify(world, marker.atY(224), verificationPlugin());
         verifyAnvilEnchantmentLimit(world, marker);
         verifyBlockControls(world, marker);
         verifyRedstoneImplementations(world, marker.offset(-5, 105, -5));
@@ -1282,10 +1299,12 @@ public final class MoonriseWorldTest {
     }
 
     private static org.bukkit.plugin.Plugin verificationPlugin(String name, java.util.function.BooleanSupplier enabled) {
+        var description = new org.bukkit.plugin.PluginDescriptionFile(name, "1.0", MoonriseWorldTest.class.getName());
         return (org.bukkit.plugin.Plugin)java.lang.reflect.Proxy.newProxyInstance(org.bukkit.plugin.Plugin.class.getClassLoader(),
             new Class<?>[]{org.bukkit.plugin.Plugin.class}, (proxy, method, arguments) -> switch (method.getName()) {
                 case "isEnabled" -> enabled.getAsBoolean();
                 case "getName", "toString" -> name;
+                case "getPluginMeta", "getDescription" -> description;
                 case "getLogger" -> java.util.logging.Logger.getLogger(name);
                 case "getServer" -> org.bukkit.Bukkit.getServer();
                 case "hashCode" -> System.identityHashCode(proxy);

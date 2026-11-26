@@ -1,0 +1,65 @@
+package gr1mly4memes.felt.mixin.core.world.entity.vehicle.boat;
+
+import gr1mly4memes.felt.mixin.core.world.entity.vehicle.VehicleEntityMixin;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import gr1mly4memes.felt.bridge.core.entity.EntityBridge;
+import gr1mly4memes.felt.mod.server.event.FeltEventFactory;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.vehicle.boat.AbstractBoat;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.entity.Vehicle;
+import org.bukkit.event.vehicle.VehicleEntityCollisionEvent;
+import org.bukkit.event.vehicle.VehicleMoveEvent;
+import org.bukkit.event.vehicle.VehicleUpdateEvent;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+@Mixin(AbstractBoat.class)
+public abstract class BoatMixin extends VehicleEntityMixin {
+
+    public double maxSpeed = 0.4D;
+    public double occupiedDeceleration = 0.2D;
+    public double unoccupiedDeceleration = -1;
+    public boolean landBoats = false;
+    private Location lastLocation;
+
+    @WrapOperation(method = "remove(Lnet/minecraft/world/entity/Entity$RemovalReason;)V",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/vehicle/boat/AbstractBoat;dropLeash()V"))
+    private void felt$unleashDestroyedBoat(AbstractBoat boat, Operation<Void> drop) {
+        if (FeltEventFactory.shouldDropLeashOnDestruction(boat)) {
+            drop.call(boat);
+        } else {
+            boat.removeLeash();
+        }
+    }
+
+    @Inject(method = "push", cancellable = true, at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/vehicle/VehicleEntity;push(Lnet/minecraft/world/entity/Entity;)V"))
+    private void felt$collideVehicle(Entity entityIn, CallbackInfo ci) {
+        if (!isPassengerOfSameVehicle(entityIn)) {
+            VehicleEntityCollisionEvent event = new VehicleEntityCollisionEvent((Vehicle) this.getBukkitEntity(), ((EntityBridge) entityIn).bridge$getBukkitEntity());
+            Bukkit.getPluginManager().callEvent(event);
+
+            if (event.isCancelled()) {
+                ci.cancel();
+            }
+        }
+    }
+
+    @Inject(method = "tick", at = @At(value = "INVOKE", ordinal = 0, target = "Lnet/minecraft/world/entity/vehicle/boat/AbstractBoat;applyEffectsFromBlocks()V"))
+    private void felt$updateVehicle(CallbackInfo ci) {
+        final org.bukkit.World bworld = this.level().bridge$getWorld();
+        final Location to = new Location(bworld, this.getX(), this.getY(), this.getZ(), this.getYRot(), this.getXRot());
+        final Vehicle vehicle = (Vehicle) this.getBukkitEntity();
+        Bukkit.getPluginManager().callEvent(new VehicleUpdateEvent(vehicle));
+        if (this.lastLocation != null && !this.lastLocation.equals(to)) {
+            final VehicleMoveEvent event = new VehicleMoveEvent(vehicle, this.lastLocation, to);
+            Bukkit.getPluginManager().callEvent(event);
+        }
+        this.lastLocation = vehicle.getLocation();
+    }
+
+}

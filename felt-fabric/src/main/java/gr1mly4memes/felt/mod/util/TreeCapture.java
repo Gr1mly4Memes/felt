@@ -1,9 +1,14 @@
 package gr1mly4memes.felt.mod.util;
 
+import gr1mly4memes.felt.bridge.core.world.level.TreeCaptureBridge;
+import gr1mly4memes.felt.bridge.core.world.level.WorldBridge;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.craftbukkit.block.CapturedBlockState;
+import org.bukkit.craftbukkit.block.CraftBlockState;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -218,26 +223,11 @@ public final class TreeCapture {
             frame.getSecond().forEach(Runnable::run);
             return com.mojang.datafixers.util.Pair.of(capture.value(), false);
         }
-        org.bukkit.TreeType treeType = selectedGrowth.type;
-        if (selectedGrowth.mushroom != null) {
-            treeType = selectedGrowth.mushroom == net.minecraft.world.level.block.Blocks.BROWN_MUSHROOM
-                ? org.bukkit.TreeType.BROWN_MUSHROOM : org.bukkit.TreeType.RED_MUSHROOM;
-        } else if (selectedGrowth.selected && treeType == null) {
-            treeType = gr1mly4memes.felt.mod.FeltConstants.MOD;
-        }
         List<org.bukkit.block.BlockState> blocks = new java.util.ArrayList<>(capture.states());
-        org.bukkit.event.world.StructureGrowEvent structure = null;
         org.bukkit.entity.Player player = context.getPlayer() == null ? null : (org.bukkit.entity.Player)
             ((gr1mly4memes.felt.bridge.core.entity.EntityBridge) context.getPlayer()).bridge$getBukkitEntity();
-        if (treeType != null) {
-            structure = new org.bukkit.event.world.StructureGrowEvent(org.bukkit.craftbukkit.util.CraftLocation.toBukkit(context.getClickedPos(), ((gr1mly4memes.felt.bridge.core.world.level.WorldBridge) level).bridge$getWorld()),
-                treeType, stack.getItem() == net.minecraft.world.item.Items.BONE_MEAL, player, blocks);
-            org.bukkit.Bukkit.getPluginManager().callEvent(structure);
-        }
-        org.bukkit.event.block.BlockFertilizeEvent fertilize = new org.bukkit.event.block.BlockFertilizeEvent(org.bukkit.craftbukkit.block.CraftBlock.at(level, context.getClickedPos()), player, blocks);
-        fertilize.setCancelled(structure != null && structure.isCancelled());
-        org.bukkit.Bukkit.getPluginManager().callEvent(fertilize);
-        if (!fertilize.isCancelled()) {
+        boolean cancelled = isFertilizationCancelled(level, context.getClickedPos(), player, true, selectedGrowth, blocks);
+        if (!cancelled) {
             if (stack.getCount() == oldCount && Objects.equals(stack.getComponentsPatch(), oldData)) {
                 ((gr1mly4memes.felt.bridge.core.world.item.ItemStackBridge) (Object) stack).felt$restorePatch(newData);
                 stack.setCount(newCount);
@@ -245,6 +235,58 @@ public final class TreeCapture {
             for (org.bukkit.block.BlockState block : blocks) TreeCapture.apply(block);
             frame.getSecond().forEach(Runnable::run);
         }
-        return com.mojang.datafixers.util.Pair.of(capture.value(), fertilize.isCancelled());
+        return com.mojang.datafixers.util.Pair.of(capture.value(), cancelled);
+    }
+
+    public static ItemStack dispenseBoneMeal(ServerLevel level, BlockPos target, Supplier<ItemStack> action) {
+        var previousGrowth = growth;
+        var captureBridge = (TreeCaptureBridge) level;
+        var selectedGrowth = captureBridge.bridge$treeCaptureIdentity() != null && previousGrowth != null ? previousGrowth : new Growth();
+        growth = selectedGrowth;
+        JoinResult<ItemStack> capture;
+        try {
+            capture = captureBridge.bridge$captureTreeOrJoin(action);
+        } finally {
+            growth = previousGrowth;
+        }
+        if (!capture.states().isEmpty()) {
+            List<org.bukkit.block.BlockState> blocks = new java.util.ArrayList<>(capture.states());
+            if (!isFertilizationCancelled(level, target, null, false, selectedGrowth, blocks)) {
+                for (var block : blocks) {
+                    if (block instanceof CraftBlockState state) {
+                        state.place(state.getFlags());
+                        if (state.getPosition().getY() == target.getY() && level.getBlockState(state.getPosition()) == state.getHandle()) {
+                            ((WorldBridge) level).bridge$mod$notifyAndUpdatePhysics(state.getPosition(), null,
+                                state.getHandle(), state.getHandle(), state.getFlags(), 512);
+                        }
+                    } else {
+                        apply(block);
+                    }
+                }
+            }
+        }
+        return capture.value();
+    }
+
+    private static boolean isFertilizationCancelled(ServerLevel level, BlockPos target, org.bukkit.entity.Player player,
+                                                    boolean playerBonemeal, Growth selectedGrowth,
+                                                    List<org.bukkit.block.BlockState> blocks) {
+        org.bukkit.TreeType treeType = selectedGrowth.type;
+        if (selectedGrowth.mushroom != null) {
+            treeType = selectedGrowth.mushroom == net.minecraft.world.level.block.Blocks.BROWN_MUSHROOM
+                ? org.bukkit.TreeType.BROWN_MUSHROOM : org.bukkit.TreeType.RED_MUSHROOM;
+        } else if (selectedGrowth.selected && treeType == null) {
+            treeType = gr1mly4memes.felt.mod.FeltConstants.MOD;
+        }
+        org.bukkit.event.world.StructureGrowEvent structure = null;
+        if (treeType != null) {
+            structure = new org.bukkit.event.world.StructureGrowEvent(org.bukkit.craftbukkit.util.CraftLocation.toBukkit(target, ((WorldBridge) level).bridge$getWorld()),
+                treeType, playerBonemeal, player, blocks);
+            org.bukkit.Bukkit.getPluginManager().callEvent(structure);
+        }
+        org.bukkit.event.block.BlockFertilizeEvent fertilize = new org.bukkit.event.block.BlockFertilizeEvent(org.bukkit.craftbukkit.block.CraftBlock.at(level, target), player, blocks);
+        fertilize.setCancelled(structure != null && structure.isCancelled());
+        org.bukkit.Bukkit.getPluginManager().callEvent(fertilize);
+        return fertilize.isCancelled();
     }
 }

@@ -102,6 +102,21 @@ public abstract class LivingEntityMixin extends EntityMixin implements LivingEnt
 
     // @formatter:off
     @Shadow protected abstract void dropFromShearingLootTable(ServerLevel level, net.minecraft.resources.ResourceKey<net.minecraft.world.level.storage.loot.LootTable> key, net.minecraft.world.item.ItemInstance tool, java.util.function.BiConsumer<ServerLevel, net.minecraft.world.item.ItemStack> consumer);
+
+    @Override
+    public List<ItemStack> bridge$collectShearDrops(ServerLevel level, net.minecraft.resources.ResourceKey<net.minecraft.world.level.storage.loot.LootTable> table, ItemStack tool, boolean split) {
+        List<ItemStack> drops = new ArrayList<>();
+        this.dropFromShearingLootTable(level, table, tool, (ignored, drop) -> {
+            if (split) {
+                for (int i = 0; i < drop.getCount(); i++) {
+                    drops.add(drop.copyWithCount(1));
+                }
+            } else {
+                drops.add(drop);
+            }
+        });
+        return drops;
+    }
     @Shadow public abstract float getMaxHealth();
     @Shadow public abstract void heal(float healAmount);
     @Shadow public abstract float getHealth();
@@ -568,18 +583,23 @@ public abstract class LivingEntityMixin extends EntityMixin implements LivingEnt
 
     @Decorate(method = "knockback(DDDLnet/minecraft/world/damagesource/DamageSource;FZ)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;setDeltaMovement(DDD)V"))
     private void felt$knockbackEvent(LivingEntity instance, double x, double y, double z, double d, double e, double f, DamageSource source, float damage, boolean comesFromEffect) throws Throwable {
+        Vec3 before = instance.getDeltaMovement();
+        Vec3 knockback = this.bridge$fireKnockbackEvent(d, new Vec3(x, y, z).subtract(before));
+        if (knockback != null) {
+            DecorationOps.callsite().invoke(instance, before.x + knockback.x, before.y + knockback.y, before.z + knockback.z);
+        }
+    }
+
+    @Override
+    public Vec3 bridge$fireKnockbackEvent(double force, Vec3 knockback) {
         var attacker = felt$knockbackAttacker;
         var cause = felt$knockbackCause == null ? EntityKnockbackEvent.KnockbackCause.UNKNOWN : felt$knockbackCause;
         felt$knockbackAttacker = null;
         felt$knockbackCause = null;
-        Vec3 before = instance.getDeltaMovement();
-        Vec3 increment = new Vec3(x, y, z).subtract(before);
         var event = CraftEventFactory.callEntityKnockbackEvent(this.getBukkitEntity(), attacker, attacker,
-            io.papermc.paper.event.entity.EntityKnockbackEvent.Cause.valueOf(cause.name()), d, increment);
-        if (!event.isCancelled()) {
-            var knockback = event.getKnockback();
-            DecorationOps.callsite().invoke(instance, before.x + knockback.getX(), before.y + knockback.getY(), before.z + knockback.getZ());
-        }
+            io.papermc.paper.event.entity.EntityKnockbackEvent.Cause.valueOf(cause.name()), force, knockback);
+        var result = event.getKnockback();
+        return event.isCancelled() ? null : new Vec3(result.getX(), result.getY(), result.getZ());
     }
 
     @Override

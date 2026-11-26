@@ -194,10 +194,10 @@
       {"name": "fauxSleeping", "descriptor": "Z", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/player/PlayerMixin"}
     ],
     "net/minecraft/world/entity/vehicle/boat/AbstractBoat": [
-      {"name": "maxSpeed", "descriptor": "D", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/vehicle/BoatMixin"},
-      {"name": "occupiedDeceleration", "descriptor": "D", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/vehicle/BoatMixin"},
-      {"name": "unoccupiedDeceleration", "descriptor": "D", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/vehicle/BoatMixin"},
-      {"name": "landBoats", "descriptor": "Z", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/vehicle/BoatMixin"}
+      {"name": "maxSpeed", "descriptor": "D", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/vehicle/boat/BoatMixin"},
+      {"name": "occupiedDeceleration", "descriptor": "D", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/vehicle/boat/BoatMixin"},
+      {"name": "unoccupiedDeceleration", "descriptor": "D", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/vehicle/boat/BoatMixin"},
+      {"name": "landBoats", "descriptor": "Z", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/vehicle/boat/BoatMixin"}
     ],
     "net/minecraft/world/inventory/AnvilMenu": [{"name": "maximumRepairCost", "descriptor": "I", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/inventory/AnvilMenuMixin"}],
     "net/minecraft/world/level/block/entity/ContainerOpenersCounter": [{"name": "opened", "descriptor": "Z", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/level/block/entity/ContainerOpenersCounterMixin"}],
@@ -248,15 +248,15 @@
       {"name": "guardianAttackGoal", "descriptor": "Lnet/minecraft/world/entity/monster/Guardian$GuardianAttackGoal;", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/monster/GuardianMixin"}
     ],
     "net/minecraft/world/entity/projectile/hurtingprojectile/AbstractHurtingProjectile": [
-      {"name": "bukkitYield", "descriptor": "F", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/projectile/AbstractHurtingProjectileMixin"},
-      {"name": "isIncendiary", "descriptor": "Z", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/projectile/AbstractHurtingProjectileMixin"}
+      {"name": "bukkitYield", "descriptor": "F", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/projectile/hurtingprojectile/AbstractHurtingProjectileMixin"},
+      {"name": "isIncendiary", "descriptor": "Z", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/projectile/hurtingprojectile/AbstractHurtingProjectileMixin"}
     ],
     "net/minecraft/world/entity/animal/equine/AbstractHorse": [
       {"name": "maxDomestication", "descriptor": "I", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/animal/horse/AbstractHorseMixin"}
     ],
     "net/minecraft/world/entity/vehicle/minecart/AbstractMinecart": [
-      {"name": "maxSpeed", "descriptor": "Ljava/lang/Double;", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/vehicle/AbstractMinecartMixin"},
-      {"name": "slowWhenEmpty", "descriptor": "Z", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/vehicle/AbstractMinecartMixin"}
+      {"name": "maxSpeed", "descriptor": "Ljava/lang/Double;", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/vehicle/minecart/AbstractMinecartMixin"},
+      {"name": "slowWhenEmpty", "descriptor": "Z", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/vehicle/minecart/AbstractMinecartMixin"}
     ],
     "net/minecraft/server/MinecraftServer": [
       {"name": "isIteratingOverLevels", "descriptor": "Z", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/server/MinecraftServerMixin"},
@@ -322,7 +322,7 @@
       {"name": "entityIgniter", "descriptor": "Lnet/minecraft/world/entity/Entity;", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/monster/CreeperMixin"}
     ],
     "net/minecraft/world/entity/vehicle/minecart/MinecartTNT": [
-      {"name": "isIncendiary", "descriptor": "Z", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/vehicle/MinecartTNTMixin"}
+      {"name": "isIncendiary", "descriptor": "Z", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/entity/vehicle/minecart/MinecartTNTMixin"}
     ],
     "net/minecraft/world/inventory/AbstractContainerMenu": [
       {"name": "checkReachable", "descriptor": "Z", "access": ["public"], "mixin": "gr1mly4memes/felt/mixin/core/world/inventory/AbstractContainerMenuMixin"}

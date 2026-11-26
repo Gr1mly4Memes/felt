@@ -3,6 +3,8 @@ package gr1mly4memes.felt.bridge.core.world.entity;
 import gr1mly4memes.felt.bridge.core.entity.EntityBridge;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffect;
@@ -13,6 +15,8 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.phys.Vec3;
 import org.bukkit.craftbukkit.entity.CraftLivingEntity;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityKnockbackEvent;
@@ -20,10 +24,13 @@ import org.bukkit.event.entity.EntityPotionEffectEvent;
 import org.bukkit.event.entity.EntityRegainHealthEvent;
 
 import javax.annotation.Nullable;
+import java.util.List;
 import java.util.Optional;
 
 public interface LivingEntityBridge extends EntityBridge {
     void detectEquipmentUpdatesPublic();
+
+    List<ItemStack> bridge$collectShearDrops(ServerLevel level, ResourceKey<LootTable> table, ItemStack tool, boolean split);
 
     default boolean bridge$capturePlayerDrop(net.minecraft.world.entity.item.ItemEntity item) {
         return false;
@@ -69,6 +76,9 @@ public interface LivingEntityBridge extends EntityBridge {
     boolean bridge$willRemoveEffect(MobEffectInstance effect);
 
     void bridge$pushKnockbackCause(Entity attacker, EntityKnockbackEvent.KnockbackCause cause);
+
+    @Nullable
+    Vec3 bridge$fireKnockbackEvent(double force, Vec3 knockback);
 
     @Override
     default CraftLivingEntity getBukkitEntity() {

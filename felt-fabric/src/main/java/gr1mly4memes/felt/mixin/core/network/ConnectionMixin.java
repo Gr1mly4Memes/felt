@@ -20,6 +20,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -36,6 +38,19 @@ public class ConnectionMixin implements ConnectionBridge {
 
     @Shadow public boolean disconnectionHandled;
     @Shadow public io.netty.channel.Channel channel;
+    @Shadow public SocketAddress address;
+    @Unique private volatile @Nullable InetSocketAddress felt$haProxyAddress;
+
+    @Override
+    public @Nullable InetSocketAddress bridge$getHAProxyAddress() {
+        return this.felt$haProxyAddress;
+    }
+
+    @Override
+    public void bridge$setHAProxyAddresses(InetSocketAddress source, InetSocketAddress destination) {
+        this.address = source;
+        this.felt$haProxyAddress = destination;
+    }
 
     @Override
     public java.net.SocketAddress bridge$getRawAddress() {

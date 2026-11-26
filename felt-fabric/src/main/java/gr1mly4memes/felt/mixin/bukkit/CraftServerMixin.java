@@ -3,6 +3,7 @@ package gr1mly4memes.felt.mixin.bukkit;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.Dynamic;
 import com.mojang.serialization.Lifecycle;
 import gr1mly4memes.felt.bridge.bukkit.CraftServerBridge;
@@ -49,11 +50,13 @@ import net.minecraft.world.level.levelgen.PatrolSpawner;
 import net.minecraft.world.level.levelgen.PhantomSpawner;
 import net.minecraft.world.level.levelgen.WorldDimensions;
 import net.minecraft.world.level.levelgen.WorldOptions;
+import net.minecraft.world.level.levelgen.flat.FlatLevelGeneratorSettings;
 import net.minecraft.world.level.storage.*;
 import net.minecraft.world.level.validation.ContentValidationException;
 import org.bukkit.GameMode;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
+import org.bukkit.WorldType;
 import org.bukkit.craftbukkit.CraftServer;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
@@ -301,34 +304,27 @@ public abstract class CraftServerMixin implements CraftServerBridge {
                 } else {
                     WorldOptions options = new WorldOptions(creator.seed(), creator.generateStructures(), creator.bonusChest());
                     LevelSettings settings = new LevelSettings(name, GameType.byId(this.getDefaultGameMode().getValue()), new LevelSettings.DifficultySettings(Difficulty.EASY, hardcore, false), false, context.dataConfiguration());
-                    WorldDimensions worldDimensions;
-                    if (isCustom) {
-                        DedicatedServerProperties.WorldDimensionData properties = new DedicatedServerProperties.WorldDimensionData(GsonHelper.parse(creator.generatorSettings().isEmpty() ? "{}" : creator.generatorSettings()), creator.type().name().toLowerCase(Locale.ROOT));
-                        worldDimensions = properties.create(context.datapackWorldRegistries());
-                        WorldDimensions.Complete baked = worldDimensions.bake(datapackStems);
-                        Lifecycle lifecycle = baked.lifecycle().add(context.datapackWorldRegistries().allRegistriesLifecycle());
-                        levelData = new PrimaryLevelData(settings, baked.specialWorldProperty(), lifecycle);
-                        dimensions = baked.dimensionsRegistryAccess();
-                    } else {
-                        WorldData template = this.console.getWorldData();
-                        final PrimaryLevelData.SpecialWorldProperty property;
-                        if (template.isDebugWorld()) {
-                            property = PrimaryLevelData.SpecialWorldProperty.DEBUG;
-                        } else if (template.isFlatWorld()) {
-                            property = PrimaryLevelData.SpecialWorldProperty.FLAT;
-                        } else {
-                            property = PrimaryLevelData.SpecialWorldProperty.NONE;
-                        }
-                        levelData = new PrimaryLevelData(settings, property, template.worldGenSettingsLifecycle());
-                        dimensions = this.console.registries().getLayer(RegistryLayer.DIMENSIONS);
-                        worldDimensions = new WorldDimensions(dimensions.lookupOrThrow(Registries.LEVEL_STEM));
+                    var registries = context.datapackWorldRegistries();
+                    String generatorSettings = creator.generatorSettings();
+                    if (generatorSettings.isEmpty() && creator.type() == WorldType.FLAT) {
+                        var defaults = FlatLevelGeneratorSettings.getDefault(registries.lookupOrThrow(Registries.BIOME),
+                            registries.lookupOrThrow(Registries.STRUCTURE_SET), registries.lookupOrThrow(Registries.PLACED_FEATURE));
+                        generatorSettings = FlatLevelGeneratorSettings.CODEC.encodeStart(registries.createSerializationContext(JsonOps.INSTANCE), defaults)
+                            .getOrThrow().toString();
                     }
+                    var properties = new DedicatedServerProperties.WorldDimensionData(
+                        GsonHelper.parse(generatorSettings.isEmpty() ? "{}" : generatorSettings), creator.type().name().toLowerCase(Locale.ROOT));
+                    WorldDimensions worldDimensions = properties.create(registries);
+                    WorldDimensions.Complete baked = worldDimensions.bake(datapackStems);
+                    Lifecycle lifecycle = baked.lifecycle().add(registries.allRegistriesLifecycle());
+                    levelData = new PrimaryLevelData(settings, baked.specialWorldProperty(), lifecycle);
+                    dimensions = baked.dimensionsRegistryAccess();
                     dataAndSettings = new LevelDataAndDimensions.WorldDataAndGenSettings(levelData, new WorldGenSettings(options, worldDimensions));
                 }
                 WorldOptions options = dataAndSettings.genSettings().options();
 
                 Registry<LevelStem> stems = dimensions.lookupOrThrow(Registries.LEVEL_STEM);
-                LevelStem stem = stems.getValue(actualDimension);
+                LevelStem stem = dataAndSettings.genSettings().dimensions().get(actualDimension).orElseGet(() -> stems.getValue(actualDimension));
                 if (stem == null) {
                     throw new IllegalArgumentException("Unknown level stem: " + actualDimension);
                 }
@@ -388,7 +384,7 @@ public abstract class CraftServerMixin implements CraftServerBridge {
                     if (this.worlds.get(name.toLowerCase(Locale.ROOT)) != internal.bridge$getWorld()) {
                         return null; // duplicate UID/name was rejected in constructor; frame cleanup discards it
                     }
-                    ((DedicatedServerBridge) this.console).felt$prepareAndAddLevel(internal, levelData);
+                    ((DedicatedServerBridge) this.console).felt$prepareAndAddLevel(internal, levelData, creator);
                     CraftWorld bukkit = internal.bridge$getWorld();
                     this.pluginManager.callEvent(new WorldLoadEvent(bukkit));
                     WorldCreationContext.complete(internal);

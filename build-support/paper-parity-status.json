@@ -1,6 +1,14 @@
 {
   "paper_commit": "9ee1facbacee69eef3ee7f3c7fca3dc031ab1573",
   "full_parity_verified": false,
+  "paper_api_parity_verified": false,
+  "public_api_declaration_verification": {
+    "reference": "Clean build of the pinned Paper API sources",
+    "public_and_protected_types_checked": 2149,
+    "public_and_protected_members_checked": 32703,
+    "missing_or_changed_declarations": 0,
+    "report": "build/paper-api-abi.log"
+  },
   "behavioral_verification": {
     "tasks": [
       ":felt-fabric:runMoonriseWorldVerification",
@@ -51,15 +59,46 @@
       "Live entity spawn coordinates, one-shot absolute tracker resync on pairing and precise item frame movement, verified with captured packets",
       "Moonrise chunk, entity and POI writes with region flushing enabled followed by native unload and reload",
       "Runtime selection of the Vanilla, Eigencraft and Alternate Current redstone engines, with live wire power propagation, Bukkit power events and depowering on wire removal",
-      "Cached chunk lookups for grass spread and fade, including cancellation of both Bukkit events"
+      "Cached chunk lookups for grass spread and fade, including cancellation of both Bukkit events",
+      "Bukkit exact and predicate recipe choices in shapeless matching and native recipe-book placement, including component-aware icons, overlapping choices, variant-specific slot limits and place-all",
+      "Sculk shrieker attribution for item-frame and armor-stand death vibrations, including canceled armor-stand deaths and unattributed cushion lightning deaths",
+      "Player input changes and cancellable sneak transitions, retaining native input history",
+      "Constructed-entity events with source blocks, cancellation and golem spawn reasons",
+      "Paper decoration-break event propagation after the legacy hanging event, including cancellation overrides",
+      "Cancellation of native entity and minecart pushes through the Paper collision event",
+      "End gateway entry can be canceled and portal-exit velocity reaches native teleportation",
+      "Sulfur cube swallow cancellation and replacement without hand consumption, configurable ignition delay, canceled explosions and notification of a potent sulfur launch",
+      "Sulfur cube player shearing, contact damage attribution and cancellation, and custom knockback events with cancellable and replaceable velocity",
+      "Dispenser activation and shearing cancellation, native default drops, plugin-selected stack sizes and tool durability for all six vanilla shearables",
+      "Dispensed vehicles honor plugin positions and retain the item on spawn cancellation, arrows honor custom velocity and expose their block shooter, and placed shulker boxes keep replacement item components",
+      "Dispenser bone meal dispatches the activation, fertilization and tree events before committing growth, with native item costs and plugin cancellation and edits",
+      "Dispenser copper waxing, anchor charging, pumpkin construction and wither skull placement expose the target and preserve items on cancellation",
+      "Equipment dispense events cover helmets, pumpkin and skull fallbacks, donkey chests and armadillo brushing, including cancellation, same-behavior replacement and native consumption",
+      "Dispenser bucket and bottle events run before fluid placement, pickup, honey collection and mud conversion, and preserve plugin-selected mob bucket contents and item remainders",
+      "Armor stand and direct TNT dispensing honor cancellation and plugin-selected item data or spawn position, and dispenser flint and steel dispatches the events for fire placement, TNT and sulfur cube ignition",
+      "Dispenser spawn eggs honor cancellation and plugin-selected entity type and custom item data, retain the original stack on replacement, and consume one egg on an ordinary spawn",
+      "Skeleton and Illusioner bow events expose the actual hand, ammunition, draw strength and initialized arrow velocity, and honor cancellation and plugin-replaced projectiles",
+      "Sulfur cube block and TNT dispensing with Paper event payloads, native fallback suppression, and plugin item components",
+      "Copper golem sorting events expose the live inventory and honor plugin decisions to allow or deny a destination",
+      "Custom click events in play and configuration, trackable dialog payloads and one-use Adventure and dialog callbacks loaded by the server tick",
+      "Adventure resource-pack callbacks use the active configuration or play audience, preserve status across stages, and run before the play-stage Bukkit event",
+      "Both wind charge types call the explosion prime event and obey plugin cancellation and radius changes",
+      "TNT minecart ignition events cover plugin-triggered and shortened native fuses, including cancellation and replacement",
+      "Public WorldCreator flat presets and generator settings, forced spawn and rotation, and retention of world identity and settings on unload and reload",
+      "Boat destruction emits an unleash event and honors the plugin's leash-drop decision",
+      "Async removal event for a legacy bed block entity, with world key, position and persistent plugin data",
+      "Single pre-tick RegionizedServerInitEvent on the dedicated server",
+      "Proxy Protocol address access from login, play and Bukkit player connections on a local TCP listener",
+      "A separately compiled Paper plugin JAR boots from paper-plugin.yml, registers a tag through the public lifecycle manager, observes the live tag during enable, and receives the startup event"
     ]
   },
   "audit_command": "python tools/audit-paper-parity.py",
   "audit_report": "build/paper-parity-audit.json",
   "remaining_work": [
-    "Review all upstream Minecraft source and feature patches against the actual Felt mixins; compiling Paper-owned classes does not apply those patches",
+    "Audit native behavior for the pinned public API's methods and verify dispatch at each relevant event call site",
+    "Extend verification of dispenser behavior with modded blocks and items",
+    "Exercise connected-client behavior, plugin lifecycle and third-party mod interactions beyond the isolated dedicated-world regression",
     "Review Paper world-loading entry points against Felt's active world loader and saved-data layout",
-    "Verify missing or partial Paper optimization families against their upstream implementations",
-    "Exercise connected-client behavior, plugin lifecycle, event semantics and third-party mod interactions beyond the isolated dedicated-world regression"
+    "Review remaining performance-only patches after the public API audit"
   ]
 }

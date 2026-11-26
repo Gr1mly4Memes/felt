@@ -51,6 +51,12 @@ import java.util.List;
 import java.util.Objects;
 
 public abstract class FeltEventFactory {
+    public static boolean shouldDropLeashOnDestruction(net.minecraft.world.entity.Entity entity) {
+        var event = new org.bukkit.event.entity.EntityUnleashEvent(entity.bridge$getBukkitEntity(),
+            org.bukkit.event.entity.EntityUnleashEvent.UnleashReason.LEASHED_GONE, true);
+        event.callEvent();
+        return event.isDropLeash();
+    }
 
     public static<T extends Event> T callEvent(T event) {
         Bukkit.getPluginManager().callEvent(event);

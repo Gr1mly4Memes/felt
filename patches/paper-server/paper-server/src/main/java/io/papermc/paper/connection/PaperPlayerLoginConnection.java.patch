@@ -13,13 +13,12 @@ diff --git a/paper-server/src/main/java/io/papermc/paper/connection/PaperPlayerL
      }
  
      @Override
-@@ -53,7 +52,8 @@
+@@ -53,7 +52,7 @@
  
      @Override
      public @org.jspecify.annotations.Nullable InetSocketAddress getHAProxyAddress() {
 -        return this.packetListener.connection.haProxyAddress instanceof final InetSocketAddress inetSocketAddress ? inetSocketAddress : null;
-+        // The native connection has no Proxy Protocol handler; the API defines null for this case.
-+        return null;
++        return ((gr1mly4memes.felt.bridge.core.network.ConnectionBridge) this.packetListener.connection).bridge$getHAProxyAddress();
      }
  
      @Override

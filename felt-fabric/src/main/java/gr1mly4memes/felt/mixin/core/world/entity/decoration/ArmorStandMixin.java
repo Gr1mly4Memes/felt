@@ -1,7 +1,11 @@
 package gr1mly4memes.felt.mixin.core.world.entity.decoration;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Local;
 import gr1mly4memes.felt.bridge.core.entity.EntityBridge;
 import gr1mly4memes.felt.bridge.core.server.level.ServerPlayerBridge;
+import gr1mly4memes.felt.bridge.core.world.entity.decoration.DecorationDeathSourceBridge;
 import gr1mly4memes.felt.mixin.core.world.entity.LivingEntityMixin;
 import gr1mly4memes.felt.mod.util.FeltCaptures;
 import gr1mly4memes.felttools.mixin.Decorate;
@@ -24,8 +28,10 @@ import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -33,7 +39,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.ArrayList;
 
 @Mixin(net.minecraft.world.entity.decoration.ArmorStand.class)
-public abstract class ArmorStandMixin extends LivingEntityMixin {
+public abstract class ArmorStandMixin extends LivingEntityMixin implements DecorationDeathSourceBridge {
 
     // @formatter:off
     @Shadow private boolean invisible;
@@ -65,6 +71,34 @@ public abstract class ArmorStandMixin extends LivingEntityMixin {
 
     private boolean felt$preparedDeath;
     private net.minecraft.world.entity.item.ItemEntity felt$standDrop;
+    @Unique private DamageSource felt$pendingDecorationDeathSource;
+    @Unique private DamageSource felt$decorationDeathSource;
+
+    @Override
+    public DamageSource bridge$getDecorationDeathSource() {
+        return this.felt$decorationDeathSource;
+    }
+
+    @WrapOperation(method = {"hurtServer", "causeDamage"}, at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/world/entity/decoration/ArmorStand;kill(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/Entity;)V"),
+        require = 5, allow = 5)
+    private void felt$rememberFatalDamage(net.minecraft.world.entity.decoration.ArmorStand stand, ServerLevel level, Entity attacker,
+                                         Operation<Void> original, @Local(argsOnly = true) DamageSource source) {
+        DamageSource previous = this.felt$pendingDecorationDeathSource;
+        this.felt$pendingDecorationDeathSource = source;
+        try {
+            original.call(stand, level, attacker);
+        } finally {
+            this.felt$pendingDecorationDeathSource = previous;
+        }
+    }
+
+    @ModifyArg(method = "kill(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/Entity;)V",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/decoration/ArmorStand;gameEvent(Lnet/minecraft/core/Holder;Lnet/minecraft/world/entity/Entity;)V"),
+        index = 1)
+    private Entity felt$emitDeathFromStand(Entity original) {
+        return this.felt$decorationDeathSource == null ? original : (Entity) (Object) this;
+    }
 
     @Inject(method = "hurtServer", at = @At("HEAD"))
     private void felt$resetDeath(ServerLevel level, DamageSource source, float damage, CallbackInfoReturnable<Boolean> cir) {
@@ -78,13 +112,16 @@ public abstract class ArmorStandMixin extends LivingEntityMixin {
         var death = (gr1mly4memes.felt.bridge.core.world.entity.DeathEventBridge) this;
         if (!this.felt$preparedDeath) {
             death.bridge$resetDeathEvent();
-            CraftEventFactory.callEntityDeathEvent((net.minecraft.world.entity.LivingEntity) (Object) this, this.damageSources().genericKill());
+            DamageSource source = this.felt$pendingDecorationDeathSource;
+            CraftEventFactory.callEntityDeathEvent((net.minecraft.world.entity.LivingEntity) (Object) this,
+                source == null ? this.damageSources().genericKill() : source);
         }
         this.felt$preparedDeath = false;
         if (death.bridge$deathCancelled()) {
             ci.cancel();
             return;
         }
+        this.felt$decorationDeathSource = this.felt$pendingDecorationDeathSource;
         this.bridge$pushEntityRemoveCause(EntityRemoveEvent.Cause.DEATH);
     }
 

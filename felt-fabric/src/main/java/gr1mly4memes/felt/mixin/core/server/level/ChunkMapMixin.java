@@ -74,6 +74,16 @@ public abstract class ChunkMapMixin implements ChunkMapBridge {
         return ((WorldBridge) serverWorld).bridge$getTypeKey();
     }
 
+    @com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation(method = "upgradeChunkTag(Lnet/minecraft/nbt/CompoundTag;)Lnet/minecraft/nbt/CompoundTag;",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ChunkMap;getChunkDataFixContextTag(Lnet/minecraft/resources/ResourceKey;Ljava/util/Optional;)Lnet/minecraft/nbt/CompoundTag;"))
+    private net.minecraft.nbt.CompoundTag felt$recordWorldInDataFixContext(ResourceKey<net.minecraft.world.level.Level> stem,
+            java.util.Optional<net.minecraft.resources.Identifier> generator,
+            com.llamalad7.mixinextras.injector.wrapoperation.Operation<net.minecraft.nbt.CompoundTag> original) {
+        var context = original.call(stem, generator);
+        context.putString("level_identifier", this.level.dimension().identifier().toString());
+        return context;
+    }
+
     @com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod(method = "upgradeChunkTag(Lnet/minecraft/nbt/CompoundTag;)Lnet/minecraft/nbt/CompoundTag;")
     private net.minecraft.nbt.CompoundTag felt$preserveBelowZeroPolicy(net.minecraft.nbt.CompoundTag tag,
             com.llamalad7.mixinextras.injector.wrapoperation.Operation<net.minecraft.nbt.CompoundTag> original) {

@@ -2,22 +2,37 @@ package gr1mly4memes.felt.mixin.core.world.level.block.entity;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import gr1mly4memes.felt.bridge.core.world.entity.decoration.DecorationDeathSourceBridge;
 import gr1mly4memes.felt.mod.util.FeltCaptures;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.SpawnUtil;
 import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.entity.SculkShriekerBlockEntity;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.Optional;
 
 @Mixin(SculkShriekerBlockEntity.class)
 public abstract class SculkShriekerBlockEntityMixin {
+
+    @Inject(method = "tryGetPlayer", at = @At("RETURN"), cancellable = true)
+    private static void felt$attributeDecorationDeath(Entity entity, CallbackInfoReturnable<ServerPlayer> cir) {
+        if (cir.getReturnValue() == null && entity instanceof DecorationDeathSourceBridge decoration) {
+            var source = decoration.bridge$getDecorationDeathSource();
+            if (source != null && source.getEntity() instanceof ServerPlayer player) {
+                cir.setReturnValue(player);
+            }
+        }
+    }
 
     @WrapOperation(method = "trySummonWarden(Lnet/minecraft/server/level/ServerLevel;)Z",
         at = @At(value = "INVOKE", target = "Lnet/minecraft/util/SpawnUtil;trySpawnMob(Lnet/minecraft/world/entity/EntityType;Lnet/minecraft/world/entity/EntitySpawnReason;Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/core/BlockPos;IIILnet/minecraft/util/SpawnUtil$Strategy;Z)Ljava/util/Optional;"),

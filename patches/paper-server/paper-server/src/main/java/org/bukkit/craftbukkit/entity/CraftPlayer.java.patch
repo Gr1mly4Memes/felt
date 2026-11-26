@@ -54,7 +54,7 @@ diff --git a/paper-server/src/main/java/org/bukkit/craftbukkit/entity/CraftPlaye
          if (this.getHandle().connection == null) return null;
  
 -        return this.getHandle().connection.connection.haProxyAddress instanceof final InetSocketAddress inetSocketAddress ? inetSocketAddress : null;
-+        return null;
++        return ((gr1mly4memes.felt.bridge.core.network.ConnectionBridge) this.getHandle().connection.connection).bridge$getHAProxyAddress();
      }
      // Paper end - Add API to get player's proxy address
 +    public interface TransferCookieConnection {

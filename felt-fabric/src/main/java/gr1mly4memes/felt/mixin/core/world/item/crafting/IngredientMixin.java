@@ -2,7 +2,9 @@ package gr1mly4memes.felt.mixin.core.world.item.crafting;
 
 import gr1mly4memes.felt.bridge.core.world.item.crafting.IngredientBridge;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.display.SlotDisplay;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -58,6 +60,14 @@ public abstract class IngredientMixin implements IngredientBridge {
     @Override
     public void bridge$setExactChoices(List<ItemStack> exactChoices) {
         this.exactChoices = exactChoices.stream().map(ItemStack::copy).toList();
+    }
+
+    @Inject(method = "display", at = @At("HEAD"), cancellable = true)
+    private void felt$displayExactChoices(CallbackInfoReturnable<SlotDisplay> cir) {
+        if (this.exactChoices != null) {
+            cir.setReturnValue(new SlotDisplay.Composite(this.exactChoices.stream().filter(stack -> !stack.isEmpty())
+                .map(ItemStackTemplate::fromNonEmptyStack).<SlotDisplay>map(SlotDisplay.ItemStackSlotDisplay::new).toList()));
+        }
     }
 
     @Override

@@ -1,0 +1,58 @@
+package gr1mly4memes.felt.mixin.core.world.entity.projectile.hurtingprojectile;
+
+import gr1mly4memes.felttools.mixin.Decorate;
+import gr1mly4memes.felttools.mixin.DecorationOps;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.projectile.hurtingprojectile.SmallFireball;
+import net.minecraft.world.level.gamerules.GameRules;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+import org.bukkit.Bukkit;
+import org.bukkit.craftbukkit.event.CraftEventFactory;
+import org.bukkit.event.entity.EntityCombustByEntityEvent;
+import org.bukkit.event.entity.EntityRemoveEvent;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
+
+@Mixin(SmallFireball.class)
+public abstract class SmallFireballMixin extends AbstractHurtingProjectileMixin {
+
+    @Inject(method = "<init>(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/phys/Vec3;)V", at = @At("RETURN"))
+    private void felt$init(Level level, LivingEntity livingEntity, Vec3 vec3, CallbackInfo ci) {
+        if (this.getOwner() != null && this.getOwner() instanceof Mob) {
+            this.isIncendiary = this.level() instanceof net.minecraft.server.level.ServerLevel serverLevel ? serverLevel.getGameRules().get(GameRules.MOB_GRIEFING) : false;
+        }
+    }
+
+    @Decorate(method = "onHitEntity", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;igniteForSeconds(F)V"))
+    private void felt$entityCombust(Entity entity, float seconds) throws Throwable {
+        EntityCombustByEntityEvent event = new EntityCombustByEntityEvent(this.getBukkitEntity(), entity.bridge$getBukkitEntity(), seconds);
+        Bukkit.getPluginManager().callEvent(event);
+
+        if (!event.isCancelled()) {
+            DecorationOps.callsite().invoke(entity, event.getDuration());
+        }
+    }
+
+    @Inject(method = "onHitBlock", cancellable = true, locals = LocalCapture.CAPTURE_FAILHARD,
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;setBlockAndUpdate(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;)Z"))
+    private void felt$burnBlock(BlockHitResult result, CallbackInfo ci, ServerLevel level, Entity entity, BlockPos pos) {
+        if (!this.isIncendiary || CraftEventFactory.callBlockIgniteEvent(this.level(), pos, (SmallFireball) (Object) this).isCancelled()) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "onHit", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/projectile/hurtingprojectile/SmallFireball;discard()V"))
+    private void felt$hitCause(HitResult hitResult, CallbackInfo ci) {
+        this.bridge$pushEntityRemoveCause(EntityRemoveEvent.Cause.HIT);
+    }
+}

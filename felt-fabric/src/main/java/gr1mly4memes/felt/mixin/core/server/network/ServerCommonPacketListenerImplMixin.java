@@ -1,8 +1,12 @@
 package gr1mly4memes.felt.mixin.core.server.network;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import gr1mly4memes.felt.bridge.core.network.ConnectionBridge;
 import gr1mly4memes.felt.bridge.core.server.level.ServerPlayerBridge;
 import gr1mly4memes.felt.bridge.core.server.network.ServerCommonPacketListenerImplBridge;
+import gr1mly4memes.felt.bridge.core.server.network.ServerConfigurationPacketListenerImplBridge;
+import gr1mly4memes.felt.bridge.core.server.network.ServerGamePacketListenerImplBridge;
 import gr1mly4memes.felt.bridge.core.server.MinecraftServerBridge;
 import gr1mly4memes.felt.mod.mixins.annotation.CreateConstructor;
 import gr1mly4memes.felt.mod.mixins.annotation.ShadowConstructor;
@@ -10,7 +14,12 @@ import gr1mly4memes.felt.mod.server.FeltServer;
 import gr1mly4memes.felt.mod.util.FeltCaptures;
 import gr1mly4memes.felttools.mixin.Decorate;
 import gr1mly4memes.felttools.mixin.DecorationOps;
+import io.papermc.paper.adventure.PaperAdventure;
+import io.papermc.paper.adventure.providers.ClickCallbackProviderImpl;
+import io.papermc.paper.connection.PlayerCommonConnection;
+import io.papermc.paper.event.player.PaperPlayerCustomClickEvent;
 import io.netty.channel.ChannelFutureListener;
+import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.Connection;
@@ -21,6 +30,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketUtils;
 import net.minecraft.network.protocol.common.ClientboundDisconnectPacket;
+import net.minecraft.network.protocol.common.ServerboundCustomClickActionPacket;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.network.protocol.common.ServerboundResourcePackPacket;
 import net.minecraft.network.protocol.cookie.ServerboundCookieResponsePacket;
@@ -209,24 +219,29 @@ public abstract class ServerCommonPacketListenerImplMixin implements ServerCommo
             DecorationOps.cancel().invoke();
             return;
         }
-        // Consume before callbacks so an ordinary reentrant disconnect remains UNKNOWN.
-        PlayerKickEvent.Cause cause = this.felt$kickCause;
-        this.felt$kickCause = PlayerKickEvent.Cause.UNKNOWN;
-        String leaveMessage = ChatFormatting.YELLOW + this.player.getScoreboardName() + " left the game.";
-        var serializer = LegacyComponentSerializer.legacySection();
-        PlayerKickEvent event = new PlayerKickEvent(getCraftPlayer(), serializer.deserialize(CraftChatMessage.fromComponent(disconnectionDetails.reason())), serializer.deserialize(leaveMessage), cause);
-        if (this.cserver.getServer().isRunning()) {
-            this.cserver.getPluginManager().callEvent(event);
+        boolean inGame = this instanceof ServerGamePacketListenerImplBridge;
+        if (inGame) {
+            // Consume before callbacks so an ordinary reentrant disconnect remains UNKNOWN.
+            PlayerKickEvent.Cause cause = this.felt$kickCause;
+            this.felt$kickCause = PlayerKickEvent.Cause.UNKNOWN;
+            String leaveMessage = ChatFormatting.YELLOW + this.player.getScoreboardName() + " left the game.";
+            var serializer = LegacyComponentSerializer.legacySection();
+            PlayerKickEvent event = new PlayerKickEvent(getCraftPlayer(), serializer.deserialize(CraftChatMessage.fromComponent(disconnectionDetails.reason())), serializer.deserialize(leaveMessage), cause);
+            if (this.cserver.getServer().isRunning()) {
+                this.cserver.getPluginManager().callEvent(event);
+            }
+            if (event.isCancelled()) {
+                DecorationOps.cancel().invoke();
+                return;
+            }
+            FeltCaptures.captureQuitMessage(event.getLeaveMessage());
+            Component textComponent = CraftChatMessage.fromString(event.getReason(), true)[0];
+            packet = new ClientboundDisconnectPacket(textComponent);
         }
-        if (event.isCancelled()) {
-            DecorationOps.cancel().invoke();
-            return;
+        DecorationOps.callsite().invoke(instance, packet, listener);
+        if (inGame) {
+            this.onDisconnect(disconnectionDetails);
         }
-        FeltCaptures.captureQuitMessage(event.getLeaveMessage());
-        Component textComponent = CraftChatMessage.fromString(event.getReason(), true)[0];
-        Packet<?> newPacket = new ClientboundDisconnectPacket(textComponent);
-        DecorationOps.callsite().invoke(instance, newPacket, listener);
-        this.onDisconnect(disconnectionDetails);
     }
 
     @Inject(method = "send(Lnet/minecraft/network/protocol/Packet;Lio/netty/channel/ChannelFutureListener;)V", cancellable = true, at = @At("HEAD"))
@@ -246,14 +261,49 @@ public abstract class ServerCommonPacketListenerImplMixin implements ServerCommo
         var callback = ((ConnectionBridge) this.connection).bridge$getResourcePackCallbacks()
             .response(packetIn.id(), packetIn.action().isTerminal());
         if (callback != null) {
-            net.kyori.adventure.audience.Audience audience = (Object) this instanceof net.minecraft.server.network.ServerConfigurationPacketListenerImpl configurationListener
-                ? ((gr1mly4memes.felt.bridge.core.server.network.ServerConfigurationPacketListenerImplBridge) configurationListener).bridge$getConfigurationConnection().getAudience()
+            Audience audience = this instanceof ServerConfigurationPacketListenerImplBridge configurationListener
+                ? configurationListener.bridge$getConfigurationConnection().getAudience()
                 : this.getCraftPlayer();
             callback.packEventReceived(packetIn.id(), net.kyori.adventure.resource.ResourcePackStatus.valueOf(packetIn.action().name()), audience);
         }
         var status = PlayerResourcePackStatusEvent.Status.valueOf(packetIn.action().name());
-        ((gr1mly4memes.felt.bridge.core.network.ConnectionBridge) this.connection).bridge$setResourcePackStatus(status);
-        this.cserver.getPluginManager().callEvent(new PlayerResourcePackStatusEvent(this.getCraftPlayer(), packetIn.id(), status));
+        ((ConnectionBridge) this.connection).bridge$setResourcePackStatus(status);
+        if (this instanceof ServerGamePacketListenerImplBridge) {
+            this.cserver.getPluginManager().callEvent(new PlayerResourcePackStatusEvent(this.getCraftPlayer(), packetIn.id(), status));
+        }
+    }
+
+    @WrapOperation(method = "handleResourcePackResponse", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/server/network/ServerCommonPacketListenerImpl;disconnect(Lnet/minecraft/network/chat/Component;)V"))
+    private void felt$requiredPackDisconnect(ServerCommonPacketListenerImpl listener, Component message, Operation<Void> original) {
+        PlayerKickEvent.Cause previous = this.felt$kickCause;
+        this.felt$kickCause = PlayerKickEvent.Cause.RESOURCE_PACK_REJECTION;
+        try {
+            original.call(listener, message);
+        } finally {
+            this.felt$kickCause = previous;
+        }
+    }
+
+    @Inject(method = "handleCustomClickAction", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/server/MinecraftServer;handleCustomClickAction(Lnet/minecraft/resources/Identifier;Ljava/util/Optional;)V",
+        shift = At.Shift.AFTER))
+    private void felt$paperCustomClick(ServerboundCustomClickActionPacket packet, CallbackInfo ci) {
+        PlayerCommonConnection connection;
+        Audience audience;
+        if (this instanceof ServerConfigurationPacketListenerImplBridge configuration) {
+            var configurationConnection = configuration.bridge$getConfigurationConnection();
+            connection = configurationConnection;
+            audience = configurationConnection.getAudience();
+        } else if (this instanceof ServerGamePacketListenerImplBridge game) {
+            connection = game.bridge$getGameConnection();
+            audience = this.getCraftPlayer();
+        } else {
+            return;
+        }
+        new PaperPlayerCustomClickEvent(PaperAdventure.asAdventure(packet.id()), connection, packet.payload().orElse(null)).callEvent();
+        ClickCallbackProviderImpl.DIALOG_CLICK_MANAGER.tryRunCallback(audience, packet.id(), packet.payload());
+        ClickCallbackProviderImpl.ADVENTURE_CLICK_MANAGER.tryRunCallback(audience, packet.id(), packet.payload());
     }
 
     @Inject(method = "handleCookieResponse", cancellable = true, at = @At("HEAD"))

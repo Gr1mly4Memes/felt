@@ -1,6 +1,9 @@
 package gr1mly4memes.felt;
 
 import com.mojang.authlib.GameProfile;
+import gr1mly4memes.felt.bridge.core.network.ConnectionBridge;
+import gr1mly4memes.felt.bridge.core.server.network.ServerCommonPacketListenerImplBridge;
+import gr1mly4memes.felt.bridge.core.server.network.ServerConfigurationPacketListenerImplBridge;
 import gr1mly4memes.felt.mod.util.ConnectionLoginValidation;
 import io.papermc.paper.connection.PaperPlayerGameConnection;
 import io.papermc.paper.event.connection.configuration.PlayerConnectionReconfigureEvent;
@@ -15,6 +18,7 @@ import net.minecraft.network.PacketListener;
 import net.minecraft.network.ProtocolInfo;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
+import net.minecraft.network.protocol.common.ServerboundResourcePackPacket;
 import net.minecraft.network.protocol.configuration.ConfigurationProtocols;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundBundlePacket;
@@ -35,6 +39,7 @@ import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.UpdateInterval;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredListener;
 
@@ -125,6 +130,49 @@ final class PaperReconfigurationTest {
             }
         }
         System.out.println("Paper configuration reentry: legacy guard, native stage switch, plugin event and return task passed");
+    }
+
+    static ServerPlayer createTestPlayer(ServerLevel world, String name) {
+        return setupPlayer(world, new CapturingConnection(), name).player;
+    }
+
+    static void verifyResourcePackStages(ServerLevel world, Plugin plugin) throws Exception {
+        var connection = new CapturingConnection();
+        var game = setupPlayer(world, connection, "PackFixture");
+        var configuration = new ServerConfigurationPacketListenerImpl(world.getServer(), connection,
+            CommonListenerCookie.createInitial(game.player.getGameProfile(), false));
+        var configurationAudience = ((ServerConfigurationPacketListenerImplBridge) configuration).bridge$getConfigurationConnection().getAudience();
+        UUID id = UUID.randomUUID();
+        var callbacks = new ArrayList<net.kyori.adventure.resource.ResourcePackStatus>();
+        var reported = new ArrayList<PlayerResourcePackStatusEvent.Status>();
+        ((ServerCommonPacketListenerImplBridge) configuration).bridge$registerResourcePackCallback(id, (pack, status, audience) -> {
+            check(pack.equals(id) && audience == configurationAudience, "Configuration resource pack callback lost its connection");
+            callbacks.add(status);
+        });
+        try (var listener = PaperEventHooksTest.listen(PlayerResourcePackStatusEvent.getHandlerList(), PlayerResourcePackStatusEvent.class, plugin, event -> {
+            check(event.getPlayer() == game.player.getBukkitEntity() && event.getID().equals(id),
+                "Play resource pack event lost its player or pack UUID");
+            reported.add(event.getStatus());
+        })) {
+            configuration.handleResourcePackResponse(new ServerboundResourcePackPacket(id, ServerboundResourcePackPacket.Action.ACCEPTED));
+            configuration.handleResourcePackResponse(new ServerboundResourcePackPacket(id, ServerboundResourcePackPacket.Action.SUCCESSFULLY_LOADED));
+            check(callbacks.equals(List.of(net.kyori.adventure.resource.ResourcePackStatus.ACCEPTED,
+                net.kyori.adventure.resource.ResourcePackStatus.SUCCESSFULLY_LOADED)) && reported.isEmpty(),
+                "Configuration emitted a null-player Bukkit event or missed its Adventure responses");
+            check(((ConnectionBridge) connection).bridge$getResourcePackStatus() == PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED,
+                "Configuration resource pack status did not carry over to the play connection");
+            ((ServerCommonPacketListenerImplBridge) game).bridge$registerResourcePackCallback(id, (pack, status, audience) -> {
+                check(pack.equals(id) && audience == game.player.getBukkitEntity() && reported.isEmpty(),
+                    "Play resource pack callback ran after the Bukkit event or with the wrong audience");
+                callbacks.add(status);
+            });
+            var downloaded = new ServerboundResourcePackPacket(id, ServerboundResourcePackPacket.Action.SUCCESSFULLY_LOADED);
+            game.handleResourcePackResponse(downloaded);
+            game.handleResourcePackResponse(downloaded);
+            check(callbacks.size() == 3 && reported.equals(List.of(PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED,
+                PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED)), "A terminal resource pack callback was retained or play status was skipped");
+        }
+        System.out.println("Paper resource pack API: configuration and play audiences, shared status and terminal callbacks passed");
     }
 
     private static ServerGamePacketListenerImpl setupPlayer(ServerLevel world, CapturingConnection connection, String name) {

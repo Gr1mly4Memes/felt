@@ -5,12 +5,17 @@ import gr1mly4memes.felt.mod.util.ConnectionCookieRequests;
 import gr1mly4memes.felt.mod.util.ConnectionResourcePackCallbacks;
 import org.jetbrains.annotations.Nullable;
 
+import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.UUID;
 
 public interface ConnectionBridge {
 
     SocketAddress bridge$getRawAddress();
+
+    @Nullable InetSocketAddress bridge$getHAProxyAddress();
+
+    void bridge$setHAProxyAddresses(InetSocketAddress source, InetSocketAddress destination);
 
     int bridge$getProtocolVersion();
 

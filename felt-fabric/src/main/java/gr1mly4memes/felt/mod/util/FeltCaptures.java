@@ -680,9 +680,6 @@ public class FeltCaptures {
     public static org.apache.commons.lang3.tuple.Triple<net.minecraft.world.item.component.BlocksAttacks, net.minecraft.world.item.ItemStack,
         com.mojang.datafixers.util.Pair<LivingEntity, LivingEntity>> shieldDisable;
 
-    public static org.apache.commons.lang3.tuple.Triple<net.minecraft.world.entity.animal.golem.SnowGolem,
-        net.minecraft.world.item.ItemInstance, List<net.minecraft.world.item.ItemStack>> snowGolemShearDrops;
-
     public static gr1mly4memes.felt.mod.server.event.FeltEventFactory.BlockDestruction blockDestruction;
 
     public static com.mojang.datafixers.util.Pair<BlockPos,

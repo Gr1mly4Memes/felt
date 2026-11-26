@@ -3,6 +3,7 @@ package gr1mly4memes.felt;
 import ca.spottedleaf.moonrise.patches.chunk_system.level.entity.EntityLookup;
 import com.mojang.authlib.GameProfile;
 import gr1mly4memes.felt.bridge.core.world.entity.SpawningEntityBridge;
+import gr1mly4memes.felt.bridge.core.world.entity.decoration.DecorationDeathSourceBridge;
 import io.papermc.paper.event.entity.WaterBottleSplashEvent;
 import java.util.UUID;
 import java.util.List;
@@ -30,6 +31,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.SculkShriekerBlockEntity;
 import net.minecraft.world.level.dimension.end.EnderDragonFight;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.AABB;
@@ -46,13 +48,72 @@ import org.bukkit.entity.ThrownPotion;
 import org.bukkit.entity.Villager;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.PotionSplashEvent;
 import org.bukkit.event.entity.VillagerAcquireTradeEvent;
+import org.bukkit.event.world.GenericGameEvent;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredListener;
 
 final class PaperGameplayApiTest {
+    static void verifyDecorationDeathVibrations(ServerLevel world, BlockPos pos, Plugin plugin) {
+        var attacker = PaperReconfigurationTest.createTestPlayer(world, "DecorationFixture");
+        attacker.getAbilities().instabuild = true;
+        var damage = world.damageSources().playerAttack(attacker);
+        var frame = java.util.Objects.requireNonNull(EntityTypes.ITEM_FRAME.create(world, EntitySpawnReason.COMMAND));
+        var stand = java.util.Objects.requireNonNull(EntityTypes.ARMOR_STAND.create(world, EntitySpawnReason.COMMAND));
+        var cushion = java.util.Objects.requireNonNull(EntityTypes.CUSHION.create(world, EntitySpawnReason.COMMAND));
+        var lightning = java.util.Objects.requireNonNull(EntityTypes.LIGHTNING_BOLT.create(world, EntitySpawnReason.COMMAND));
+        frame.setPos(Vec3.atBottomCenterOf(pos));
+        stand.setPos(Vec3.atBottomCenterOf(pos.east()));
+        cushion.setPos(Vec3.atBottomCenterOf(pos.west()));
+
+        var emitters = new java.util.ArrayList<UUID>();
+        var gameEvents = GenericGameEvent.getHandlerList();
+        var vibrations = new RegisteredListener(new Listener() {}, (listener, raw) -> {
+            var event = (GenericGameEvent) raw;
+            if (event.getEvent() == org.bukkit.GameEvent.ENTITY_DIE && event.getEntity() != null) {
+                emitters.add(event.getEntity().getUniqueId());
+            }
+        }, EventPriority.NORMAL, plugin, false);
+        var deaths = EntityDeathEvent.getHandlerList();
+        var veto = new RegisteredListener(new Listener() {}, (listener, raw) -> {
+            var event = (EntityDeathEvent) raw;
+            if (event.getEntity().getUniqueId().equals(stand.getUUID())) {
+                var causingEntity = event.getDamageSource().getCausingEntity();
+                check(causingEntity != null && causingEntity.getUniqueId().equals(attacker.getUUID()),
+                    "Armor stand death event lost its player damage source");
+                event.setCancelled(true);
+            }
+        }, EventPriority.NORMAL, plugin, false);
+        gameEvents.register(vibrations);
+        try {
+            deaths.register(veto);
+            try {
+                stand.hurtServer(world, damage, 5);
+                check(!stand.isRemoved() && emitters.isEmpty() && SculkShriekerBlockEntity.tryGetPlayer(stand) == null,
+                    "Canceled armor stand death still produced a shrieker attribution");
+            } finally {
+                deaths.unregister(veto);
+            }
+            frame.hurtServer(world, damage, 1);
+            stand.hurtServer(world, damage, 5);
+            cushion.thunderHit(world, lightning);
+            check(emitters.equals(List.of(frame.getUUID(), stand.getUUID(), cushion.getUUID())),
+                "Decoration death vibrations did not originate from the dying entities");
+            check(SculkShriekerBlockEntity.tryGetPlayer(frame) == attacker && SculkShriekerBlockEntity.tryGetPlayer(stand) == attacker,
+                "The shrieker could not resolve the player from a decoration's fatal damage");
+            var lightningDamage = ((DecorationDeathSourceBridge) cushion).bridge$getDecorationDeathSource();
+            check(lightningDamage != null && lightningDamage.is(net.minecraft.world.damagesource.DamageTypes.LIGHTNING_BOLT)
+                && SculkShriekerBlockEntity.tryGetPlayer(cushion) == null,
+                "Lightning damage did not produce an unattributed cushion death");
+        } finally {
+            gameEvents.unregister(vibrations);
+        }
+        System.out.println("Paper sculk attribution: decoration vibrations retained player damage, lightning and canceled death semantics");
+    }
+
     static void verifyRespawnWorld(net.minecraft.server.MinecraftServer server) {
         var craft = org.bukkit.Bukkit.getServer();
         var original = craft.getRespawnWorld();

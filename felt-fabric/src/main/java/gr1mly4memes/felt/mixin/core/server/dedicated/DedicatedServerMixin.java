@@ -18,6 +18,7 @@ import net.minecraft.world.level.storage.LevelStorageSource;
 import net.minecraft.world.level.storage.PrimaryLevelData;
 import net.minecraft.world.level.storage.WorldData;
 import org.bukkit.Bukkit;
+import org.bukkit.WorldCreator;
 import org.bukkit.command.CommandSender;
 import org.bukkit.conversations.Conversable;
 import org.bukkit.craftbukkit.CraftServer;
@@ -200,8 +201,8 @@ public abstract class DedicatedServerMixin extends MinecraftServerMixin implemen
     }
 
     @Override
-    public void felt$prepareAndAddLevel(ServerLevel internal, PrimaryLevelData levelData) {
-        this.initWorld(internal, levelData, levelData, WorldCreationContext.require(internal).options());
+    public void felt$prepareAndAddLevel(ServerLevel internal, PrimaryLevelData levelData, WorldCreator creator) {
+        this.initWorld(internal, levelData, levelData, WorldCreationContext.require(internal).options(), creator);
         internal.setSpawnSettings(true);
         this.addLevel(internal);
         this.prepareLevels(internal);
